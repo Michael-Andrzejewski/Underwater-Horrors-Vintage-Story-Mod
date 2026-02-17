@@ -64,10 +64,11 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         ResolveTarget();
         ClampHeight();
 
-        // Check shallow water retreat (not during Rising or already Retreating)
+        // Check shallow water retreat (not during Rising or already Retreating, and not when player is on a boat)
         if (state != SerpentState.Rising && state != SerpentState.Retreating)
         {
-            if (TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
+            if (targetPlayer?.Entity?.MountedOn == null &&
+                TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
             {
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player in shallow water, retreating to spawn");
                 TransitionTo(SerpentState.Retreating);
@@ -316,7 +317,8 @@ public class EntityBehaviorSerpentAI : EntityBehavior
             {
                 Source = EnumDamageSource.Entity,
                 SourceEntity = entity,
-                Type = EnumDamageType.BluntAttack
+                Type = EnumDamageType.PiercingAttack,
+                DamageTier = config.SerpentDamageTier
             }, config.SerpentAttackDamage);
             attackCooldownTimer = config.SerpentAttackCooldown;
             UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent hit {targetPlayer.PlayerName} for {config.SerpentAttackDamage} damage (dist: {dist:F1})");
@@ -334,6 +336,16 @@ public class EntityBehaviorSerpentAI : EntityBehavior
 
     private void OnRetreating(float deltaTime)
     {
+        // If player is back in deep water (not mounted, not shallow), cancel retreat and re-engage
+        if (targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
+            targetPlayer.Entity.MountedOn == null &&
+            !TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
+        {
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player back in deep water, resuming stalking");
+            TransitionTo(SerpentState.Stalking);
+            return;
+        }
+
         // Swim toward spawn position
         double dx = spawnX - entity.SidedPos.X;
         double dy = spawnY - entity.SidedPos.Y;

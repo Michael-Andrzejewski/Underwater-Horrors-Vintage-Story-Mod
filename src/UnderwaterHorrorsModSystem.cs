@@ -231,9 +231,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // Count saltwater depth below player
             int depth = CountSaltwaterDepth(player.Entity);
 
-            if (depth >= Config.MinSaltwaterDepth)
+            if (depth > 0)
             {
-                DebugLog(sapi, $"Deep ocean detected: {player.PlayerName} has {depth} saltwater blocks below at ({player.Entity.SidedPos.X:F0}, {player.Entity.SidedPos.Y:F0}, {player.Entity.SidedPos.Z:F0})");
+                DebugLog(sapi, $"Spawn check: {player.PlayerName} at ({player.Entity.SidedPos.X:F0}, {player.Entity.SidedPos.Y:F0}, {player.Entity.SidedPos.Z:F0}) - saltwater depth: {depth} (need {Config.MinSaltwaterDepth})");
             }
 
             if (depth < Config.MinSaltwaterDepth) continue;
@@ -272,6 +272,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     {
         BlockPos pos = playerEntity.SidedPos.AsBlockPos.Copy();
         int count = 0;
+        bool foundSaltwater = false;
 
         for (int y = pos.Y; y >= 0; y--)
         {
@@ -283,11 +284,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (code.StartsWith("saltwater"))
             {
                 count++;
+                foundSaltwater = true;
             }
-            else
+            else if (foundSaltwater)
             {
+                // Hit non-saltwater after counting saltwater (reached the sea floor)
                 break;
             }
+            // Skip air/freshwater blocks above the saltwater column
         }
 
         return count;

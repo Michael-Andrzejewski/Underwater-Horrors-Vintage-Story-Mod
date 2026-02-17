@@ -142,7 +142,8 @@ public class EntityBehaviorKrakenBody : EntityBehavior
                 {
                     Source = EnumDamageSource.Entity,
                     SourceEntity = entity,
-                    Type = EnumDamageType.BluntAttack
+                    Type = EnumDamageType.PiercingAttack,
+                    DamageTier = config.KrakenDamageTier
                 }, damage);
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken body hit {player.PlayerName} for {damage} contact damage (dist: {dist:F1})");
             }

@@ -2,7 +2,6 @@ using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
-using Vintagestory.API.MathTools;
 
 namespace UnderwaterHorrors;
 
@@ -27,6 +26,7 @@ public class EntityBehaviorTentacle : EntityBehavior
     private UnderwaterHorrorsConfig config;
     private IPlayer targetPlayer;
     private bool targetResolved;
+    private bool speedDebuffApplied;
 
     public EntityBehaviorTentacle(Entity entity) : base(entity) { }
 
@@ -44,10 +44,11 @@ public class EntityBehaviorTentacle : EntityBehavior
         ClampHeight();
         TrackDamage();
 
-        // Check shallow water retreat (not during Idle, Cooldown, or already Retreating)
+        // Check shallow water retreat (not during Idle, Cooldown, or already Retreating, and not when player is on a boat)
         if (state == TentacleState.Reaching || state == TentacleState.Grabbing || state == TentacleState.Dragging)
         {
-            if (TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
+            if (targetPlayer?.Entity?.MountedOn == null &&
+                TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
             {
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: player in shallow water, retreating");
                 TransitionTo(TentacleState.Retreating);
@@ -77,6 +78,12 @@ public class EntityBehaviorTentacle : EntityBehavior
                 OnRetreating(deltaTime);
                 break;
         }
+    }
+
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        RemoveSpeedDebuff();
+        base.OnEntityDespawn(despawn);
     }
 
     private void ResolveTarget()
@@ -122,9 +129,33 @@ public class EntityBehaviorTentacle : EntityBehavior
         }
     }
 
+    private void ApplySpeedDebuff()
+    {
+        if (speedDebuffApplied || targetPlayer?.Entity == null) return;
+        speedDebuffApplied = true;
+        targetPlayer.Entity.Stats.Set("walkspeed", "tentacledrag", -0.9f);
+        UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: slowing player movement");
+    }
+
+    private void RemoveSpeedDebuff()
+    {
+        if (!speedDebuffApplied || targetPlayer?.Entity == null) return;
+        speedDebuffApplied = false;
+        targetPlayer.Entity.Stats.Remove("walkspeed", "tentacledrag");
+        UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: restored player movement");
+    }
+
     private void TransitionTo(TentacleState newState)
     {
         TentacleState oldState = state;
+
+        // Clean up speed debuff when leaving grab/drag states
+        if ((oldState == TentacleState.Grabbing || oldState == TentacleState.Dragging) &&
+            newState != TentacleState.Grabbing && newState != TentacleState.Dragging)
+        {
+            RemoveSpeedDebuff();
+        }
+
         state = newState;
         stateTimer = 0;
 
@@ -181,6 +212,8 @@ public class EntityBehaviorTentacle : EntityBehavior
             return;
         }
 
+        ApplySpeedDebuff();
+
         // Lock position below player so they can still see
         entity.SidedPos.X = targetPlayer.Entity.SidedPos.X;
         entity.SidedPos.Y = targetPlayer.Entity.SidedPos.Y + config.TentacleGrabYOffset;
@@ -200,6 +233,8 @@ public class EntityBehaviorTentacle : EntityBehavior
             TransitionTo(TentacleState.Cooldown);
             return;
         }
+
+        ApplySpeedDebuff();
 
         // Find kraken body position
         long bodyId = entity.WatchedAttributes.GetLong("underwaterhorrors:krakenBodyId");
@@ -223,50 +258,19 @@ public class EntityBehaviorTentacle : EntityBehavior
 
         if (dist > 0.5)
         {
-            double dragStep = config.TentacleDragSpeed * deltaTime;
             double nx = dx / dist;
             double ny = dy / dist;
             double nz = dz / dist;
 
-            double newX = playerX + nx * dragStep;
-            double newY = playerY + ny * dragStep;
-            double newZ = playerZ + nz * dragStep;
-
-            // Check for solid blocks at destination
-            if (!IsPositionPassable(newX, newY, newZ))
-            {
-                // Try horizontal only (don't drag through the sea floor)
-                newY = playerY;
-                if (!IsPositionPassable(newX, newY, newZ))
-                {
-                    // Path fully blocked, skip this tick
-                    goto UpdateTentaclePos;
-                }
-            }
-
-            // Save player's current facing direction before teleport
-            float yaw = targetPlayer.Entity.ServerPos.Yaw;
-            float pitch = targetPlayer.Entity.ServerPos.Pitch;
-            float roll = targetPlayer.Entity.ServerPos.Roll;
-            float headYaw = targetPlayer.Entity.ServerPos.HeadYaw;
-            float headPitch = targetPlayer.Entity.ServerPos.HeadPitch;
-
-            targetPlayer.Entity.TeleportToDouble(newX, newY, newZ);
-
-            // Restore rotation so the teleport doesn't snap the player's view
-            targetPlayer.Entity.ServerPos.Yaw = yaw;
-            targetPlayer.Entity.ServerPos.Pitch = pitch;
-            targetPlayer.Entity.ServerPos.Roll = roll;
-            targetPlayer.Entity.ServerPos.HeadYaw = headYaw;
-            targetPlayer.Entity.ServerPos.HeadPitch = headPitch;
-            targetPlayer.Entity.Pos.Yaw = yaw;
-            targetPlayer.Entity.Pos.Pitch = pitch;
-            targetPlayer.Entity.Pos.Roll = roll;
-            targetPlayer.Entity.Pos.HeadYaw = headYaw;
-            targetPlayer.Entity.Pos.HeadPitch = headPitch;
+            // Use Motion to drag player toward kraken body
+            // Physics handles collision naturally and rotation is completely unaffected
+            // Player's walkspeed is debuffed to 10% so they can barely resist
+            double dragForce = config.TentacleDragSpeed * deltaTime;
+            targetPlayer.Entity.SidedPos.Motion.X = nx * dragForce;
+            targetPlayer.Entity.SidedPos.Motion.Y = ny * dragForce;
+            targetPlayer.Entity.SidedPos.Motion.Z = nz * dragForce;
         }
 
-        UpdateTentaclePos:
         // Keep tentacle below player's current position
         entity.TeleportToDouble(
             targetPlayer.Entity.SidedPos.X,
@@ -305,26 +309,6 @@ public class EntityBehaviorTentacle : EntityBehavior
             UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle retreat complete, despawning");
             entity.Die(EnumDespawnReason.Expire);
         }
-    }
-
-    private bool IsPositionPassable(double x, double y, double z)
-    {
-        var accessor = entity.World.BlockAccessor;
-        BlockPos pos = new BlockPos((int)Math.Floor(x), (int)Math.Floor(y), (int)Math.Floor(z));
-
-        // Check at feet and body level (player is ~1.8 blocks tall)
-        for (int yOff = 0; yOff <= 1; yOff++)
-        {
-            pos.Y = (int)Math.Floor(y) + yOff;
-            Block block = accessor.GetBlock(pos);
-            if (block == null || block.Id == 0) continue;
-            string code = block.Code?.Path ?? "";
-            if (code.StartsWith("saltwater") || code.StartsWith("water")) continue;
-            // Any non-air, non-water block is treated as solid
-            return false;
-        }
-
-        return true;
     }
 
     private void MoveToward(double targetX, double targetY, double targetZ, float speed)

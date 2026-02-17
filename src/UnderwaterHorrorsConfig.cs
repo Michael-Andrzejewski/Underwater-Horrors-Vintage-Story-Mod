@@ -35,6 +35,10 @@ public class UnderwaterHorrorsConfig
     public float SerpentAttackCooldown { get; set; } = 2f;
     public float SerpentAttackRange { get; set; } = 2.5f;
     public float SerpentReStalkChance { get; set; } = 0.5f;
+    public int SerpentDamageTier { get; set; } = 3;
+
+    // Kraken damage tier
+    public int KrakenDamageTier { get; set; } = 3;
 
     // Serpent spiral approach
     public float SerpentInitialOrbitRadiusMin { get; set; } = 30f;
