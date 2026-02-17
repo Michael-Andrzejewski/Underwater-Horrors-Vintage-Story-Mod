@@ -1,0 +1,38 @@
+{
+    "code": "krakenambienttentacle",
+    "class": "EntityAgent",
+    "habitat": "Underwater",
+    "hitboxSize": { "x": 0.5, "y": 3.0 },
+    "deadHitboxSize": { "x": 0.5, "y": 0.25 },
+    "eyeHeight": 2.5,
+    "weight": 100,
+    "canClimb": false,
+    "knockbackResistance": 0.5,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "game:block/stone/rock/granite1" },
+        "shape": { "base": "underwaterhorrors:entity/krakententacle" },
+        "glowLevel": 0,
+        "size": 1.0,
+        "behaviors": []
+    },
+    "server": {
+        "behaviors": [
+            { "code": "health", "currenthealth": 30, "maxhealth": 30 },
+            { "code": "deaddecay", "decayHours": 0.25 },
+            { "code": "controlledphysics", "stepHeight": 0.0 },
+            { "code": "underwaterhorrors:ambienttentacle" }
+        ],
+        "spawnConditions": {
+            "runtime": {
+                "group": "hostile",
+                "chance": 0,
+                "maxQuantity": 0
+            }
+        }
+    },
+    "sounds": {}
+}

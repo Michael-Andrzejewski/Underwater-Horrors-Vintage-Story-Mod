@@ -1,0 +1,39 @@
+{
+    "code": "seaserpent",
+    "class": "EntityAgent",
+    "habitat": "Sea",
+    "hitboxSize": { "x": 1.0, "y": 5.0 },
+    "deadHitboxSize": { "x": 1.0, "y": 0.5 },
+    "eyeHeight": 4.5,
+    "weight": 500,
+    "canClimb": false,
+    "knockbackResistance": 1.0,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "game:block/stone/rock/granite1" },
+        "shape": { "base": "underwaterhorrors:entity/seaserpent" },
+        "glowLevel": 0,
+        "size": 1.0,
+        "behaviors": []
+    },
+    "server": {
+        "behaviors": [
+            { "code": "health", "currenthealth": 80, "maxhealth": 80 },
+            { "code": "deaddecay", "decayHours": 0.25 },
+            { "code": "controlledphysics", "stepHeight": 0.0 },
+            { "code": "underwaterhorrors:oceancreature" },
+            { "code": "underwaterhorrors:serpentai" }
+        ],
+        "spawnConditions": {
+            "runtime": {
+                "group": "hostile",
+                "chance": 0,
+                "maxQuantity": 0
+            }
+        }
+    },
+    "sounds": {}
+}

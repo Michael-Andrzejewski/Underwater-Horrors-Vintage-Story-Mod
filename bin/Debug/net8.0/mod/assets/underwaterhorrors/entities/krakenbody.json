@@ -1,0 +1,38 @@
+{
+    "code": "krakenbody",
+    "class": "EntityAgent",
+    "habitat": "Underwater",
+    "hitboxSize": { "x": 4.0, "y": 3.0 },
+    "deadHitboxSize": { "x": 4.0, "y": 0.5 },
+    "eyeHeight": 2.5,
+    "weight": 5000,
+    "canClimb": false,
+    "knockbackResistance": 1.0,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "game:block/stone/rock/granite1" },
+        "shape": { "base": "underwaterhorrors:entity/krakenbody" },
+        "glowLevel": 0,
+        "size": 1.0,
+        "behaviors": []
+    },
+    "server": {
+        "behaviors": [
+            { "code": "health", "currenthealth": 200, "maxhealth": 200 },
+            { "code": "deaddecay", "decayHours": 0.5 },
+            { "code": "underwaterhorrors:oceancreature" },
+            { "code": "underwaterhorrors:krakenbody" }
+        ],
+        "spawnConditions": {
+            "runtime": {
+                "group": "hostile",
+                "chance": 0,
+                "maxQuantity": 0
+            }
+        }
+    },
+    "sounds": {}
+}

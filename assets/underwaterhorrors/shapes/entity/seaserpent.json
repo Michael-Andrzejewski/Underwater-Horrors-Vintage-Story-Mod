@@ -1,0 +1,28 @@
+{
+    "editor": {
+        "allAngles": false,
+        "entityTextureMode": true
+    },
+    "textureWidth": 16,
+    "textureHeight": 16,
+    "textureSizes": {},
+    "textures": {
+        "skin": "game:block/stone/rock/granite1"
+    },
+    "elements": [
+        {
+            "name": "body",
+            "from": [ 0.0, 0.0, 6.0 ],
+            "to": [ 16.0, 80.0, 10.0 ],
+            "faces": {
+                "north": { "texture": "#skin", "uv": [ 0, 0, 16, 16 ] },
+                "east":  { "texture": "#skin", "uv": [ 0, 0, 4, 16 ] },
+                "south": { "texture": "#skin", "uv": [ 0, 0, 16, 16 ] },
+                "west":  { "texture": "#skin", "uv": [ 0, 0, 4, 16 ] },
+                "up":    { "texture": "#skin", "uv": [ 0, 0, 16, 4 ] },
+                "down":  { "texture": "#skin", "uv": [ 0, 0, 16, 4 ] }
+            }
+        }
+    ],
+    "animations": []
+}

@@ -1,0 +1,28 @@
+{
+    "editor": {
+        "allAngles": false,
+        "entityTextureMode": true
+    },
+    "textureWidth": 16,
+    "textureHeight": 16,
+    "textureSizes": {},
+    "textures": {
+        "skin": "game:block/stone/rock/granite1"
+    },
+    "elements": [
+        {
+            "name": "tentacle",
+            "from": [ 4.0, 0.0, 4.0 ],
+            "to": [ 12.0, 48.0, 12.0 ],
+            "faces": {
+                "north": { "texture": "#skin", "uv": [ 0, 0, 8, 16 ] },
+                "east":  { "texture": "#skin", "uv": [ 0, 0, 8, 16 ] },
+                "south": { "texture": "#skin", "uv": [ 0, 0, 8, 16 ] },
+                "west":  { "texture": "#skin", "uv": [ 0, 0, 8, 16 ] },
+                "up":    { "texture": "#skin", "uv": [ 0, 0, 8, 8 ] },
+                "down":  { "texture": "#skin", "uv": [ 0, 0, 8, 8 ] }
+            }
+        }
+    ],
+    "animations": []
+}
