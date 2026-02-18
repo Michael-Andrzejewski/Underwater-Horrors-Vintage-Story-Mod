@@ -7,8 +7,8 @@ namespace UnderwaterHorrors;
 public static class TargetingHelper
 {
     /// <summary>
-    /// Returns true if the player is in shallow water (fewer than threshold water blocks
-    /// below them, or able to stand with head above water).
+    /// Returns true if the player is in shallow water (the total saltwater column at the
+    /// player's position — both above and below — is fewer than threshold blocks).
     /// </summary>
     public static bool IsPlayerInShallowWater(Entity entity, IPlayer player, int threshold)
     {
@@ -16,18 +16,20 @@ public static class TargetingHelper
 
         var accessor = entity.World.BlockAccessor;
         BlockPos pos = player.Entity.SidedPos.AsBlockPos.Copy();
-
-        int waterBelow = 0;
+        int mapHeight = accessor.MapSizeY;
         int startY = pos.Y;
 
-        for (int y = startY; y >= 0 && y >= startY - threshold; y--)
+        int waterCount = 0;
+
+        // Count water below (including player's block)
+        for (int y = startY; y >= 0; y--)
         {
             pos.Y = y;
             Block block = accessor.GetBlock(pos);
             string code = block?.Code?.Path ?? "";
             if (code.StartsWith("saltwater") || code.StartsWith("water"))
             {
-                waterBelow++;
+                waterCount++;
             }
             else
             {
@@ -35,7 +37,23 @@ public static class TargetingHelper
             }
         }
 
-        return waterBelow < threshold;
+        // Count water above
+        for (int y = startY + 1; y < mapHeight; y++)
+        {
+            pos.Y = y;
+            Block block = accessor.GetBlock(pos);
+            string code = block?.Code?.Path ?? "";
+            if (code.StartsWith("saltwater") || code.StartsWith("water"))
+            {
+                waterCount++;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return waterCount < threshold;
     }
 
     /// <summary>

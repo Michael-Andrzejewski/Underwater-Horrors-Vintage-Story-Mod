@@ -280,26 +280,25 @@ public class EntityBehaviorTentacle : EntityBehavior
                 }
             }
 
-            // Save player's current facing direction before teleport
+            // Preserve player's horizontal rotation but force them to look downward
+            // so they can see and attack the tentacle below them
             float yaw = targetPlayer.Entity.Pos.Yaw;
-            float pitch = targetPlayer.Entity.Pos.Pitch;
-            float roll = targetPlayer.Entity.Pos.Roll;
             float headYaw = targetPlayer.Entity.Pos.HeadYaw;
-            float headPitch = targetPlayer.Entity.Pos.HeadPitch;
+            float downPitch = (float)(-Math.PI / 3); // ~60 degrees downward
 
             targetPlayer.Entity.TeleportToDouble(newX, newY, newZ);
 
-            // Restore rotation so the teleport doesn't snap the player's view
+            // Restore yaw (horizontal) but force pitch downward
             targetPlayer.Entity.ServerPos.Yaw = yaw;
-            targetPlayer.Entity.ServerPos.Pitch = pitch;
-            targetPlayer.Entity.ServerPos.Roll = roll;
+            targetPlayer.Entity.ServerPos.Pitch = downPitch;
+            targetPlayer.Entity.ServerPos.Roll = 0;
             targetPlayer.Entity.ServerPos.HeadYaw = headYaw;
-            targetPlayer.Entity.ServerPos.HeadPitch = headPitch;
+            targetPlayer.Entity.ServerPos.HeadPitch = downPitch;
             targetPlayer.Entity.Pos.Yaw = yaw;
-            targetPlayer.Entity.Pos.Pitch = pitch;
-            targetPlayer.Entity.Pos.Roll = roll;
+            targetPlayer.Entity.Pos.Pitch = downPitch;
+            targetPlayer.Entity.Pos.Roll = 0;
             targetPlayer.Entity.Pos.HeadYaw = headYaw;
-            targetPlayer.Entity.Pos.HeadPitch = headPitch;
+            targetPlayer.Entity.Pos.HeadPitch = downPitch;
         }
 
         UpdateTentaclePos:

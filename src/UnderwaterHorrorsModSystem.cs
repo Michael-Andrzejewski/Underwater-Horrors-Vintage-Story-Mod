@@ -91,12 +91,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private TextCommandResult OnCmdKillAll(TextCommandCallingArgs args)
     {
-        int count = 0;
+        int killed = 0;
+        int corpses = 0;
         List<Entity> toRemove = new();
 
         foreach (Entity entity in sapi.World.LoadedEntities.Values)
         {
-            if (entity == null || !entity.Alive) continue;
+            if (entity == null) continue;
             string code = entity.Code?.Domain ?? "";
             if (code == "underwaterhorrors")
             {
@@ -106,14 +107,21 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         foreach (Entity entity in toRemove)
         {
+            if (entity.Alive)
+            {
+                killed++;
+            }
+            else
+            {
+                corpses++;
+            }
             entity.Die(EnumDespawnReason.Expire);
-            count++;
         }
 
         activeCreatures.Clear();
         landTimers.Clear();
 
-        return TextCommandResult.Success($"Removed {count} Underwater Horrors entities");
+        return TextCommandResult.Success($"Removed {killed} living + {corpses} dead Underwater Horrors entities");
     }
 
     private TextCommandResult OnCmdSpawnChance(TextCommandCallingArgs args)
