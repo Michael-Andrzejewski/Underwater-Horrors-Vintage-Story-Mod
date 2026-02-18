@@ -10,3 +10,4 @@ C:\Users\maaro\OneDrive\Documents\GitHub\Underwater-Horrors-Vintage-Story-Mod\ob
 C:\Users\maaro\OneDrive\Documents\GitHub\Underwater-Horrors-Vintage-Story-Mod\obj\Debug\net8.0\refint\UnderwaterHorrors.dll
 C:\Users\maaro\OneDrive\Documents\GitHub\Underwater-Horrors-Vintage-Story-Mod\obj\Debug\net8.0\UnderwaterHorrors.pdb
 C:\Users\maaro\OneDrive\Documents\GitHub\Underwater-Horrors-Vintage-Story-Mod\obj\Debug\net8.0\ref\UnderwaterHorrors.dll
+C:\Users\maaro\OneDrive\Documents\GitHub\Underwater-Horrors-Vintage-Story-Mod\obj\Debug\net8.0\UnderwaterHorrors.sourcelink.json

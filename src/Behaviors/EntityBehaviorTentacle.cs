@@ -2,6 +2,7 @@ using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 
 namespace UnderwaterHorrors;
 
@@ -258,25 +259,64 @@ public class EntityBehaviorTentacle : EntityBehavior
 
         if (dist > 0.5)
         {
+            double dragStep = config.TentacleDragSpeed * deltaTime;
             double nx = dx / dist;
             double ny = dy / dist;
             double nz = dz / dist;
 
-            // Use Motion to drag player toward kraken body
-            // Physics handles collision naturally and rotation is completely unaffected
-            // Player's walkspeed is debuffed to 10% so they can barely resist
-            double dragForce = config.TentacleDragSpeed * deltaTime;
-            targetPlayer.Entity.SidedPos.Motion.X = nx * dragForce;
-            targetPlayer.Entity.SidedPos.Motion.Y = ny * dragForce;
-            targetPlayer.Entity.SidedPos.Motion.Z = nz * dragForce;
+            double newX = playerX + nx * dragStep;
+            double newY = playerY + ny * dragStep;
+            double newZ = playerZ + nz * dragStep;
+
+            // Check for solid blocks at destination to avoid dragging through the sea floor
+            if (!IsPositionPassable(newX, newY, newZ))
+            {
+                // Try horizontal only
+                newY = playerY;
+                if (!IsPositionPassable(newX, newY, newZ))
+                {
+                    // Path fully blocked, skip movement this tick
+                    goto UpdateTentaclePos;
+                }
+            }
+
+            // Save player's current facing direction before teleport
+            float yaw = targetPlayer.Entity.Pos.Yaw;
+            float pitch = targetPlayer.Entity.Pos.Pitch;
+            float roll = targetPlayer.Entity.Pos.Roll;
+            float headYaw = targetPlayer.Entity.Pos.HeadYaw;
+            float headPitch = targetPlayer.Entity.Pos.HeadPitch;
+
+            targetPlayer.Entity.TeleportToDouble(newX, newY, newZ);
+
+            // Restore rotation so the teleport doesn't snap the player's view
+            targetPlayer.Entity.ServerPos.Yaw = yaw;
+            targetPlayer.Entity.ServerPos.Pitch = pitch;
+            targetPlayer.Entity.ServerPos.Roll = roll;
+            targetPlayer.Entity.ServerPos.HeadYaw = headYaw;
+            targetPlayer.Entity.ServerPos.HeadPitch = headPitch;
+            targetPlayer.Entity.Pos.Yaw = yaw;
+            targetPlayer.Entity.Pos.Pitch = pitch;
+            targetPlayer.Entity.Pos.Roll = roll;
+            targetPlayer.Entity.Pos.HeadYaw = headYaw;
+            targetPlayer.Entity.Pos.HeadPitch = headPitch;
         }
 
+        UpdateTentaclePos:
         // Keep tentacle below player's current position
         entity.TeleportToDouble(
             targetPlayer.Entity.SidedPos.X,
             targetPlayer.Entity.SidedPos.Y + config.TentacleGrabYOffset,
             targetPlayer.Entity.SidedPos.Z
         );
+    }
+
+    private bool IsPositionPassable(double x, double y, double z)
+    {
+        BlockPos pos = new BlockPos((int)x, (int)y, (int)z, 0);
+        Block block = entity.World.BlockAccessor.GetBlock(pos);
+        // Passable if the block is liquid or air (not solid)
+        return block == null || block.BlockMaterial == EnumBlockMaterial.Liquid || !block.SideSolid[BlockFacing.UP.Index];
     }
 
     private void OnCooldown(float deltaTime)
