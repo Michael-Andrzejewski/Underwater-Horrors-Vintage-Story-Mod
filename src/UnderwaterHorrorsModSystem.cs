@@ -40,6 +40,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:krakenbody", typeof(EntityBehaviorKrakenBody));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentacle", typeof(EntityBehaviorTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:ambienttentacle", typeof(EntityBehaviorAmbientTentacle));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -279,27 +280,43 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private int CountSaltwaterDepth(Entity playerEntity)
     {
         BlockPos pos = playerEntity.SidedPos.AsBlockPos.Copy();
+        var accessor = sapi.World.BlockAccessor;
+        int mapHeight = accessor.MapSizeY;
+        int startY = pos.Y;
         int count = 0;
-        bool foundSaltwater = false;
 
-        for (int y = pos.Y; y >= 0; y--)
+        // Count saltwater below (including player's block)
+        for (int y = startY; y >= 0; y--)
         {
             pos.Y = y;
-            Block block = sapi.World.BlockAccessor.GetBlock(pos);
+            Block block = accessor.GetBlock(pos);
             if (block == null) break;
-
             string code = block.Code?.Path ?? "";
             if (code.StartsWith("saltwater"))
             {
                 count++;
-                foundSaltwater = true;
             }
-            else if (foundSaltwater)
+            else
             {
-                // Hit non-saltwater after counting saltwater (reached the sea floor)
                 break;
             }
-            // Skip air/freshwater blocks above the saltwater column
+        }
+
+        // Count saltwater above
+        for (int y = startY + 1; y < mapHeight; y++)
+        {
+            pos.Y = y;
+            Block block = accessor.GetBlock(pos);
+            if (block == null) break;
+            string code = block.Code?.Path ?? "";
+            if (code.StartsWith("saltwater"))
+            {
+                count++;
+            }
+            else
+            {
+                break;
+            }
         }
 
         return count;
@@ -345,20 +362,29 @@ public class UnderwaterHorrorsModSystem : ModSystem
             return null;
         }
 
-        // Find sea floor directly below player
+        // Find sea floor directly below player — scan through air, then water, until solid ground
         BlockPos pos = player.Entity.SidedPos.AsBlockPos.Copy();
         int floorY = pos.Y;
+        bool foundWater = false;
 
         for (int y = pos.Y; y >= 0; y--)
         {
             pos.Y = y;
             Block block = sapi.World.BlockAccessor.GetBlock(pos);
             string code = block?.Code?.Path ?? "";
-            if (!code.StartsWith("saltwater") && !code.StartsWith("water"))
+            bool isWater = code.StartsWith("saltwater") || code.StartsWith("water");
+
+            if (isWater)
             {
+                foundWater = true;
+            }
+            else if (foundWater)
+            {
+                // Hit solid ground after passing through water — this is the sea floor
                 floorY = y + 1;
                 break;
             }
+            // Skip air/non-water blocks above the water surface
         }
 
         Entity kraken = sapi.World.ClassRegistry.CreateEntity(props);

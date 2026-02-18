@@ -2,7 +2,7 @@
     "code": "krakententacle",
     "class": "EntityAgent",
     "habitat": "Underwater",
-    "hitboxSize": { "x": 0.5, "y": 3.0 },
+    "hitboxSize": { "x": 1.5, "y": 5.0 },
     "deadHitboxSize": { "x": 0.5, "y": 0.25 },
     "eyeHeight": 2.5,
     "weight": 100,
@@ -17,13 +17,14 @@
         "shape": { "base": "underwaterhorrors:entity/krakententacle" },
         "glowLevel": 0,
         "size": 1.0,
-        "behaviors": []
+        "behaviors": [
+            { "code": "underwaterhorrors:tentaclerenderer" }
+        ]
     },
     "server": {
         "behaviors": [
             { "code": "health", "currenthealth": 30, "maxhealth": 30 },
             { "code": "deaddecay", "decayHours": 0.25 },
-            { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:tentacle" }
         ],
         "spawnConditions": {
