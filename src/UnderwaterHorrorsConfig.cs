@@ -58,19 +58,15 @@ public class UnderwaterHorrorsConfig
     public float TentacleIdleDuration { get; set; } = 2f;
     public float TentacleReachSpeed { get; set; } = 0.06f;
     public float TentacleGrabRange { get; set; } = 2f;
-    public float TentacleGrabDuration { get; set; } = 0.5f;
     public float TentacleDragSpeed { get; set; } = 2.0f;
-    public float TentacleCooldownMin { get; set; } = 15f;
-    public float TentacleCooldownMax { get; set; } = 30f;
-    public float TentacleReleaseDamageThreshold { get; set; } = 15f;
-    public float TentacleGrabYOffset { get; set; } = -2.0f;
-    public float TentacleRespawnDelay { get; set; } = 3f;
+    public float TentacleGrabYOffset { get; set; } = -0.5f;
+    public float TentacleSinkDuration { get; set; } = 30f;
+    public float TentacleRespawnDelayMin { get; set; } = 30f;
+    public float TentacleRespawnDelayMax { get; set; } = 60f;
 
     // Tentacle spline rendering
     public float TentacleArchHeightFactor { get; set; } = 0.4f;
     public float TentacleTipLerpSpeed { get; set; } = 5f;
-    public float TentacleIdleSwayAmplitude { get; set; } = 2f;
-    public float TentacleRetractSpeed { get; set; } = 4f;
 
     // Ambient tentacle
     public float AmbientTentacleAmplitude { get; set; } = 3f;

@@ -11,9 +11,14 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     private bool tentaclesSpawned;
     private float contactDamageCooldown;
     private long attackTentacleId;
+    private Entity cachedAttackTentacle;
     private float tentacleRespawnTimer;
     private bool waitingToRespawnTentacle;
     private UnderwaterHorrorsConfig config;
+
+    // Cached AssetLocations
+    private static readonly AssetLocation AmbientTentacleAsset = new AssetLocation("underwaterhorrors", "krakenambienttentacle");
+    private static readonly AssetLocation AttackTentacleAsset = new AssetLocation("underwaterhorrors", "krakententacle");
 
     public EntityBehaviorKrakenBody(Entity entity) : base(entity) { }
 
@@ -64,24 +69,43 @@ public class EntityBehaviorKrakenBody : EntityBehavior
 
         if (attackTentacleId == 0) return;
 
-        Entity tentacle = entity.World.GetEntityById(attackTentacleId);
-        if (tentacle == null || !tentacle.Alive)
+        // Use cached reference, re-validate if needed
+        Entity tentacle = cachedAttackTentacle;
+        if (tentacle == null || tentacle.EntityId != attackTentacleId)
         {
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken attack tentacle died, respawning in {config.TentacleRespawnDelay:F1}s");
+            tentacle = entity.World.GetEntityById(attackTentacleId);
+            cachedAttackTentacle = tentacle;
+        }
+
+        // Start respawn timer when tentacle is dead OR sinking
+        bool needsRespawn = (tentacle == null || !tentacle.Alive);
+        if (!needsRespawn && tentacle != null)
+        {
+            needsRespawn = tentacle.WatchedAttributes.GetBool("underwaterhorrors:sinking", false);
+        }
+
+        if (needsRespawn)
+        {
+            var rand = entity.World.Rand;
+            float delay = config.TentacleRespawnDelayMin + (float)(rand.NextDouble() * (config.TentacleRespawnDelayMax - config.TentacleRespawnDelayMin));
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken attack tentacle sinking/dead, new tentacle in {delay:F1}s");
             waitingToRespawnTentacle = true;
-            tentacleRespawnTimer = config.TentacleRespawnDelay;
+            tentacleRespawnTimer = delay;
             attackTentacleId = 0;
+            cachedAttackTentacle = null;
         }
     }
 
     private void SpawnTentacles()
     {
-        UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawning tentacles at ({entity.ServerPos.X:F1}, {entity.ServerPos.Y:F1}, {entity.ServerPos.Z:F1})");
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawning tentacles at ({entity.ServerPos.X:F1}, {entity.ServerPos.Y:F1}, {entity.ServerPos.Z:F1})");
 
         SpawnAttackTentacle();
 
         // Spawn ambient tentacles evenly spaced around body
-        EntityProperties ambientProps = entity.World.GetEntityType(new AssetLocation("underwaterhorrors", "krakenambienttentacle"));
+        EntityProperties ambientProps = entity.World.GetEntityType(AmbientTentacleAsset);
         if (ambientProps != null)
         {
             int count = config.KrakenAmbientTentacleCount;
@@ -99,7 +123,8 @@ public class EntityBehaviorKrakenBody : EntityBehavior
                 ambient.Pos.SetFrom(ambient.ServerPos);
                 entity.World.SpawnEntity(ambient);
             }
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawned {count} ambient tentacles (radius: {radius})");
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawned {count} ambient tentacles (radius: {radius})");
         }
     }
 
@@ -107,7 +132,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     {
         string targetUid = entity.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
 
-        EntityProperties attackProps = entity.World.GetEntityType(new AssetLocation("underwaterhorrors", "krakententacle"));
+        EntityProperties attackProps = entity.World.GetEntityType(AttackTentacleAsset);
         if (attackProps == null) return;
 
         Entity tentacle = entity.World.ClassRegistry.CreateEntity(attackProps);
@@ -121,13 +146,16 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         tentacle.WatchedAttributes.SetLong("underwaterhorrors:krakenBodyId", entity.EntityId);
         entity.World.SpawnEntity(tentacle);
         attackTentacleId = tentacle.EntityId;
+        cachedAttackTentacle = tentacle;
 
-        UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Kraken spawned attack tentacle");
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Kraken spawned attack tentacle");
     }
 
     private void DealContactDamage()
     {
         float range = config.KrakenContactRange;
+        float rangeSq = range * range;
         float damage = config.KrakenContactDamage;
 
         foreach (IPlayer player in entity.World.AllOnlinePlayers)
@@ -135,8 +163,13 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             if (player.Entity == null || !player.Entity.Alive) continue;
             if (player.Entity.MountedOn != null) continue;
 
-            double dist = entity.SidedPos.DistanceTo(player.Entity.SidedPos.XYZ);
-            if (dist < range)
+            // Use squared distance to avoid sqrt when out of range
+            double dx = entity.SidedPos.X - player.Entity.SidedPos.X;
+            double dy = entity.SidedPos.Y - player.Entity.SidedPos.Y;
+            double dz = entity.SidedPos.Z - player.Entity.SidedPos.Z;
+            double distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq < rangeSq)
             {
                 player.Entity.ReceiveDamage(new DamageSource
                 {
@@ -145,7 +178,8 @@ public class EntityBehaviorKrakenBody : EntityBehavior
                     Type = EnumDamageType.PiercingAttack,
                     DamageTier = config.KrakenDamageTier
                 }, damage);
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken body hit {player.PlayerName} for {damage} contact damage (dist: {dist:F1})");
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken body hit {player.PlayerName} for {damage} contact damage (dist: {Math.Sqrt(distSq):F1})");
             }
         }
     }

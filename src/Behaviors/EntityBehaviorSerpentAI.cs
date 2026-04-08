@@ -39,6 +39,11 @@ public class EntityBehaviorSerpentAI : EntityBehavior
     private float mountedCircleTimer;
     private float mountedCheckTimer;
 
+    // Throttle shallow water checks (still uses TargetingHelper cache, but avoids calling it every tick)
+    private float shallowWaterCheckTimer;
+    private const float ShallowWaterCheckInterval = 0.5f;
+    private bool lastShallowWaterResult;
+
     public EntityBehaviorSerpentAI(Entity entity) : base(entity) { }
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
@@ -64,13 +69,21 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         ResolveTarget();
         ClampHeight();
 
-        // Check shallow water retreat (not during Rising or already Retreating, and not when player is on a boat)
+        // Throttled shallow water check (not during Rising or already Retreating, and not when player is on a boat)
         if (state != SerpentState.Rising && state != SerpentState.Retreating)
         {
-            if (targetPlayer?.Entity?.MountedOn == null &&
-                TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
+            shallowWaterCheckTimer -= deltaTime;
+            if (shallowWaterCheckTimer <= 0)
             {
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player in shallow water, retreating to spawn");
+                shallowWaterCheckTimer = ShallowWaterCheckInterval;
+                lastShallowWaterResult = targetPlayer?.Entity?.MountedOn == null &&
+                    TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold);
+            }
+
+            if (lastShallowWaterResult)
+            {
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player in shallow water, retreating to spawn");
                 TransitionTo(SerpentState.Retreating);
             }
         }
@@ -89,8 +102,9 @@ public class EntityBehaviorSerpentAI : EntityBehavior
                         mountedCheckTimer = 0;
                         if (entity.World.Rand.NextDouble() < 0.5)
                         {
-                            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                                $"Serpent bored of circling boat after {mountedCircleTimer:F0}s, retreating to spawn");
+                            if (config.DebugLogging)
+                                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                                    $"Serpent bored of circling boat after {mountedCircleTimer:F0}s, retreating to spawn");
                             TransitionTo(SerpentState.Retreating);
                         }
                     }
@@ -122,6 +136,12 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         }
     }
 
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        TargetingHelper.ClearCache(entity.EntityId);
+        base.OnEntityDespawn(despawn);
+    }
+
     private void ResolveTarget()
     {
         if (targetResolved) return;
@@ -146,8 +166,11 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         state = newState;
         stateTimer = 0;
 
-        string playerName = targetPlayer?.PlayerName ?? "unknown";
-        UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent state: {oldState} to {newState} (target: {playerName})");
+        if (config.DebugLogging)
+        {
+            string playerName = targetPlayer?.PlayerName ?? "unknown";
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent state: {oldState} to {newState} (target: {playerName})");
+        }
 
         if (newState == SerpentState.Stalking)
         {
@@ -183,8 +206,9 @@ public class EntityBehaviorSerpentAI : EntityBehavior
 
         SetNextSpiralStep();
 
-        UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-            $"Serpent spiral: starting at radius {orbitRadiusStart:F1}, first target {orbitRadiusEnd:F1} over {radiusTransitionDuration:F1}s");
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Serpent spiral: starting at radius {orbitRadiusStart:F1}, first target {orbitRadiusEnd:F1} over {radiusTransitionDuration:F1}s");
     }
 
     private void SetNextSpiralStep()
@@ -243,13 +267,15 @@ public class EntityBehaviorSerpentAI : EntityBehavior
                 orbitRadiusStart = orbitRadiusEnd;
                 if (orbitRadiusStart <= config.SerpentOrbitRadius)
                 {
-                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent spiral complete, attacking");
+                    if (config.DebugLogging)
+                        UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent spiral complete, attacking");
                     TransitionTo(SerpentState.Attacking);
                     return;
                 }
                 SetNextSpiralStep();
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                    $"Serpent spiral step: radius {orbitRadiusStart:F1} to {orbitRadiusEnd:F1} over {radiusTransitionDuration:F1}s");
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        $"Serpent spiral step: radius {orbitRadiusStart:F1} to {orbitRadiusEnd:F1} over {radiusTransitionDuration:F1}s");
             }
         }
         else
@@ -291,7 +317,8 @@ public class EntityBehaviorSerpentAI : EntityBehavior
 
         if (targetPlayer.Entity.MountedOn != null)
         {
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent: {targetPlayer.PlayerName} is mounted, reverting to Stalking");
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent: {targetPlayer.PlayerName} is mounted, reverting to Stalking");
             TransitionTo(SerpentState.Stalking);
             return;
         }
@@ -321,14 +348,16 @@ public class EntityBehaviorSerpentAI : EntityBehavior
                 DamageTier = config.SerpentDamageTier
             }, config.SerpentAttackDamage);
             attackCooldownTimer = config.SerpentAttackCooldown;
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent hit {targetPlayer.PlayerName} for {config.SerpentAttackDamage} damage (dist: {dist:F1})");
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent hit {targetPlayer.PlayerName} for {config.SerpentAttackDamage} damage (dist: {dist:F1})");
 
             // Chance to disengage and circle back to stalking
             if (entity.World.Rand.NextDouble() < config.SerpentReStalkChance)
             {
                 var rand = entity.World.Rand;
                 stalkDuration = config.SerpentStalkDurationMin + (float)(rand.NextDouble() * (config.SerpentStalkDurationMax - config.SerpentStalkDurationMin));
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent disengaging, returning to stalk for {stalkDuration:F1}s");
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Serpent disengaging, returning to stalk for {stalkDuration:F1}s");
                 TransitionTo(SerpentState.Stalking);
             }
         }
@@ -336,14 +365,20 @@ public class EntityBehaviorSerpentAI : EntityBehavior
 
     private void OnRetreating(float deltaTime)
     {
-        // If player is back in deep water (not mounted, not shallow), cancel retreat and re-engage
-        if (targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
-            targetPlayer.Entity.MountedOn == null &&
-            !TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
+        // Throttled check: if player is back in deep water (not mounted, not shallow), cancel retreat and re-engage
+        shallowWaterCheckTimer -= deltaTime;
+        if (shallowWaterCheckTimer <= 0)
         {
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player back in deep water, resuming stalking");
-            TransitionTo(SerpentState.Stalking);
-            return;
+            shallowWaterCheckTimer = ShallowWaterCheckInterval;
+            if (targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
+                targetPlayer.Entity.MountedOn == null &&
+                !TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
+            {
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player back in deep water, resuming stalking");
+                TransitionTo(SerpentState.Stalking);
+                return;
+            }
         }
 
         // Swim toward spawn position
@@ -361,7 +396,8 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         }
         else
         {
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent reached spawn point, despawning");
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent reached spawn point, despawning");
             entity.Die(EnumDespawnReason.Expire);
             return;
         }
@@ -369,7 +405,8 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         // Safety timeout: despawn after 30s even if not at spawn
         if (stateTimer >= 30f)
         {
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent retreat timeout, despawning");
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent retreat timeout, despawning");
             entity.Die(EnumDespawnReason.Expire);
         }
     }

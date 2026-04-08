@@ -20,6 +20,17 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // entityId -> seconds target player has been on land
     private Dictionary<long, float> landTimers = new();
 
+    // Reusable BlockPos to avoid per-call allocation in hot paths
+    private readonly BlockPos reusableBlockPos = new BlockPos(0, 0, 0, 0);
+
+    // Block ID caches: avoids repeated string comparisons on block codes.
+    // Populated lazily — each unique block ID is string-checked once, then cached.
+    private readonly HashSet<int> saltwaterBlockIds = new();
+    private readonly HashSet<int> nonSaltwaterBlockIds = new();
+
+    // Reusable list for despawn removals to avoid allocation each check
+    private readonly List<string> despawnRemoveList = new();
+
     public static void DebugLog(ICoreAPI api, string message)
     {
         if (Config == null || !Config.DebugLogging) return;
@@ -227,20 +238,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 // Creature is dead or gone, remove tracking
                 activeCreatures.Remove(player.PlayerUID);
                 landTimers.Remove(existingId);
-                DebugLog(sapi, $"Previous creature for {player.PlayerName} is dead or gone, clearing tracking");
+                if (Config.DebugLogging)
+                    DebugLog(sapi, $"Previous creature for {player.PlayerName} is dead or gone, clearing tracking");
             }
 
             // Skip if player is mounted (boat/raft)
             if (player.Entity.MountedOn != null)
             {
-                DebugLog(sapi, $"Spawn check: {player.PlayerName} is mounted, skipping");
+                if (Config.DebugLogging)
+                    DebugLog(sapi, $"Spawn check: {player.PlayerName} is mounted, skipping");
                 continue;
             }
 
-            // Count saltwater depth below player
-            int depth = CountSaltwaterDepth(player.Entity);
+            // Count saltwater depth below player (early-exits once threshold is met)
+            int depth = CountSaltwaterDepth(player.Entity, Config.MinSaltwaterDepth);
 
-            if (depth > 0)
+            if (Config.DebugLogging && depth > 0)
             {
                 DebugLog(sapi, $"Spawn check: {player.PlayerName} at ({player.Entity.SidedPos.X:F0}, {player.Entity.SidedPos.Y:F0}, {player.Entity.SidedPos.Z:F0}) - saltwater depth: {depth} (need {Config.MinSaltwaterDepth})");
             }
@@ -251,11 +264,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
             double roll = sapi.World.Rand.NextDouble();
             if (roll > Config.SpawnChancePerCheck)
             {
-                DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
+                if (Config.DebugLogging)
+                    DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
                 continue;
             }
 
-            DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
+            if (Config.DebugLogging)
+                DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
 
             // Decide creature type
             bool spawnSerpent = sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
@@ -277,54 +292,106 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
     }
 
-    private int CountSaltwaterDepth(Entity playerEntity)
+    private int CountSaltwaterDepth(Entity playerEntity, int earlyExitThreshold)
     {
-        BlockPos pos = playerEntity.SidedPos.AsBlockPos.Copy();
         var accessor = sapi.World.BlockAccessor;
         int mapHeight = accessor.MapSizeY;
-        int startY = pos.Y;
+        int startX = (int)playerEntity.SidedPos.X;
+        int startY = (int)playerEntity.SidedPos.Y;
+        int startZ = (int)playerEntity.SidedPos.Z;
+        int dim = playerEntity.SidedPos.Dimension;
         int count = 0;
+
+        // Reuse a single BlockPos to avoid allocation per call
+        reusableBlockPos.Set(startX, startY, startZ);
+        reusableBlockPos.dimension = dim;
 
         // Count saltwater below (including player's block)
         for (int y = startY; y >= 0; y--)
         {
-            pos.Y = y;
-            Block block = accessor.GetBlock(pos);
-            if (block == null) break;
-            string code = block.Code?.Path ?? "";
-            if (code.StartsWith("saltwater"))
-            {
-                count++;
-            }
-            else
-            {
-                break;
-            }
+            reusableBlockPos.Y = y;
+            Block block = accessor.GetBlock(reusableBlockPos);
+            if (block == null || !IsSaltwater(block)) break;
+            count++;
+            if (count >= earlyExitThreshold) return count;
         }
 
         // Count saltwater above
         for (int y = startY + 1; y < mapHeight; y++)
         {
-            pos.Y = y;
-            Block block = accessor.GetBlock(pos);
-            if (block == null) break;
-            string code = block.Code?.Path ?? "";
-            if (code.StartsWith("saltwater"))
-            {
-                count++;
-            }
-            else
-            {
-                break;
-            }
+            reusableBlockPos.Y = y;
+            Block block = accessor.GetBlock(reusableBlockPos);
+            if (block == null || !IsSaltwater(block)) break;
+            count++;
+            if (count >= earlyExitThreshold) return count;
         }
 
         return count;
     }
 
+    /// <summary>
+    /// Checks if a block is saltwater using cached block ID lookups when possible,
+    /// falling back to string comparison only on first encounter.
+    /// </summary>
+    private bool IsSaltwater(Block block)
+    {
+        int id = block.Id;
+        if (id == 0) return false;
+
+        // Check positive cache first
+        if (saltwaterBlockIds.Contains(id)) return true;
+        // Check negative cache
+        if (nonSaltwaterBlockIds.Contains(id)) return false;
+
+        // First encounter with this block ID — do the string check once and cache
+        string path = block.Code?.Path;
+        if (path != null && path.StartsWith("saltwater"))
+        {
+            saltwaterBlockIds.Add(id);
+            return true;
+        }
+        else
+        {
+            nonSaltwaterBlockIds.Add(id);
+            return false;
+        }
+    }
+
+    // Cached water block ID sets for IsWaterBlock
+    private readonly HashSet<int> waterBlockIds = new();
+    private readonly HashSet<int> nonWaterBlockIds = new();
+
+    /// <summary>
+    /// Checks if a block is any kind of water (salt or fresh) using cached ID lookups.
+    /// </summary>
+    private bool IsWaterBlock(Block block)
+    {
+        int id = block.Id;
+        if (id == 0) return false;
+
+        if (waterBlockIds.Contains(id)) return true;
+        if (nonWaterBlockIds.Contains(id)) return false;
+
+        string path = block.Code?.Path;
+        if (path != null && (path.StartsWith("saltwater") || path.StartsWith("water")))
+        {
+            waterBlockIds.Add(id);
+            return true;
+        }
+        else
+        {
+            nonWaterBlockIds.Add(id);
+            return false;
+        }
+    }
+
+    // Cached AssetLocations to avoid repeated allocations
+    private static readonly AssetLocation SerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent");
+    private static readonly AssetLocation KrakenAsset = new AssetLocation("underwaterhorrors", "krakenbody");
+
     private Entity SpawnSerpent(IServerPlayer player)
     {
-        EntityProperties props = sapi.World.GetEntityType(new AssetLocation("underwaterhorrors", "seaserpent"));
+        EntityProperties props = sapi.World.GetEntityType(SerpentAsset);
         if (props == null)
         {
             DebugLog(sapi, "ERROR: Could not find entity type underwaterhorrors:seaserpent");
@@ -348,14 +415,15 @@ public class UnderwaterHorrorsModSystem : ModSystem
         serpent.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(serpent);
 
-        DebugLog(sapi, $"SPAWNED Sea Serpent targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
+        if (Config.DebugLogging)
+            DebugLog(sapi, $"SPAWNED Sea Serpent targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
 
         return serpent;
     }
 
     private Entity SpawnKraken(IServerPlayer player)
     {
-        EntityProperties props = sapi.World.GetEntityType(new AssetLocation("underwaterhorrors", "krakenbody"));
+        EntityProperties props = sapi.World.GetEntityType(KrakenAsset);
         if (props == null)
         {
             DebugLog(sapi, "ERROR: Could not find entity type underwaterhorrors:krakenbody");
@@ -363,16 +431,18 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         // Find sea floor directly below player — scan through air, then water, until solid ground
-        BlockPos pos = player.Entity.SidedPos.AsBlockPos.Copy();
-        int floorY = pos.Y;
+        int startY = (int)player.Entity.SidedPos.Y;
+        int floorY = startY;
         bool foundWater = false;
+        reusableBlockPos.Set((int)player.Entity.SidedPos.X, startY, (int)player.Entity.SidedPos.Z);
+        reusableBlockPos.dimension = player.Entity.SidedPos.Dimension;
 
-        for (int y = pos.Y; y >= 0; y--)
+        for (int y = startY; y >= 0; y--)
         {
-            pos.Y = y;
-            Block block = sapi.World.BlockAccessor.GetBlock(pos);
-            string code = block?.Code?.Path ?? "";
-            bool isWater = code.StartsWith("saltwater") || code.StartsWith("water");
+            reusableBlockPos.Y = y;
+            Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
+            if (block == null) break;
+            bool isWater = IsWaterBlock(block);
 
             if (isWater)
             {
@@ -394,14 +464,15 @@ public class UnderwaterHorrorsModSystem : ModSystem
         kraken.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(kraken);
 
-        DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({player.Entity.SidedPos.X:F1}, {floorY}, {player.Entity.SidedPos.Z:F1})");
+        if (Config.DebugLogging)
+            DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({player.Entity.SidedPos.X:F1}, {floorY}, {player.Entity.SidedPos.Z:F1})");
 
         return kraken;
     }
 
     private void OnDespawnCheck(float dt)
     {
-        List<string> toRemove = new();
+        despawnRemoveList.Clear();
 
         foreach (var kvp in activeCreatures)
         {
@@ -411,60 +482,56 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Entity creature = sapi.World.GetEntityById(entityId);
             if (creature == null || !creature.Alive)
             {
-                toRemove.Add(playerUid);
+                despawnRemoveList.Add(playerUid);
                 continue;
             }
 
-            // Find the target player
-            IPlayer player = null;
-            foreach (IPlayer p in sapi.World.AllOnlinePlayers)
-            {
-                if (p.PlayerUID == playerUid)
-                {
-                    player = p;
-                    break;
-                }
-            }
+            // Direct UID lookup instead of iterating AllOnlinePlayers
+            IPlayer player = sapi.World.PlayerByUid(playerUid);
 
             if (player?.Entity == null)
             {
-                toRemove.Add(playerUid);
+                despawnRemoveList.Add(playerUid);
                 continue;
             }
 
-            // Check if player's feet are in saltwater
+            // Check if player's feet are in saltwater using cached block ID check
             BlockPos feetPos = player.Entity.SidedPos.AsBlockPos;
             Block feetBlock = sapi.World.BlockAccessor.GetBlock(feetPos);
-            bool inSaltwater = feetBlock?.Code?.Path?.StartsWith("saltwater") == true;
+            bool inSaltwater = feetBlock != null && IsSaltwater(feetBlock);
 
             if (!inSaltwater)
             {
                 if (!landTimers.ContainsKey(entityId))
                 {
                     landTimers[entityId] = 0;
-                    DebugLog(sapi, $"Despawn timer started: {player.PlayerName} left saltwater, creature {creature.Code} will despawn in {Config.DespawnAfterLandSeconds}s");
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"Despawn timer started: {player.PlayerName} left saltwater, creature {creature.Code} will despawn in {Config.DespawnAfterLandSeconds}s");
                 }
                 landTimers[entityId] += Config.DespawnCheckIntervalSeconds;
 
                 if (landTimers[entityId] >= Config.DespawnAfterLandSeconds)
                 {
-                    DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): {player.PlayerName} on land for {landTimers[entityId]:F0}s");
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): {player.PlayerName} on land for {landTimers[entityId]:F0}s");
                     creature.Die(EnumDespawnReason.Expire);
-                    toRemove.Add(playerUid);
+                    despawnRemoveList.Add(playerUid);
                 }
             }
             else
             {
                 if (landTimers.ContainsKey(entityId))
                 {
-                    DebugLog(sapi, $"Despawn timer reset: {player.PlayerName} re-entered saltwater");
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"Despawn timer reset: {player.PlayerName} re-entered saltwater");
                 }
                 landTimers.Remove(entityId);
             }
         }
 
-        foreach (string uid in toRemove)
+        for (int i = 0; i < despawnRemoveList.Count; i++)
         {
+            string uid = despawnRemoveList[i];
             if (activeCreatures.TryGetValue(uid, out long eid))
             {
                 landTimers.Remove(eid);

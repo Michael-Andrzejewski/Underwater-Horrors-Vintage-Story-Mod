@@ -9,13 +9,23 @@ namespace UnderwaterHorrors;
 public class EntityBehaviorTentacleRenderer : EntityBehavior
 {
     private const int SegmentCount = 10;
-    private const int SampleCount = SegmentCount + 1; // 11 points for 10 segments
     private const double SegmentHeight = 0.5; // 8 pixels = 0.5 blocks per segment
 
-    private Vec3d smoothedTip;
+    private double smoothBodyX, smoothBodyY, smoothBodyZ;
     private bool initialized;
     private float tipLerpSpeed;
     private float archHeightFactor;
+
+    // Pre-cached pose name strings to avoid "seg" + i allocation every frame
+    private static readonly string[] PoseNames = new string[SegmentCount];
+
+    static EntityBehaviorTentacleRenderer()
+    {
+        for (int i = 0; i < SegmentCount; i++)
+        {
+            PoseNames[i] = "seg" + i;
+        }
+    }
 
     public EntityBehaviorTentacleRenderer(Entity entity) : base(entity) { }
 
@@ -38,62 +48,97 @@ public class EntityBehaviorTentacleRenderer : EntityBehavior
     {
         if (entity.Api.Side != EnumAppSide.Client) return;
 
-        // Read synced tip position from WatchedAttributes
-        double tipX = entity.WatchedAttributes.GetDouble("underwaterhorrors:tipX", entity.Pos.X);
-        double tipY = entity.WatchedAttributes.GetDouble("underwaterhorrors:tipY", entity.Pos.Y + SegmentCount * SegmentHeight);
-        double tipZ = entity.WatchedAttributes.GetDouble("underwaterhorrors:tipZ", entity.Pos.Z);
+        // Read synced body position from WatchedAttributes
+        double bodyX = entity.WatchedAttributes.GetDouble("underwaterhorrors:bodyX", entity.Pos.X);
+        double bodyY = entity.WatchedAttributes.GetDouble("underwaterhorrors:bodyY", entity.Pos.Y - 10);
+        double bodyZ = entity.WatchedAttributes.GetDouble("underwaterhorrors:bodyZ", entity.Pos.Z);
 
         if (!initialized)
         {
-            smoothedTip = new Vec3d(tipX, tipY, tipZ);
+            smoothBodyX = bodyX;
+            smoothBodyY = bodyY;
+            smoothBodyZ = bodyZ;
             initialized = true;
         }
         else
         {
-            // Lerp toward target tip for smooth motion
             double lerpFactor = Math.Min(1.0, tipLerpSpeed * deltaTime);
-            smoothedTip.X += (tipX - smoothedTip.X) * lerpFactor;
-            smoothedTip.Y += (tipY - smoothedTip.Y) * lerpFactor;
-            smoothedTip.Z += (tipZ - smoothedTip.Z) * lerpFactor;
+            smoothBodyX += (bodyX - smoothBodyX) * lerpFactor;
+            smoothBodyY += (bodyY - smoothBodyY) * lerpFactor;
+            smoothBodyZ += (bodyZ - smoothBodyZ) * lerpFactor;
         }
 
-        Vec3d anchor = entity.Pos.XYZ;
+        // Entity position is the tentacle base (shape origin)
+        // Body is below somewhere — compute direction from entity toward body
+        double dx = smoothBodyX - entity.Pos.X;
+        double dy = smoothBodyY - entity.Pos.Y;
+        double dz = smoothBodyZ - entity.Pos.Z;
+        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
-        // Compute Bezier control points
-        SplineHelper.ComputeTentacleControlPoints(anchor, smoothedTip, archHeightFactor, out Vec3d b1, out Vec3d b2);
-
-        // Sample 11 points along the spline
-        Vec3d[] samples = new Vec3d[SampleCount];
-        for (int i = 0; i < SampleCount; i++)
+        if (dist < 0.5)
         {
-            double t = (double)i / SegmentCount;
-            samples[i] = SplineHelper.EvalCubicBezier(anchor, b1, b2, smoothedTip, t);
+            // Body too close, no bending needed — clear any previous rotations
+            ClearPoses();
+            return;
         }
 
-        // Compute per-segment directions and rotations
-        double accumPitch = 0;
-        double accumRoll = 0;
+        // Normalize direction toward body
+        double ndx = dx / dist;
+        double ndy = dy / dist;
+        double ndz = dz / dist;
 
+        // The shape default direction is +Y (upward). We want the base segments to
+        // lean toward the body and the tip segments to remain upright.
+        double targetPitchDeg = Math.Atan2(-ndz, -ndy) * (180.0 / Math.PI);
+        double targetRollDeg = Math.Atan2(ndx, -ndy) * (180.0 / Math.PI);
+
+        // Clamp maximum bend per segment to avoid extreme distortion
+        double maxBendPerSeg = 25.0;
+        targetPitchDeg = Clamp(targetPitchDeg, -maxBendPerSeg * SegmentCount, maxBendPerSeg * SegmentCount);
+        targetRollDeg = Clamp(targetRollDeg, -maxBendPerSeg * SegmentCount, maxBendPerSeg * SegmentCount);
+
+        var animator = entity.AnimManager?.Animator;
+        if (animator == null) return;
+
+        // Distribute bend across segments with graduated falloff
         for (int seg = 0; seg < SegmentCount; seg++)
         {
-            Vec3d dir = samples[seg + 1].SubCopy(samples[seg]);
+            double weight = 1.0 - (double)seg / SegmentCount;
+            weight *= weight;
 
-            SplineHelper.DirectionToLocalAngles(dir, accumPitch, accumRoll,
-                out float degX, out float degZ);
+            float degX = (float)(targetPitchDeg * weight / SegmentCount);
+            float degZ = (float)(targetRollDeg * weight / SegmentCount);
 
-            // Accumulate for next child (since segments are nested)
-            accumPitch += degX * Math.PI / 180.0;
-            accumRoll += degZ * Math.PI / 180.0;
-
-            // Apply to element pose
-            string poseName = "seg" + seg;
-            var pose = entity.AnimManager?.Animator?.GetPosebyName(poseName);
+            var pose = animator.GetPosebyName(PoseNames[seg]);
             if (pose != null)
             {
                 pose.degOffX = degX;
                 pose.degOffZ = degZ;
             }
         }
+    }
+
+    private void ClearPoses()
+    {
+        var animator = entity.AnimManager?.Animator;
+        if (animator == null) return;
+
+        for (int seg = 0; seg < SegmentCount; seg++)
+        {
+            var pose = animator.GetPosebyName(PoseNames[seg]);
+            if (pose != null)
+            {
+                pose.degOffX = 0;
+                pose.degOffZ = 0;
+            }
+        }
+    }
+
+    private static double Clamp(double val, double min, double max)
+    {
+        if (val < min) return min;
+        if (val > max) return max;
+        return val;
     }
 
     public override string PropertyName() => "underwaterhorrors:tentaclerenderer";

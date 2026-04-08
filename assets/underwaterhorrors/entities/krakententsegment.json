@@ -1,30 +1,28 @@
 {
-    "code": "krakententacle",
+    "code": "krakententsegment",
     "class": "EntityAgent",
     "habitat": "Underwater",
-    "hitboxSize": { "x": 1.0, "y": 1.5 },
-    "deadHitboxSize": { "x": 0.5, "y": 0.25 },
-    "eyeHeight": 0.75,
-    "weight": 100,
+    "hitboxSize": { "x": 0.01, "y": 0.01 },
+    "deadHitboxSize": { "x": 0.01, "y": 0.01 },
+    "eyeHeight": 0.25,
+    "weight": 1,
     "canClimb": false,
-    "knockbackResistance": 0.5,
+    "knockbackResistance": 1.0,
     "attributes": {
         "handbook": { "disable": true }
     },
     "client": {
         "renderer": "Shape",
         "texture": { "base": "game:block/stone/rock/granite1" },
-        "shape": { "base": "underwaterhorrors:entity/krakententacle" },
+        "shape": { "base": "underwaterhorrors:entity/krakententsegment" },
         "glowLevel": 0,
         "size": 1.0,
         "behaviors": []
     },
     "server": {
         "behaviors": [
-            { "code": "health", "currenthealth": 30, "maxhealth": 30 },
-            { "code": "deaddecay", "decayHours": 0.0083 },
-            { "code": "controlledphysics", "stepHeight": 0.0 },
-            { "code": "underwaterhorrors:tentacle" }
+            { "code": "health", "currenthealth": 1, "maxhealth": 1 },
+            { "code": "deaddecay", "decayHours": 0.01 }
         ],
         "spawnConditions": {
             "runtime": {
