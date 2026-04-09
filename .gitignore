@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+
+# IDE / editor
+.vs/
+.vscode/
+*.user
+*.suo
+*.DotSettings.user
+
+# Rider
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Claude Code
+.claude/
+
+# NuGet
+*.nupkg
+packages/
+
+# Mod packaging artifacts
+*.zip
