@@ -13,7 +13,7 @@
     },
     "client": {
         "renderer": "Shape",
-        "texture": { "base": "game:block/stone/rock/granite1" },
+        "texture": { "base": "underwaterhorrors:entity/serpenttexture" },
         "shape": { "base": "underwaterhorrors:entity/seaserpent" },
         "glowLevel": 0,
         "size": 1.0,
