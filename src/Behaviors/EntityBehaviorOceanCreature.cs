@@ -1,3 +1,4 @@
+using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -6,62 +7,79 @@ namespace UnderwaterHorrors;
 
 public class EntityBehaviorOceanCreature : EntityBehavior
 {
+    protected UnderwaterHorrorsConfig config;
     protected IPlayer targetPlayer;
     protected bool targetResolved;
+
+    // Shallow water check throttle
+    private float shallowWaterCheckTimer;
+    private const float ShallowWaterCheckInterval = 0.5f;
+    private bool lastShallowWaterResult;
 
     public EntityBehaviorOceanCreature(Entity entity) : base(entity) { }
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
+        config = UnderwaterHorrorsModSystem.Config;
     }
 
-    public override void OnGameTick(float deltaTime)
+    public override void OnEntityDespawn(EntityDespawnData despawn)
     {
-        if (!entity.Alive) return;
-        if (entity.Api.Side != EnumAppSide.Server) return;
+        TargetingHelper.ClearCache(entity.EntityId);
+        base.OnEntityDespawn(despawn);
     }
 
-    protected IPlayer ResolveTargetPlayer()
+    protected void ResolveTarget()
     {
-        if (targetResolved) return targetPlayer;
+        if (targetResolved) return;
         targetResolved = true;
 
         targetPlayer = TargetingHelper.ResolveTarget(entity);
-        return targetPlayer;
     }
 
-    protected bool IsTargetOnBoat()
+    protected void ClampHeight()
     {
-        var player = ResolveTargetPlayer();
-        return player?.Entity?.MountedOn != null;
+        double maxY = config.CreatureMaxY;
+        if (entity.SidedPos.Y > maxY)
+        {
+            entity.SidedPos.Y = maxY;
+            if (entity.SidedPos.Motion.Y > 0) entity.SidedPos.Motion.Y = 0;
+        }
     }
 
-    protected bool IsTargetInWater()
+    protected void MoveToward(double targetX, double targetY, double targetZ, double speed, double minDist = 0.1)
     {
-        var player = ResolveTargetPlayer();
-        if (player?.Entity == null) return false;
+        double dx = targetX - entity.SidedPos.X;
+        double dy = targetY - entity.SidedPos.Y;
+        double dz = targetZ - entity.SidedPos.Z;
+        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
-        var pos = player.Entity.SidedPos.AsBlockPos;
-        var block = entity.World.BlockAccessor.GetBlock(pos);
-        return block != null && block.Code?.Path?.StartsWith("saltwater") == true;
+        if (dist < minDist) return;
+
+        entity.SidedPos.Motion.X = (dx / dist) * speed;
+        entity.SidedPos.Motion.Y = (dy / dist) * speed;
+        entity.SidedPos.Motion.Z = (dz / dist) * speed;
     }
 
-    protected double DistanceToTarget()
+    /// <summary>
+    /// Throttled shallow water check. Updates at ShallowWaterCheckInterval and caches result.
+    /// Skips check if player is mounted (on boat). Call UpdateShallowWaterCheck(deltaTime) each
+    /// tick, then read this property.
+    /// </summary>
+    protected bool IsInShallowWater => lastShallowWaterResult;
+
+    /// <summary>
+    /// Decrements the throttle timer and re-evaluates shallow water status when it expires.
+    /// </summary>
+    protected void UpdateShallowWaterCheck(float deltaTime)
     {
-        var player = ResolveTargetPlayer();
-        if (player?.Entity == null) return double.MaxValue;
-
-        return entity.SidedPos.DistanceTo(player.Entity.SidedPos.XYZ);
-    }
-
-    protected double HorizontalDistanceToTarget()
-    {
-        var player = ResolveTargetPlayer();
-        if (player?.Entity == null) return double.MaxValue;
-
-        double dx = entity.SidedPos.X - player.Entity.SidedPos.X;
-        double dz = entity.SidedPos.Z - player.Entity.SidedPos.Z;
-        return System.Math.Sqrt(dx * dx + dz * dz);
+        shallowWaterCheckTimer -= deltaTime;
+        if (shallowWaterCheckTimer <= 0)
+        {
+            shallowWaterCheckTimer = ShallowWaterCheckInterval;
+            lastShallowWaterResult = targetPlayer?.Entity?.MountedOn == null &&
+                TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold);
+        }
     }
 
     public override string PropertyName() => "underwaterhorrors:oceancreature";

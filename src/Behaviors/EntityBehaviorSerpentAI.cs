@@ -13,16 +13,13 @@ public enum SerpentState
     Retreating
 }
 
-public class EntityBehaviorSerpentAI : EntityBehavior
+public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 {
     private SerpentState state = SerpentState.Rising;
     private float stateTimer;
     private float stalkDuration;
     private float orbitAngle;
     private float attackCooldownTimer;
-    private UnderwaterHorrorsConfig config;
-    private IPlayer targetPlayer;
-    private bool targetResolved;
 
     // Spiral approach fields
     private bool useSpiralApproach;
@@ -39,16 +36,11 @@ public class EntityBehaviorSerpentAI : EntityBehavior
     private float mountedCircleTimer;
     private float mountedCheckTimer;
 
-    // Throttle shallow water checks (still uses TargetingHelper cache, but avoids calling it every tick)
-    private float shallowWaterCheckTimer;
-    private const float ShallowWaterCheckInterval = 0.5f;
-    private bool lastShallowWaterResult;
-
     public EntityBehaviorSerpentAI(Entity entity) : base(entity) { }
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
-        config = UnderwaterHorrorsModSystem.Config;
+        base.Initialize(properties, attributes);
         orbitAngle = (float)(entity.World.Rand.NextDouble() * Math.PI * 2);
     }
 
@@ -69,18 +61,12 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         ResolveTarget();
         ClampHeight();
 
-        // Throttled shallow water check (not during Rising or already Retreating, and not when player is on a boat)
+        // Throttled shallow water check (not during Rising or already Retreating)
         if (state != SerpentState.Rising && state != SerpentState.Retreating)
         {
-            shallowWaterCheckTimer -= deltaTime;
-            if (shallowWaterCheckTimer <= 0)
-            {
-                shallowWaterCheckTimer = ShallowWaterCheckInterval;
-                lastShallowWaterResult = targetPlayer?.Entity?.MountedOn == null &&
-                    TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold);
-            }
+            UpdateShallowWaterCheck(deltaTime);
 
-            if (lastShallowWaterResult)
+            if (IsInShallowWater)
             {
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player in shallow water, retreating to spawn");
@@ -133,30 +119,6 @@ public class EntityBehaviorSerpentAI : EntityBehavior
             case SerpentState.Retreating:
                 OnRetreating(deltaTime);
                 break;
-        }
-    }
-
-    public override void OnEntityDespawn(EntityDespawnData despawn)
-    {
-        TargetingHelper.ClearCache(entity.EntityId);
-        base.OnEntityDespawn(despawn);
-    }
-
-    private void ResolveTarget()
-    {
-        if (targetResolved) return;
-        targetResolved = true;
-
-        targetPlayer = TargetingHelper.ResolveTarget(entity);
-    }
-
-    private void ClampHeight()
-    {
-        double maxY = config.CreatureMaxY;
-        if (entity.SidedPos.Y > maxY)
-        {
-            entity.SidedPos.Y = maxY;
-            if (entity.SidedPos.Motion.Y > 0) entity.SidedPos.Motion.Y = 0;
         }
     }
 
@@ -227,7 +189,6 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         if (targetPlayer?.Entity == null) return;
 
         double playerY = targetPlayer.Entity.SidedPos.Y;
-        double dy = playerY - entity.SidedPos.Y;
 
         // Move upward toward player depth
         entity.SidedPos.Motion.Y = config.SerpentRiseSpeed;
@@ -244,7 +205,7 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         }
 
         // Transition when near player depth
-        if (Math.Abs(dy) < 3)
+        if (Math.Abs(playerY - entity.SidedPos.Y) < 3)
         {
             TransitionTo(SerpentState.Stalking);
         }
@@ -291,18 +252,7 @@ public class EntityBehaviorSerpentAI : EntityBehavior
         double targetZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(orbitAngle) * radius;
         double targetY = targetPlayer.Entity.SidedPos.Y;
 
-        double dx = targetX - entity.SidedPos.X;
-        double dy = targetY - entity.SidedPos.Y;
-        double dz = targetZ - entity.SidedPos.Z;
-        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-
-        if (dist > 0.5)
-        {
-            double speed = config.SerpentApproachSpeed * 2;
-            entity.SidedPos.Motion.X = (dx / dist) * speed;
-            entity.SidedPos.Motion.Y = (dy / dist) * speed;
-            entity.SidedPos.Motion.Z = (dz / dist) * speed;
-        }
+        MoveToward(targetX, targetY, targetZ, config.SerpentApproachSpeed * 2, 0.5);
 
         // For non-spiral re-stalk, use timed duration
         if (!useSpiralApproach && stateTimer >= stalkDuration)
@@ -323,20 +273,14 @@ public class EntityBehaviorSerpentAI : EntityBehavior
             return;
         }
 
-        double dx = targetPlayer.Entity.SidedPos.X - entity.SidedPos.X;
-        double dy = targetPlayer.Entity.SidedPos.Y - entity.SidedPos.Y;
-        double dz = targetPlayer.Entity.SidedPos.Z - entity.SidedPos.Z;
-        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-
-        // Rush toward player
-        if (dist > 0.5)
-        {
-            entity.SidedPos.Motion.X = (dx / dist) * config.SerpentAttackSpeed;
-            entity.SidedPos.Motion.Y = (dy / dist) * config.SerpentAttackSpeed;
-            entity.SidedPos.Motion.Z = (dz / dist) * config.SerpentAttackSpeed;
-        }
+        MoveToward(
+            targetPlayer.Entity.SidedPos.X,
+            targetPlayer.Entity.SidedPos.Y,
+            targetPlayer.Entity.SidedPos.Z,
+            config.SerpentAttackSpeed, 0.5);
 
         // Deal damage when close
+        double dist = entity.SidedPos.DistanceTo(targetPlayer.Entity.SidedPos.XYZ);
         attackCooldownTimer -= deltaTime;
         if (dist < config.SerpentAttackRange && attackCooldownTimer <= 0)
         {
@@ -365,20 +309,15 @@ public class EntityBehaviorSerpentAI : EntityBehavior
 
     private void OnRetreating(float deltaTime)
     {
-        // Throttled check: if player is back in deep water (not mounted, not shallow), cancel retreat and re-engage
-        shallowWaterCheckTimer -= deltaTime;
-        if (shallowWaterCheckTimer <= 0)
+        // Throttled check: if player is back in deep water, cancel retreat and re-engage
+        UpdateShallowWaterCheck(deltaTime);
+        if (targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
+            targetPlayer.Entity.MountedOn == null && !IsInShallowWater)
         {
-            shallowWaterCheckTimer = ShallowWaterCheckInterval;
-            if (targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
-                targetPlayer.Entity.MountedOn == null &&
-                !TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold))
-            {
-                if (config.DebugLogging)
-                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player back in deep water, resuming stalking");
-                TransitionTo(SerpentState.Stalking);
-                return;
-            }
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Serpent: player back in deep water, resuming stalking");
+            TransitionTo(SerpentState.Stalking);
+            return;
         }
 
         // Swim toward spawn position
@@ -389,10 +328,7 @@ public class EntityBehaviorSerpentAI : EntityBehavior
 
         if (dist > 3.0)
         {
-            double speed = config.SerpentApproachSpeed * 2;
-            entity.SidedPos.Motion.X = (dx / dist) * speed;
-            entity.SidedPos.Motion.Y = (dy / dist) * speed;
-            entity.SidedPos.Motion.Z = (dz / dist) * speed;
+            MoveToward(spawnX, spawnY, spawnZ, config.SerpentApproachSpeed * 2);
         }
         else
         {

@@ -26,7 +26,6 @@ public static class SplineHelper
         double dx = tip.X - anchor.X;
         double dy = tip.Y - anchor.Y;
         double dz = tip.Z - anchor.Z;
-        double horizDist = Math.Sqrt(dx * dx + dz * dz);
         double totalDist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         double archHeight = totalDist * archHeightFactor;

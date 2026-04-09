@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -13,6 +14,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
     public static UnderwaterHorrorsConfig Config { get; private set; }
 
     private ICoreServerAPI sapi;
+    private ICoreClientAPI capi;
+    private SpectralRenderer spectralRenderer;
+    private bool glowActive;
 
     // playerUID -> entityId of assigned creature
     private Dictionary<string, long> activeCreatures = new();
@@ -23,10 +27,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // Reusable BlockPos to avoid per-call allocation in hot paths
     private readonly BlockPos reusableBlockPos = new BlockPos(0, 0, 0, 0);
 
-    // Block ID caches: avoids repeated string comparisons on block codes.
-    // Populated lazily — each unique block ID is string-checked once, then cached.
-    private readonly HashSet<int> saltwaterBlockIds = new();
-    private readonly HashSet<int> nonSaltwaterBlockIds = new();
 
     // Reusable list for despawn removals to avoid allocation each check
     private readonly List<string> despawnRemoveList = new();
@@ -52,6 +52,60 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentacle", typeof(EntityBehaviorTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:ambienttentacle", typeof(EntityBehaviorAmbientTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
+
+        api.Network.RegisterChannel("underwaterhorrors")
+            .RegisterMessageType(typeof(DebugToggleMessage));
+    }
+
+    public override void StartClientSide(ICoreClientAPI api)
+    {
+        base.StartClientSide(api);
+        capi = api;
+
+        spectralRenderer = new SpectralRenderer(capi);
+        capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
+
+        api.Network.GetChannel("underwaterhorrors")
+            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived);
+    }
+
+    private void OnDebugToggleReceived(DebugToggleMessage msg)
+    {
+        if (msg.Toggle == "glow")
+        {
+            glowActive = msg.Active;
+            ApplyGlow(msg.Active);
+        }
+        else if (msg.Toggle == "spectral")
+        {
+            spectralRenderer.Active = msg.Active;
+        }
+    }
+
+    // All mod entity type codes to apply glow to
+    private static readonly AssetLocation[] ModEntityTypes = new[]
+    {
+        new AssetLocation("underwaterhorrors", "seaserpent"),
+        new AssetLocation("underwaterhorrors", "krakenbody"),
+        new AssetLocation("underwaterhorrors", "krakententacle"),
+        new AssetLocation("underwaterhorrors", "krakenambienttentacle"),
+        new AssetLocation("underwaterhorrors", "krakententacleclaw"),
+        new AssetLocation("underwaterhorrors", "krakententsegment"),
+    };
+
+    private void ApplyGlow(bool on)
+    {
+        int level = on ? 255 : 0;
+
+        // Apply to EntityProperties directly so it covers both existing and future entities
+        foreach (var assetLoc in ModEntityTypes)
+        {
+            EntityProperties props = capi.World.GetEntityType(assetLoc);
+            if (props != null)
+            {
+                props.Client.GlowLevel = level;
+            }
+        }
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -67,7 +121,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.Event.RegisterGameTickListener(OnSpawnCheck, spawnInterval);
         api.Event.RegisterGameTickListener(OnDespawnCheck, despawnInterval);
 
+        api.Event.PlayerJoin += OnPlayerJoinSyncDebug;
+
         RegisterCommands(api);
+    }
+
+    private void OnPlayerJoinSyncDebug(IServerPlayer player)
+    {
+        var channel = sapi.Network.GetChannel("underwaterhorrors");
+        if (Config.GlowDebugActive)
+        {
+            channel.SendPacket(new DebugToggleMessage { Toggle = "glow", Active = true }, player);
+        }
+        if (Config.SpectralDebugActive)
+        {
+            channel.SendPacket(new DebugToggleMessage { Toggle = "spectral", Active = true }, player);
+        }
     }
 
     private void RegisterCommands(ICoreServerAPI api)
@@ -98,6 +167,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .BeginSubCommand("killall")
                 .WithDescription("Remove all Underwater Horrors entities from the world")
                 .HandleWith(OnCmdKillAll)
+            .EndSubCommand()
+            .BeginSubCommand("glow")
+                .WithDescription("Toggle max brightness glow on all mod entities")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                .HandleWith(OnCmdGlow)
+            .EndSubCommand()
+            .BeginSubCommand("spectral")
+                .WithDescription("Toggle see-through-blocks wireframe outlines on all mod entities")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                .HandleWith(OnCmdSpectral)
             .EndSubCommand();
     }
 
@@ -194,6 +273,40 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TextCommandResult.Success($"Drag speed set to {Config.TentacleDragSpeed:F3}");
     }
 
+    private TextCommandResult OnCmdGlow(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.GlowDebugActive = !Config.GlowDebugActive;
+        }
+        else
+        {
+            Config.GlowDebugActive = val == "on" || val == "true" || val == "1";
+        }
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        sapi.Network.GetChannel("underwaterhorrors")
+            .BroadcastPacket(new DebugToggleMessage { Toggle = "glow", Active = Config.GlowDebugActive });
+        return TextCommandResult.Success($"Glow debug: {(Config.GlowDebugActive ? "on" : "off")}");
+    }
+
+    private TextCommandResult OnCmdSpectral(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.SpectralDebugActive = !Config.SpectralDebugActive;
+        }
+        else
+        {
+            Config.SpectralDebugActive = val == "on" || val == "true" || val == "1";
+        }
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        sapi.Network.GetChannel("underwaterhorrors")
+            .BroadcastPacket(new DebugToggleMessage { Toggle = "spectral", Active = Config.SpectralDebugActive });
+        return TextCommandResult.Success($"Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}");
+    }
+
     private UnderwaterHorrorsConfig LoadConfig()
     {
         UnderwaterHorrorsConfig config;
@@ -213,11 +326,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
             sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
             Mod.Logger.Notification("Created default UnderwaterHorrors config.");
         }
-        else
-        {
-            sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
-        }
-
         return config;
     }
 
@@ -311,7 +419,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
-            if (block == null || !IsSaltwater(block)) break;
+            if (block == null || !WaterHelper.IsSaltwater(block)) break;
             count++;
             if (count >= earlyExitThreshold) return count;
         }
@@ -321,68 +429,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
-            if (block == null || !IsSaltwater(block)) break;
+            if (block == null || !WaterHelper.IsSaltwater(block)) break;
             count++;
             if (count >= earlyExitThreshold) return count;
         }
 
         return count;
-    }
-
-    /// <summary>
-    /// Checks if a block is saltwater using cached block ID lookups when possible,
-    /// falling back to string comparison only on first encounter.
-    /// </summary>
-    private bool IsSaltwater(Block block)
-    {
-        int id = block.Id;
-        if (id == 0) return false;
-
-        // Check positive cache first
-        if (saltwaterBlockIds.Contains(id)) return true;
-        // Check negative cache
-        if (nonSaltwaterBlockIds.Contains(id)) return false;
-
-        // First encounter with this block ID — do the string check once and cache
-        string path = block.Code?.Path;
-        if (path != null && path.StartsWith("saltwater"))
-        {
-            saltwaterBlockIds.Add(id);
-            return true;
-        }
-        else
-        {
-            nonSaltwaterBlockIds.Add(id);
-            return false;
-        }
-    }
-
-    // Cached water block ID sets for IsWaterBlock
-    private readonly HashSet<int> waterBlockIds = new();
-    private readonly HashSet<int> nonWaterBlockIds = new();
-
-    /// <summary>
-    /// Checks if a block is any kind of water (salt or fresh) using cached ID lookups.
-    /// </summary>
-    private bool IsWaterBlock(Block block)
-    {
-        int id = block.Id;
-        if (id == 0) return false;
-
-        if (waterBlockIds.Contains(id)) return true;
-        if (nonWaterBlockIds.Contains(id)) return false;
-
-        string path = block.Code?.Path;
-        if (path != null && (path.StartsWith("saltwater") || path.StartsWith("water")))
-        {
-            waterBlockIds.Add(id);
-            return true;
-        }
-        else
-        {
-            nonWaterBlockIds.Add(id);
-            return false;
-        }
     }
 
     // Cached AssetLocations to avoid repeated allocations
@@ -442,7 +494,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             reusableBlockPos.Y = y;
             Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
             if (block == null) break;
-            bool isWater = IsWaterBlock(block);
+            bool isWater = WaterHelper.IsWaterBlock(block);
 
             if (isWater)
             {
@@ -498,7 +550,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // Check if player's feet are in saltwater using cached block ID check
             BlockPos feetPos = player.Entity.SidedPos.AsBlockPos;
             Block feetBlock = sapi.World.BlockAccessor.GetBlock(feetPos);
-            bool inSaltwater = feetBlock != null && IsSaltwater(feetBlock);
+            bool inSaltwater = feetBlock != null && WaterHelper.IsSaltwater(feetBlock);
 
             if (!inSaltwater)
             {

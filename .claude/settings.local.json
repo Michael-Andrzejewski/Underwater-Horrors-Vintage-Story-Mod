@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "WebFetch(domain:apidocs.vintagestory.at)",
+      "WebFetch(domain:wiki.vintagestory.at)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

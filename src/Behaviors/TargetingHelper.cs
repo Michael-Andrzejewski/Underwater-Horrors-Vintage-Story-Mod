@@ -11,10 +11,6 @@ public static class TargetingHelper
     // Key: entity ID (of the creature doing the check), Value: (result, expiryTime, lastPlayerY)
     private static readonly Dictionary<long, ShallowWaterCache> shallowWaterCache = new();
 
-    // Block ID caches for water checks (shared across all callers)
-    private static readonly HashSet<int> waterBlockIds = new();
-    private static readonly HashSet<int> nonWaterBlockIds = new();
-
     // Reusable BlockPos for water scanning
     private static readonly BlockPos scanPos = new BlockPos(0, 0, 0, 0);
 
@@ -79,7 +75,7 @@ public static class TargetingHelper
         {
             scanPos.Y = y;
             Block block = accessor.GetBlock(scanPos);
-            if (block == null || !IsWaterBlock(block)) break;
+            if (block == null || !WaterHelper.IsWaterBlock(block)) break;
             waterCount++;
             // Early exit: if we already know it's deep enough, no need to keep counting
             if (waterCount >= threshold) return false;
@@ -90,33 +86,12 @@ public static class TargetingHelper
         {
             scanPos.Y = y;
             Block block = accessor.GetBlock(scanPos);
-            if (block == null || !IsWaterBlock(block)) break;
+            if (block == null || !WaterHelper.IsWaterBlock(block)) break;
             waterCount++;
             if (waterCount >= threshold) return false;
         }
 
         return waterCount < threshold;
-    }
-
-    private static bool IsWaterBlock(Block block)
-    {
-        int id = block.Id;
-        if (id == 0) return false;
-
-        if (waterBlockIds.Contains(id)) return true;
-        if (nonWaterBlockIds.Contains(id)) return false;
-
-        string path = block.Code?.Path;
-        if (path != null && (path.StartsWith("saltwater") || path.StartsWith("water")))
-        {
-            waterBlockIds.Add(id);
-            return true;
-        }
-        else
-        {
-            nonWaterBlockIds.Add(id);
-            return false;
-        }
     }
 
     /// <summary>

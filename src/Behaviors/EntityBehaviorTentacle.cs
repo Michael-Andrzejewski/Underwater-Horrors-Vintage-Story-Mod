@@ -15,16 +15,13 @@ public enum TentacleState
     Retreating
 }
 
-public class EntityBehaviorTentacle : EntityBehavior
+public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 {
     private const int SegmentCount = 8;
     private const int ClawCount = 4;
 
     private TentacleState state = TentacleState.Idle;
     private float stateTimer;
-    private UnderwaterHorrorsConfig config;
-    private IPlayer targetPlayer;
-    private bool targetResolved;
     private bool speedDebuffApplied;
 
     // Chain segment entities — cached references to avoid GetEntityById every frame
@@ -41,17 +38,15 @@ public class EntityBehaviorTentacle : EntityBehavior
     private long cachedBodyId;
     private Entity cachedBody;
 
-    // Throttle shallow water checks
-    private float shallowWaterCheckTimer;
-    private const float ShallowWaterCheckInterval = 0.5f;
-    private bool lastShallowWaterResult;
-
     // Reusable Vec3d for spline calculations to avoid allocation per frame
     private Vec3d reusableAnchor = new Vec3d();
 
     // Cached AssetLocations
     private static readonly AssetLocation SegmentAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
+
+    // Reusable BlockPos for passability checks to avoid allocation per frame
+    private readonly BlockPos reusablePassabilityPos = new BlockPos(0, 0, 0, 0);
 
     // Offsets for 4 claws: +X, -X, +Z, -Z (1 block out from player)
     private static readonly double[][] ClawOffsets = new double[][]
@@ -63,11 +58,6 @@ public class EntityBehaviorTentacle : EntityBehavior
     };
 
     public EntityBehaviorTentacle(Entity entity) : base(entity) { }
-
-    public override void Initialize(EntityProperties properties, JsonObject attributes)
-    {
-        config = UnderwaterHorrorsModSystem.Config;
-    }
 
     public override void OnGameTick(float deltaTime)
     {
@@ -83,7 +73,7 @@ public class EntityBehaviorTentacle : EntityBehavior
             SpawnSegments();
         }
 
-        // Check if any claw died during Dragging → release and sink
+        // Check if any claw died during Dragging -> release and sink
         if (state == TentacleState.Dragging && CheckAnyClawDead())
         {
             if (config.DebugLogging)
@@ -94,15 +84,9 @@ public class EntityBehaviorTentacle : EntityBehavior
         // Throttled shallow water retreat check
         if (state == TentacleState.Reaching || state == TentacleState.Dragging)
         {
-            shallowWaterCheckTimer -= deltaTime;
-            if (shallowWaterCheckTimer <= 0)
-            {
-                shallowWaterCheckTimer = ShallowWaterCheckInterval;
-                lastShallowWaterResult = targetPlayer?.Entity?.MountedOn == null &&
-                    TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold);
-            }
+            UpdateShallowWaterCheck(deltaTime);
 
-            if (lastShallowWaterResult)
+            if (IsInShallowWater)
             {
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: player in shallow water, retreating");
@@ -139,7 +123,6 @@ public class EntityBehaviorTentacle : EntityBehavior
         RemoveSpeedDebuff();
         DespawnSegments();
         DespawnClaws();
-        TargetingHelper.ClearCache(entity.EntityId);
         base.OnEntityDespawn(despawn);
     }
 
@@ -342,25 +325,7 @@ public class EntityBehaviorTentacle : EntityBehavior
         return false;
     }
 
-    // --- Core logic ---
-
-    private void ResolveTarget()
-    {
-        if (targetResolved) return;
-        targetResolved = true;
-
-        targetPlayer = TargetingHelper.ResolveTarget(entity);
-    }
-
-    private void ClampHeight()
-    {
-        double maxY = config.CreatureMaxY;
-        if (entity.SidedPos.Y > maxY)
-        {
-            entity.SidedPos.Y = maxY;
-            if (entity.SidedPos.Motion.Y > 0) entity.SidedPos.Motion.Y = 0;
-        }
-    }
+    // --- Speed debuff ---
 
     private void ApplySpeedDebuff()
     {
@@ -379,6 +344,8 @@ public class EntityBehaviorTentacle : EntityBehavior
         if (config.DebugLogging)
             UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: restored player movement");
     }
+
+    // --- State transitions ---
 
     private void TransitionTo(TentacleState newState)
     {
@@ -406,6 +373,8 @@ public class EntityBehaviorTentacle : EntityBehavior
             entity.WatchedAttributes.SetBool("underwaterhorrors:sinking", true);
         }
     }
+
+    // --- State handlers ---
 
     private void OnIdle(float deltaTime)
     {
@@ -491,19 +460,20 @@ public class EntityBehaviorTentacle : EntityBehavior
             double newY = playerY + ny * dragStep;
             double newZ = playerZ + nz * dragStep;
 
-            if (!IsPositionPassable(newX, newY, newZ))
+            bool canMove = IsPositionPassable(newX, newY, newZ);
+            if (!canMove)
             {
+                // Try without vertical movement
                 newY = playerY;
-                if (!IsPositionPassable(newX, newY, newZ))
-                {
-                    goto UpdateTentaclePos;
-                }
+                canMove = IsPositionPassable(newX, newY, newZ);
             }
 
-            targetPlayer.Entity.TeleportToDouble(newX, newY, newZ);
+            if (canMove)
+            {
+                targetPlayer.Entity.TeleportToDouble(newX, newY, newZ);
+            }
         }
 
-        UpdateTentaclePos:
         // Keep tentacle tip below player
         entity.TeleportToDouble(
             targetPlayer.Entity.SidedPos.X,
@@ -514,8 +484,8 @@ public class EntityBehaviorTentacle : EntityBehavior
 
     private bool IsPositionPassable(double x, double y, double z)
     {
-        BlockPos pos = new BlockPos((int)x, (int)y, (int)z, 0);
-        Block block = entity.World.BlockAccessor.GetBlock(pos);
+        reusablePassabilityPos.Set((int)x, (int)y, (int)z);
+        Block block = entity.World.BlockAccessor.GetBlock(reusablePassabilityPos);
         return block == null || block.BlockMaterial == EnumBlockMaterial.Liquid || !block.SideSolid[BlockFacing.UP.Index];
     }
 
@@ -555,20 +525,6 @@ public class EntityBehaviorTentacle : EntityBehavior
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle retreat complete, despawning");
             entity.Die(EnumDespawnReason.Expire);
         }
-    }
-
-    private void MoveToward(double targetX, double targetY, double targetZ, float speed)
-    {
-        double dx = targetX - entity.SidedPos.X;
-        double dy = targetY - entity.SidedPos.Y;
-        double dz = targetZ - entity.SidedPos.Z;
-        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-
-        if (dist < 0.1) return;
-
-        entity.SidedPos.Motion.X = (dx / dist) * speed;
-        entity.SidedPos.Motion.Y = (dy / dist) * speed;
-        entity.SidedPos.Motion.Z = (dz / dist) * speed;
     }
 
     public override string PropertyName() => "underwaterhorrors:tentacle";

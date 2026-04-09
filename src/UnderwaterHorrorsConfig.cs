@@ -4,6 +4,8 @@ public class UnderwaterHorrorsConfig
 {
     // Debug
     public bool DebugLogging { get; set; } = true;
+    public bool GlowDebugActive { get; set; } = false;
+    public bool SpectralDebugActive { get; set; } = false;
 
     // Spawn system
     public float SpawnCheckIntervalSeconds { get; set; } = 5f;
