@@ -105,6 +105,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         SpawnAttackTentacle();
 
         // Spawn ambient tentacles evenly spaced around body
+        string targetUid = entity.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
         EntityProperties ambientProps = entity.World.GetEntityType(AmbientTentacleAsset);
         if (ambientProps != null)
         {
@@ -121,6 +122,14 @@ public class EntityBehaviorKrakenBody : EntityBehavior
                 ambient.ServerPos.SetPos(spawnX, entity.ServerPos.Y + 1, spawnZ);
                 ambient.ServerPos.Dimension = entity.ServerPos.Dimension;
                 ambient.Pos.SetFrom(ambient.ServerPos);
+
+                if (!string.IsNullOrEmpty(targetUid))
+                {
+                    ambient.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", targetUid);
+                }
+                ambient.WatchedAttributes.SetFloat("underwaterhorrors:orbitPhase", (float)angle);
+                ambient.WatchedAttributes.SetLong("underwaterhorrors:krakenBodyId", entity.EntityId);
+
                 entity.World.SpawnEntity(ambient);
             }
             if (config.DebugLogging)
@@ -130,6 +139,9 @@ public class EntityBehaviorKrakenBody : EntityBehavior
 
     private void SpawnAttackTentacle()
     {
+        // Reset the sink signal so the next cycle of ambient tentacles works
+        entity.WatchedAttributes.SetBool("underwaterhorrors:sinkAmbient", false);
+
         string targetUid = entity.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
 
         EntityProperties attackProps = entity.World.GetEntityType(AttackTentacleAsset);

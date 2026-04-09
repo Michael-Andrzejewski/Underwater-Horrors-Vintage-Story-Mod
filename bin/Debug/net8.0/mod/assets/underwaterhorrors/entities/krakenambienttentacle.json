@@ -2,8 +2,8 @@
     "code": "krakenambienttentacle",
     "class": "EntityAgent",
     "habitat": "Underwater",
-    "hitboxSize": { "x": 0.5, "y": 3.0 },
-    "deadHitboxSize": { "x": 0.5, "y": 0.25 },
+    "hitboxSize": { "x": 2.0, "y": 6.0 },
+    "deadHitboxSize": { "x": 1.0, "y": 0.5 },
     "eyeHeight": 2.5,
     "weight": 100,
     "canClimb": false,
@@ -16,7 +16,7 @@
         "texture": { "base": "game:block/stone/rock/granite1" },
         "shape": { "base": "underwaterhorrors:entity/krakententacle" },
         "glowLevel": 0,
-        "size": 1.0,
+        "size": 2.5,
         "behaviors": []
     },
     "server": {

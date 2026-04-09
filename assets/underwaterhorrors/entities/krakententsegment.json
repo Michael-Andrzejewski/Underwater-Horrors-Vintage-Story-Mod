@@ -2,8 +2,8 @@
     "code": "krakententsegment",
     "class": "EntityAgent",
     "habitat": "Underwater",
-    "hitboxSize": { "x": 0.01, "y": 0.01 },
-    "deadHitboxSize": { "x": 0.01, "y": 0.01 },
+    "hitboxSize": { "x": 0.5, "y": 1.0 },
+    "deadHitboxSize": { "x": 0.25, "y": 0.25 },
     "eyeHeight": 0.25,
     "weight": 1,
     "canClimb": false,
@@ -16,7 +16,7 @@
         "texture": { "base": "game:block/stone/rock/granite1" },
         "shape": { "base": "underwaterhorrors:entity/krakententsegment" },
         "glowLevel": 0,
-        "size": 1.0,
+        "size": 1.5,
         "behaviors": []
     },
     "server": {

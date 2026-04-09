@@ -9,6 +9,8 @@ namespace UnderwaterHorrors;
 public enum TentacleState
 {
     Idle,
+    Rising,
+    Lingering,
     Reaching,
     Dragging,
     Sinking,
@@ -47,6 +49,10 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     // Reusable BlockPos for passability checks to avoid allocation per frame
     private readonly BlockPos reusablePassabilityPos = new BlockPos(0, 0, 0, 0);
+
+    // Surface point for the Rising/Lingering phases
+    private double surfaceX, surfaceY, surfaceZ;
+    private bool surfacePointPicked;
 
     // Offsets for 4 claws: +X, -X, +Z, -Z (1 block out from player)
     private static readonly double[][] ClawOffsets = new double[][]
@@ -100,6 +106,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         {
             case TentacleState.Idle:
                 OnIdle(deltaTime);
+                break;
+            case TentacleState.Rising:
+                OnRising(deltaTime);
+                break;
+            case TentacleState.Lingering:
+                OnLingering(deltaTime);
                 break;
             case TentacleState.Reaching:
                 OnReaching(deltaTime);
@@ -380,6 +392,97 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         if (stateTimer >= config.TentacleIdleDuration)
         {
+            TransitionTo(TentacleState.Rising);
+        }
+    }
+
+    private void PickSurfacePoint()
+    {
+        if (surfacePointPicked) return;
+        surfacePointPicked = true;
+
+        ResolveTarget();
+
+        if (targetPlayer?.Entity != null)
+        {
+            var rand = entity.World.Rand;
+            double range = config.TentacleSurfaceRange;
+            double angle = rand.NextDouble() * Math.PI * 2;
+            double dist = rand.NextDouble() * range;
+
+            surfaceX = targetPlayer.Entity.SidedPos.X + Math.Cos(angle) * dist;
+            surfaceY = targetPlayer.Entity.SidedPos.Y;
+            surfaceZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(angle) * dist;
+        }
+        else
+        {
+            surfaceX = entity.SidedPos.X;
+            surfaceY = entity.SidedPos.Y + 20;
+            surfaceZ = entity.SidedPos.Z;
+        }
+
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Attack tentacle surface point: ({surfaceX:F1}, {surfaceY:F1}, {surfaceZ:F1})");
+    }
+
+    private void OnRising(float deltaTime)
+    {
+        PickSurfacePoint();
+
+        if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
+        {
+            TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        MoveToward(surfaceX, surfaceY, surfaceZ, config.TentacleRiseSpeed);
+
+        double dx = surfaceX - entity.SidedPos.X;
+        double dy = surfaceY - entity.SidedPos.Y;
+        double dz = surfaceZ - entity.SidedPos.Z;
+        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist < 2.0)
+        {
+            TransitionTo(TentacleState.Lingering);
+        }
+    }
+
+    private void OnLingering(float deltaTime)
+    {
+        if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
+        {
+            TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        // Gentle drift around the surface point
+        double bobX = surfaceX + Math.Sin(stateTimer * 0.5) * 2.0;
+        double bobZ = surfaceZ + Math.Cos(stateTimer * 0.5) * 2.0;
+        double bobY = surfaceY + Math.Sin(stateTimer * 0.7) * 1.0;
+
+        double dx = bobX - entity.SidedPos.X;
+        double dy = bobY - entity.SidedPos.Y;
+        double dz = bobZ - entity.SidedPos.Z;
+
+        entity.SidedPos.Motion.X = dx * 0.05;
+        entity.SidedPos.Motion.Y = dy * 0.05;
+        entity.SidedPos.Motion.Z = dz * 0.05;
+
+        if (stateTimer >= config.TentacleLingerDuration)
+        {
+            // Signal ambient tentacles to sink
+            Entity body = GetBody();
+            if (body != null && body.Alive)
+            {
+                body.WatchedAttributes.SetBool("underwaterhorrors:sinkAmbient", true);
+                body.WatchedAttributes.MarkPathDirty("underwaterhorrors:sinkAmbient");
+
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Attack tentacle: signaled ambient tentacles to sink");
+            }
+
             TransitionTo(TentacleState.Reaching);
         }
     }

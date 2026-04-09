@@ -70,9 +70,18 @@ public class UnderwaterHorrorsConfig
     public float TentacleArchHeightFactor { get; set; } = 0.4f;
     public float TentacleTipLerpSpeed { get; set; } = 5f;
 
-    // Ambient tentacle
-    public float AmbientTentacleAmplitude { get; set; } = 3f;
-    public float AmbientTentacleDriftSpeed { get; set; } = 1f;
+    // Ambient tentacle - rising and orbiting
+    public float AmbientTentacleRiseSpeed { get; set; } = 0.04f;
+    public float AmbientTentacleOrbitRadius { get; set; } = 4f;
+    public float AmbientTentacleOrbitSpeed { get; set; } = 0.4f;
+    public float AmbientTentacleBobAmplitude { get; set; } = 1.5f;
+    public float AmbientTentacleBobSpeed { get; set; } = 0.7f;
+    public float AmbientTentacleSurfaceRange { get; set; } = 10f;
+
+    // Attack tentacle - rising and lingering
+    public float TentacleRiseSpeed { get; set; } = 0.025f;
+    public float TentacleLingerDuration { get; set; } = 7f;
+    public float TentacleSurfaceRange { get; set; } = 10f;
 
     // Shallow water retreat
     public int ShallowWaterThreshold { get; set; } = 3;
