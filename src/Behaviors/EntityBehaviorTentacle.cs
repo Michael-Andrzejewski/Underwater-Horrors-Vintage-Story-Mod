@@ -43,8 +43,10 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     // Reusable Vec3d for spline calculations to avoid allocation per frame
     private Vec3d reusableAnchor = new Vec3d();
 
-    // Cached AssetLocations
-    private static readonly AssetLocation SegmentAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
+    // Cached AssetLocations — three segment variants for bioluminescent wave phasing
+    private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
+    private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
+    private static readonly AssetLocation SegmentOuterAsset = new AssetLocation("underwaterhorrors", "krakententsegment_outer");
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
 
     // Reusable BlockPos for passability checks to avoid allocation per frame
@@ -158,8 +160,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         segmentIds = new long[SegmentCount];
         segmentEntities = new Entity[SegmentCount];
 
-        EntityProperties segProps = entity.World.GetEntityType(SegmentAsset);
-        if (segProps == null)
+        // Resolve all three segment variants
+        EntityProperties innerProps = entity.World.GetEntityType(SegmentInnerAsset);
+        EntityProperties midProps   = entity.World.GetEntityType(SegmentMidAsset);
+        EntityProperties outerProps = entity.World.GetEntityType(SegmentOuterAsset);
+
+        if (innerProps == null)
         {
             if (config.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api, "ERROR: Could not find entity type underwaterhorrors:krakententsegment");
@@ -168,6 +174,15 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         for (int i = 0; i < SegmentCount; i++)
         {
+            // Pick segment variant by position: inner (0-2), mid (3-4), outer (5-7)
+            EntityProperties segProps;
+            if (i <= 2)
+                segProps = innerProps;
+            else if (i <= 4)
+                segProps = midProps ?? innerProps;
+            else
+                segProps = outerProps ?? innerProps;
+
             Entity seg = entity.World.ClassRegistry.CreateEntity(segProps);
             seg.ServerPos.SetPos(entity.ServerPos.X, entity.ServerPos.Y, entity.ServerPos.Z);
             seg.ServerPos.Dimension = entity.ServerPos.Dimension;
@@ -178,7 +193,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         }
 
         if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle spawned {SegmentCount} chain segments");
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle spawned {SegmentCount} chain segments (inner/mid/outer)");
     }
 
     private void DespawnSegments()

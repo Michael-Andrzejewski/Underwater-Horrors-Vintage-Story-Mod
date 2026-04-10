@@ -87,4 +87,12 @@ public class UnderwaterHorrorsConfig
     public int ShallowWaterThreshold { get; set; } = 3;
     public float RetreatSpeed { get; set; } = 0.06f;
     public float RetreatDuration { get; set; } = 8f;
+
+    // Bioluminescence — pulsing glow that travels along tentacles
+    public bool BiolumActive { get; set; } = false;
+    public float BiolumPulseSpeed { get; set; } = 1.4f;
+    public int BiolumGlowMin { get; set; } = 32;
+    public int BiolumGlowMax { get; set; } = 200;
+    public int BiolumBodyGlowMin { get; set; } = 16;
+    public int BiolumBodyGlowMax { get; set; } = 128;
 }

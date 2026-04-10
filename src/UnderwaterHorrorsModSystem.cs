@@ -16,6 +16,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private ICoreServerAPI sapi;
     private ICoreClientAPI capi;
     private SpectralRenderer spectralRenderer;
+    private BioluminescentRenderer biolumRenderer;
     private bool glowActive;
 
     // playerUID -> entityId of assigned creature
@@ -54,7 +55,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
 
         api.Network.RegisterChannel("underwaterhorrors")
-            .RegisterMessageType(typeof(DebugToggleMessage));
+            .RegisterMessageType(typeof(DebugToggleMessage))
+            .RegisterMessageType(typeof(BiolumConfigMessage));
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -65,8 +67,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
         spectralRenderer = new SpectralRenderer(capi);
         capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
 
+        biolumRenderer = new BioluminescentRenderer(capi);
+        capi.Event.RegisterRenderer(biolumRenderer, EnumRenderStage.Before, "underwaterhorrors-biolum");
+
         api.Network.GetChannel("underwaterhorrors")
-            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived);
+            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived)
+            .SetMessageHandler<BiolumConfigMessage>(OnBiolumConfigReceived);
     }
 
     private void OnDebugToggleReceived(DebugToggleMessage msg)
@@ -80,6 +86,23 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             spectralRenderer.Active = msg.Active;
         }
+        else if (msg.Toggle == "biolum")
+        {
+            biolumRenderer.Active = msg.Active;
+        }
+    }
+
+    private void OnBiolumConfigReceived(BiolumConfigMessage msg)
+    {
+        var cfg = new UnderwaterHorrorsConfig
+        {
+            BiolumPulseSpeed  = msg.PulseSpeed,
+            BiolumGlowMin     = msg.GlowMin,
+            BiolumGlowMax     = msg.GlowMax,
+            BiolumBodyGlowMin = msg.BodyGlowMin,
+            BiolumBodyGlowMax = msg.BodyGlowMax
+        };
+        biolumRenderer.LoadConfig(cfg);
     }
 
     // All mod entity type codes to apply glow to
@@ -91,6 +114,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         new AssetLocation("underwaterhorrors", "krakenambienttentacle"),
         new AssetLocation("underwaterhorrors", "krakententacleclaw"),
         new AssetLocation("underwaterhorrors", "krakententsegment"),
+        new AssetLocation("underwaterhorrors", "krakententsegment_mid"),
+        new AssetLocation("underwaterhorrors", "krakententsegment_outer"),
     };
 
     private void ApplyGlow(bool on)
@@ -137,6 +162,20 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             channel.SendPacket(new DebugToggleMessage { Toggle = "spectral", Active = true }, player);
         }
+
+        // Sync bioluminescence state and config to client
+        if (Config.BiolumActive)
+        {
+            channel.SendPacket(new DebugToggleMessage { Toggle = "biolum", Active = true }, player);
+        }
+        channel.SendPacket(new BiolumConfigMessage
+        {
+            PulseSpeed  = Config.BiolumPulseSpeed,
+            GlowMin     = Config.BiolumGlowMin,
+            GlowMax     = Config.BiolumGlowMax,
+            BodyGlowMin = Config.BiolumBodyGlowMin,
+            BodyGlowMax = Config.BiolumBodyGlowMax
+        }, player);
     }
 
     private void RegisterCommands(ICoreServerAPI api)
@@ -177,6 +216,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithDescription("Toggle see-through-blocks wireframe outlines on all mod entities")
                 .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                 .HandleWith(OnCmdSpectral)
+            .EndSubCommand()
+            .BeginSubCommand("kraken")
+                .WithDescription("Kraken-specific settings")
+                .BeginSubCommand("biolum")
+                    .WithDescription("Toggle bioluminescent glow pulses on kraken tentacles")
+                    .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                    .HandleWith(OnCmdBiolum)
+                .EndSubCommand()
             .EndSubCommand();
     }
 
@@ -305,6 +352,23 @@ public class UnderwaterHorrorsModSystem : ModSystem
         sapi.Network.GetChannel("underwaterhorrors")
             .BroadcastPacket(new DebugToggleMessage { Toggle = "spectral", Active = Config.SpectralDebugActive });
         return TextCommandResult.Success($"Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}");
+    }
+
+    private TextCommandResult OnCmdBiolum(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.BiolumActive = !Config.BiolumActive;
+        }
+        else
+        {
+            Config.BiolumActive = val == "on" || val == "true" || val == "1";
+        }
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        sapi.Network.GetChannel("underwaterhorrors")
+            .BroadcastPacket(new DebugToggleMessage { Toggle = "biolum", Active = Config.BiolumActive });
+        return TextCommandResult.Success($"Kraken bioluminescence: {(Config.BiolumActive ? "on" : "off")}");
     }
 
     private UnderwaterHorrorsConfig LoadConfig()

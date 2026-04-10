@@ -20,7 +20,9 @@ public class SpectralRenderer : IRenderer
         { "krakententacle",        ColorUtil.ToRgba(255, 50, 255, 255) },   // Cyan
         { "krakenambienttentacle", ColorUtil.ToRgba(255, 80, 80, 255) },    // Blue
         { "krakententacleclaw",    ColorUtil.ToRgba(255, 255, 255, 50) },   // Yellow
-        { "krakententsegment",     ColorUtil.ToRgba(255, 255, 50, 255) },   // Magenta
+        { "krakententsegment",       ColorUtil.ToRgba(255, 255, 50, 255) },   // Magenta
+        { "krakententsegment_mid",   ColorUtil.ToRgba(255, 200, 50, 255) },   // Magenta-ish
+        { "krakententsegment_outer", ColorUtil.ToRgba(255, 150, 50, 255) },   // Magenta-ish
     };
 
     private const int FallbackColor = unchecked((int)0xFFFFFFFF); // White
