@@ -16,7 +16,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private ICoreServerAPI sapi;
     private ICoreClientAPI capi;
     private SpectralRenderer spectralRenderer;
-    private BioluminescentRenderer biolumRenderer;
     private bool glowActive;
 
     // playerUID -> entityId of assigned creature
@@ -54,9 +53,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:ambienttentacle", typeof(EntityBehaviorAmbientTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
 
+        api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
+
         api.Network.RegisterChannel("underwaterhorrors")
-            .RegisterMessageType(typeof(DebugToggleMessage))
-            .RegisterMessageType(typeof(BiolumConfigMessage));
+            .RegisterMessageType(typeof(DebugToggleMessage));
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -67,12 +67,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         spectralRenderer = new SpectralRenderer(capi);
         capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
 
-        biolumRenderer = new BioluminescentRenderer(capi);
-        capi.Event.RegisterRenderer(biolumRenderer, EnumRenderStage.Before, "underwaterhorrors-biolum");
-
         api.Network.GetChannel("underwaterhorrors")
-            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived)
-            .SetMessageHandler<BiolumConfigMessage>(OnBiolumConfigReceived);
+            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived);
     }
 
     private void OnDebugToggleReceived(DebugToggleMessage msg)
@@ -86,23 +82,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             spectralRenderer.Active = msg.Active;
         }
-        else if (msg.Toggle == "biolum")
-        {
-            biolumRenderer.Active = msg.Active;
-        }
-    }
-
-    private void OnBiolumConfigReceived(BiolumConfigMessage msg)
-    {
-        var cfg = new UnderwaterHorrorsConfig
-        {
-            BiolumPulseSpeed  = msg.PulseSpeed,
-            BiolumGlowMin     = msg.GlowMin,
-            BiolumGlowMax     = msg.GlowMax,
-            BiolumBodyGlowMin = msg.BodyGlowMin,
-            BiolumBodyGlowMax = msg.BodyGlowMax
-        };
-        biolumRenderer.LoadConfig(cfg);
     }
 
     // All mod entity type codes to apply glow to
@@ -120,9 +99,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void ApplyGlow(bool on)
     {
+        // Note: GlowLevel is read when the entity's mesh is first tesselated,
+        // so modifying the shared EntityProperties only affects NEWLY SPAWNED
+        // entities. Existing creatures keep their original glow level until
+        // they despawn and respawn. (Confirmed in VS-GlowingArrows mod, which
+        // also only sets GlowLevel once at world load.)
         int level = on ? 255 : 0;
 
-        // Apply to EntityProperties directly so it covers both existing and future entities
         foreach (var assetLoc in ModEntityTypes)
         {
             EntityProperties props = capi.World.GetEntityType(assetLoc);
@@ -163,19 +146,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             channel.SendPacket(new DebugToggleMessage { Toggle = "spectral", Active = true }, player);
         }
 
-        // Sync bioluminescence state and config to client
-        if (Config.BiolumActive)
-        {
-            channel.SendPacket(new DebugToggleMessage { Toggle = "biolum", Active = true }, player);
-        }
-        channel.SendPacket(new BiolumConfigMessage
-        {
-            PulseSpeed  = Config.BiolumPulseSpeed,
-            GlowMin     = Config.BiolumGlowMin,
-            GlowMax     = Config.BiolumGlowMax,
-            BodyGlowMin = Config.BiolumBodyGlowMin,
-            BodyGlowMax = Config.BiolumBodyGlowMax
-        }, player);
+        // Bioluminescence is now fully server-side (light entities), no client sync needed
     }
 
     private void RegisterCommands(ICoreServerAPI api)
@@ -217,14 +188,88 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                 .HandleWith(OnCmdSpectral)
             .EndSubCommand()
+            .BeginSubCommand("status")
+                .WithDescription("Show all toggle states and entity counts")
+                .HandleWith(OnCmdStatus)
+            .EndSubCommand()
+            .BeginSubCommand("serpent")
+                .WithDescription("Serpent-specific settings")
+                .BeginSubCommand("anim")
+                    .WithDescription("Freeze nearest serpent and loop an animation (idle, idle2, walk, walk1, pose, off)")
+                    .WithArgs(api.ChatCommands.Parsers.Word("animation"))
+                    .HandleWith(OnCmdSerpentAnim)
+                .EndSubCommand()
+            .EndSubCommand()
             .BeginSubCommand("kraken")
                 .WithDescription("Kraken-specific settings")
                 .BeginSubCommand("biolum")
-                    .WithDescription("Toggle bioluminescent glow pulses on kraken tentacles")
+                    .WithDescription("Toggle bioluminescent glow on kraken tentacles")
                     .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                     .HandleWith(OnCmdBiolum)
+                    .BeginSubCommand("pulse")
+                        .WithDescription("Toggle pulsing/ripple effect on bioluminescent glow")
+                        .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                        .HandleWith(OnCmdBiolumPulse)
+                    .EndSubCommand()
                 .EndSubCommand()
             .EndSubCommand();
+    }
+
+    private TextCommandResult OnCmdStatus(TextCommandCallingArgs args)
+    {
+        // Count entities by type
+        var counts = new Dictionary<string, int>();
+        int totalAlive = 0;
+
+        foreach (Entity entity in sapi.World.LoadedEntities.Values)
+        {
+            if (entity == null || !entity.Alive) continue;
+            if (entity.Code?.Domain != "underwaterhorrors") continue;
+
+            string path = entity.Code.Path;
+            if (!counts.ContainsKey(path))
+                counts[path] = 0;
+            counts[path]++;
+            totalAlive++;
+        }
+
+        string nl = "\n";
+        string msg = "=== Underwater Horrors Status ===" + nl;
+
+        // Toggles
+        msg += nl + "-- Toggles --" + nl;
+        msg += $"  Debug logging: {(Config.DebugLogging ? "on" : "off")}" + nl;
+        msg += $"  Glow debug: {(Config.GlowDebugActive ? "on" : "off")}" + nl;
+        msg += $"  Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}" + nl;
+        msg += $"  Bioluminescence: {(Config.BiolumActive ? "on" : "off")}" + nl;
+        msg += $"  Biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}" + nl;
+
+        // Config values
+        msg += nl + "-- Config --" + nl;
+        msg += $"  Spawn chance: {Config.SpawnChancePerCheck:F3}" + nl;
+        msg += $"  Drag speed: {Config.TentacleDragSpeed:F1}" + nl;
+        msg += $"  Biolum pulse speed: {Config.BiolumPulseSpeed:F1}" + nl;
+
+        // Entities
+        msg += nl + "-- Entities ({0} alive) --" + nl;
+        if (counts.Count == 0)
+        {
+            msg = msg.Replace("{0}", "0");
+            msg += "  (none)" + nl;
+        }
+        else
+        {
+            msg = msg.Replace("{0}", totalAlive.ToString());
+            foreach (var kvp in counts)
+            {
+                msg += $"  {kvp.Key}: {kvp.Value}" + nl;
+            }
+        }
+
+        // Active creature assignments
+        msg += nl + $"-- Active creatures: {activeCreatures.Count} players tracked --";
+
+        return TextCommandResult.Success(msg);
     }
 
     private TextCommandResult OnCmdKillAll(TextCommandCallingArgs args)
@@ -331,10 +376,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             Config.GlowDebugActive = val == "on" || val == "true" || val == "1";
         }
+
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         sapi.Network.GetChannel("underwaterhorrors")
             .BroadcastPacket(new DebugToggleMessage { Toggle = "glow", Active = Config.GlowDebugActive });
-        return TextCommandResult.Success($"Glow debug: {(Config.GlowDebugActive ? "on" : "off")}");
+        return TextCommandResult.Success(
+            $"Glow debug: {(Config.GlowDebugActive ? "on" : "off")} " +
+            "(note: only affects newly spawned creatures — existing ones keep their glow until they respawn)");
     }
 
     private TextCommandResult OnCmdSpectral(TextCommandCallingArgs args)
@@ -366,9 +414,79 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Config.BiolumActive = val == "on" || val == "true" || val == "1";
         }
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
-        sapi.Network.GetChannel("underwaterhorrors")
-            .BroadcastPacket(new DebugToggleMessage { Toggle = "biolum", Active = Config.BiolumActive });
+
+        // Toggle biolum lights on all existing tentacles immediately
+        foreach (Entity entity in sapi.World.LoadedEntities.Values)
+        {
+            if (entity == null || !entity.Alive) continue;
+            if (entity.Code?.Domain != "underwaterhorrors") continue;
+
+            var tentBehavior = entity.GetBehavior<EntityBehaviorTentacle>();
+            if (tentBehavior != null)
+            {
+                tentBehavior.SetBiolumActive(Config.BiolumActive);
+            }
+        }
+
         return TextCommandResult.Success($"Kraken bioluminescence: {(Config.BiolumActive ? "on" : "off")}");
+    }
+
+    private TextCommandResult OnCmdBiolumPulse(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.BiolumPulsing = !Config.BiolumPulsing;
+        }
+        else
+        {
+            Config.BiolumPulsing = val == "on" || val == "true" || val == "1";
+        }
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success($"Kraken biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}");
+    }
+
+    private TextCommandResult OnCmdSerpentAnim(TextCommandCallingArgs args)
+    {
+        string animName = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(animName))
+            return TextCommandResult.Error("Usage: /uh serpent anim <idle|idle2|walk|walk1|pose|off>");
+
+        IServerPlayer caller = args.Caller.Player as IServerPlayer;
+        if (caller?.Entity == null)
+            return TextCommandResult.Error("No player entity");
+
+        // Find the nearest serpent
+        Entity nearest = null;
+        double nearestDist = double.MaxValue;
+        foreach (Entity e in sapi.World.LoadedEntities.Values)
+        {
+            if (e == null || !e.Alive) continue;
+            if (e.Code?.Path != "seaserpent") continue;
+            double dist = e.ServerPos.DistanceTo(caller.Entity.ServerPos.XYZ);
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = e;
+            }
+        }
+
+        if (nearest == null)
+            return TextCommandResult.Error("No living serpent found. Spawn one with /uh spawn serpent");
+
+        var behavior = nearest.GetBehavior<EntityBehaviorSerpentAI>();
+        if (behavior == null)
+            return TextCommandResult.Error("Serpent has no SerpentAI behavior");
+
+        if (animName == "off")
+        {
+            behavior.SetDebugAnimation(null);
+            return TextCommandResult.Success($"Serpent debug anim OFF — AI resumed (dist: {nearestDist:F0})");
+        }
+
+        behavior.SetDebugAnimation(animName);
+        return TextCommandResult.Success(
+            $"Serpent frozen, looping '{animName}' every {EntityBehaviorSerpentAI.DebugAnimIntervalPublic:F0}s (dist: {nearestDist:F0})");
     }
 
     private UnderwaterHorrorsConfig LoadConfig()
@@ -395,9 +513,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void OnSpawnCheck(float dt)
     {
+        if (sapi?.World?.AllOnlinePlayers == null) return;
+
         foreach (IServerPlayer player in sapi.World.AllOnlinePlayers)
         {
-            if (player.Entity == null || !player.Entity.Alive) continue;
+            if (player?.Entity == null || !player.Entity.Alive) continue;
 
             // Skip if player already has an active creature
             if (activeCreatures.TryGetValue(player.PlayerUID, out long existingId))
@@ -466,7 +586,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private int CountSaltwaterDepth(Entity playerEntity, int earlyExitThreshold)
     {
-        var accessor = sapi.World.BlockAccessor;
+        if (playerEntity?.SidedPos == null) return 0;
+
+        var accessor = sapi?.World?.BlockAccessor;
+        if (accessor == null) return 0;
+
         int mapHeight = accessor.MapSizeY;
         int startX = (int)playerEntity.SidedPos.X;
         int startY = (int)playerEntity.SidedPos.Y;

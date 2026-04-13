@@ -13,9 +13,9 @@
     },
     "client": {
         "renderer": "Shape",
-        "texture": { "base": "game:block/stone/rock/granite1" },
+        "texture": { "base": "game:entity/lore/shiver/bellhead" },
         "shape": { "base": "underwaterhorrors:entity/krakententacleclaw" },
-        "glowLevel": 0,
+        "glowLevel": 32,
         "size": 2.0,
         "behaviors": []
     },

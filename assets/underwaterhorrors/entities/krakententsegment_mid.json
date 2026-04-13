@@ -13,9 +13,9 @@
     },
     "client": {
         "renderer": "Shape",
-        "texture": { "base": "game:block/stone/rock/granite1" },
-        "shape": { "base": "underwaterhorrors:entity/krakententsegment" },
-        "glowLevel": 0,
+        "texture": { "base": "game:entity/lore/shiver/bellhead" },
+        "shape": { "base": "underwaterhorrors:entity/krakententsegment_mid" },
+        "glowLevel": 32,
         "size": 1.5,
         "behaviors": []
     },

@@ -36,6 +36,25 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private Entity[] clawEntities;
     private bool clawsSpawned;
 
+    // Bioluminescent light entities — one per segment, track position and pulse HSV
+    private long[] biolumIds;
+    private Entity[] biolumEntities;
+    private bool biolumsSpawned;
+
+    // Biolum pulse timer — only update HSV a few times per second to limit network traffic
+    private float biolumTickAccum;
+    private const float BiolumTickInterval = 0.2f; // 5 Hz
+
+    // Biolum HSV constants: base color matches creativeglow-45 [26, 7, 4]
+    private const byte BiolumHue = 26;
+    private const byte BiolumSat = 7;
+    private const byte BiolumVStatic = 4;
+    private const byte BiolumVMin = 1;
+    private const byte BiolumVMax = 4;
+
+    // Phase offset per segment — wave ripples outward from body to tip
+    private const float BiolumPhaseStep = 0.8f;
+
     // Cached body entity reference
     private long cachedBodyId;
     private Entity cachedBody;
@@ -48,6 +67,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
     private static readonly AssetLocation SegmentOuterAsset = new AssetLocation("underwaterhorrors", "krakententsegment_outer");
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
+    private static readonly AssetLocation BiolightAsset = new AssetLocation("underwaterhorrors", "biolight");
 
     // Reusable BlockPos for passability checks to avoid allocation per frame
     private readonly BlockPos reusablePassabilityPos = new BlockPos(0, 0, 0, 0);
@@ -79,6 +99,30 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         {
             segmentsSpawned = true;
             SpawnSegments();
+        }
+
+        // Spawn biolum lights if enabled and segments exist
+        if (!biolumsSpawned && segmentsSpawned && config.BiolumActive)
+        {
+            SpawnBiolumLights();
+        }
+
+        // Update biolum HSV pulsing at throttled rate
+        if (biolumsSpawned)
+        {
+            if (!config.BiolumActive)
+            {
+                DespawnBiolumLights();
+            }
+            else
+            {
+                biolumTickAccum += deltaTime;
+                if (biolumTickAccum >= BiolumTickInterval)
+                {
+                    biolumTickAccum = 0f;
+                    UpdateBiolumPulse();
+                }
+            }
         }
 
         // Check if any claw died during Dragging -> release and sink
@@ -135,6 +179,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
         RemoveSpeedDebuff();
+        DespawnBiolumLights();
         DespawnSegments();
         DespawnClaws();
         base.OnEntityDespawn(despawn);
@@ -350,6 +395,129 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             }
         }
         return false;
+    }
+
+    // --- Bioluminescent light entities ---
+
+    private void SpawnBiolumLights()
+    {
+        if (segmentEntities == null) return;
+
+        EntityProperties lightProps = entity.World.GetEntityType(BiolightAsset);
+        if (lightProps == null)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "ERROR: Could not find entity type underwaterhorrors:biolight");
+            return;
+        }
+
+        biolumIds = new long[SegmentCount];
+        biolumEntities = new Entity[SegmentCount];
+
+        for (int i = 0; i < SegmentCount; i++)
+        {
+            Entity seg = segmentEntities[i];
+            if (seg == null || !seg.Alive) continue;
+
+            Entity light = entity.World.ClassRegistry.CreateEntity(lightProps);
+            light.ServerPos.SetPos(seg.ServerPos.X, seg.ServerPos.Y, seg.ServerPos.Z);
+            light.ServerPos.Dimension = entity.ServerPos.Dimension;
+            light.Pos.SetFrom(light.ServerPos);
+
+            // Initial HSV — static brightness unless pulsing is enabled
+            light.WatchedAttributes.SetBytes("hsv", new byte[] { BiolumHue, BiolumSat, BiolumVStatic });
+
+            entity.World.SpawnEntity(light);
+            biolumIds[i] = light.EntityId;
+            biolumEntities[i] = light;
+        }
+
+        biolumsSpawned = true;
+
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle spawned {SegmentCount} biolum lights");
+    }
+
+    private void DespawnBiolumLights()
+    {
+        if (biolumEntities == null) return;
+
+        for (int i = 0; i < biolumEntities.Length; i++)
+        {
+            Entity light = biolumEntities[i];
+            if (light != null && light.Alive)
+            {
+                light.Die(EnumDespawnReason.Expire);
+            }
+        }
+
+        biolumIds = null;
+        biolumEntities = null;
+        biolumsSpawned = false;
+    }
+
+    /// <summary>
+    /// Updates biolum light positions to match their parent segment and
+    /// modulates the V (brightness) component via a sine wave with
+    /// per-segment phase offset, creating an outward-rippling glow.
+    /// </summary>
+    private void UpdateBiolumPulse()
+    {
+        if (biolumEntities == null || segmentEntities == null) return;
+
+        bool pulsing = config.BiolumPulsing;
+        float t = (float)entity.World.ElapsedMilliseconds / 1000f;
+        float speed = config.BiolumPulseSpeed;
+
+        for (int i = 0; i < SegmentCount; i++)
+        {
+            Entity light = biolumEntities[i];
+            // Re-validate cached reference if stale
+            if (light == null || !light.Alive)
+            {
+                if (biolumIds != null)
+                {
+                    light = entity.World.GetEntityById(biolumIds[i]);
+                    biolumEntities[i] = light;
+                }
+                if (light == null || !light.Alive) continue;
+            }
+
+            Entity seg = segmentEntities[i];
+            if (seg == null || !seg.Alive)
+            {
+                seg = entity.World.GetEntityById(segmentIds[i]);
+                segmentEntities[i] = seg;
+                if (seg == null || !seg.Alive) continue;
+            }
+
+            // Move light to segment position
+            light.TeleportToDouble(seg.ServerPos.X, seg.ServerPos.Y, seg.ServerPos.Z);
+
+            if (pulsing)
+            {
+                float phase = t * speed - i * BiolumPhaseStep;
+                float wave = 0.5f + 0.5f * (float)Math.Sin(phase);
+                byte v = (byte)(BiolumVMin + (BiolumVMax - BiolumVMin) * wave);
+                light.WatchedAttributes.SetBytes("hsv", new byte[] { BiolumHue, BiolumSat, v });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Called externally (e.g. from toggle command) to force-spawn or force-despawn
+    /// biolum lights on an already-living tentacle.
+    /// </summary>
+    public void SetBiolumActive(bool active)
+    {
+        if (active && !biolumsSpawned && segmentsSpawned)
+        {
+            SpawnBiolumLights();
+        }
+        else if (!active && biolumsSpawned)
+        {
+            DespawnBiolumLights();
+        }
     }
 
     // --- Speed debuff ---

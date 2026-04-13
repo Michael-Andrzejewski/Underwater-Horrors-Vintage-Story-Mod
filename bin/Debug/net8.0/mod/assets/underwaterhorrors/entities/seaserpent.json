@@ -2,8 +2,8 @@
     "code": "seaserpent",
     "class": "EntityAgent",
     "habitat": "Sea",
-    "hitboxSize": { "x": 1.0, "y": 5.0 },
-    "deadHitboxSize": { "x": 1.0, "y": 0.5 },
+    "hitboxSize": { "x": 2.0, "y": 1.5 },
+    "deadHitboxSize": { "x": 2.0, "y": 1.0 },
     "eyeHeight": 4.5,
     "weight": 500,
     "canClimb": false,
@@ -13,10 +13,11 @@
     },
     "client": {
         "renderer": "Shape",
-        "texture": { "base": "underwaterhorrors:entity/serpenttexture" },
+        "texture": { "base": "underwaterhorrors:entity/serpent" },
         "shape": { "base": "underwaterhorrors:entity/seaserpent" },
         "glowLevel": 0,
         "size": 1.0,
+        "sizeForCulling": 15,
         "behaviors": []
     },
     "server": {

@@ -90,6 +90,7 @@ public class UnderwaterHorrorsConfig
 
     // Bioluminescence — pulsing glow that travels along tentacles
     public bool BiolumActive { get; set; } = false;
+    public bool BiolumPulsing { get; set; } = false;
     public float BiolumPulseSpeed { get; set; } = 1.4f;
     public int BiolumGlowMin { get; set; } = 32;
     public int BiolumGlowMax { get; set; } = 200;

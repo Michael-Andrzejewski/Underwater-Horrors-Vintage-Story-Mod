@@ -5,7 +5,28 @@
       "WebFetch(domain:apidocs.vintagestory.at)",
       "WebFetch(domain:wiki.vintagestory.at)",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(dotnet tool:*)",
+      "Bash(powershell -Command ':*)",
+      "Bash(ilspycmd -v 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll' --outputdir 'C:\\\\Users\\\\maaro\\\\temp_vs_api' -o)",
+      "Bash(mkdir -p /tmp/vs_api_output)",
+      "Read(//tmp/**)",
+      "Bash(ilspycmd 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll' -o)",
+      "Bash(ilspycmd --help)",
+      "Bash(ilspycmd -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' -t 'Vintagestory.API.Common.Entity' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -l ci -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -t 'Vintagestory.API.Common.Entities.Entity' -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -t 'Vintagestory.API.Common.EntityAgent' -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -t 'Vintagestory.API.Common.Entities.EntityProperties' -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -t 'Vintagestory.API.Common.Entities.EntityClientProperties' -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -l ci -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryLib.dll')",
+      "Bash(ilspycmd -t 'Vintagestory.API.Common.Entities.EntityRenderer' -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll')",
+      "Bash(ilspycmd -l ci -r 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory' 'C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\Mods\\\\VSEssentials.dll')",
+      "Bash(powershell -Command '$asm = [System.Reflection.Assembly]::LoadFrom\\(\\\\\"C:\\\\Users\\\\maaro\\\\AppData\\\\Roaming\\\\Vintagestory\\\\VintagestoryAPI.dll\\\\\"\\); $type = $asm.GetType\\(\\\\\"Vintagestory.API.Common.Entities.Entity\\\\\"\\); $type.GetProperties\\(\\) | Select-Object -Property Name, PropertyType | Format-Table -AutoSize')",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.vintagestory.at)",
+      "WebFetch(domain:mods.vintagestory.at)",
+      "WebFetch(domain:api.github.com)"
     ]
   }
 }
