@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UnderwaterHorrors")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+998c122dfcb6f1f31ee9a48490e340c07a8425ff")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+864b13004bfa684e6fbc35aa6cbc9858739d2fdb")]
 [assembly: System.Reflection.AssemblyProductAttribute("UnderwaterHorrors")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UnderwaterHorrors")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

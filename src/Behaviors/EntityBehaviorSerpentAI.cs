@@ -47,30 +47,23 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     private bool strikeDamageDealt;
     private bool attackFromRight;
 
-    // How close the entity centre needs to be to the player to start a
-    // windup.  During the strike animation the head lunges forward, so
-    // the body stays behind the player while the head reaches them.
-    private const float WindupTriggerRange = 8.0f;
-
-    // Generous damage range during the strike — the animation itself is
-    // the visual cue; we don't try to compute exact head position during
-    // the strike because the animation moves the head unpredictably.
-    private const float StrikeDamageRange = 10.0f;
+    // How close the HEAD needs to be to the player to start a windup.
+    // Once triggered, damage is guaranteed — the proximity check IS
+    // the hit check.
+    private const float WindupTriggerRange = 4.0f;
 
     // Approximate head offset used only during the CHARGE phase to keep
     // the body behind the player so the head arrives first.
-    private const float HeadForwardOffset = 6.0f;
+    private const float HeadForwardOffset = 9.0f;
 
     // How many blocks below the player the serpent should cruise.
     private const float SubmergeDepth = 3.0f;
 
-    // ── Dynamic hitbox (rotated AABB) ──────────────────────────────────
-    // The serpent's body is long and thin. We rotate the AABB each tick
-    // so it forms a tight tube along the facing direction.
-    private const float HitboxLength = 10f;  // along the body
-    private const float HitboxWidth = 2f;    // perpendicular to body
-    private const float HitboxHeight = 1.5f;
-    private float lastHitboxYaw = float.MinValue;
+    // ── Head position (computed from entity yaw + forward offset) ──────
+    // The head trigger range: how close the head must be to the player
+    // before an attack animation fires.  Once triggered, damage is
+    // guaranteed — the proximity check IS the hit check.
+    private const float HeadAttackTriggerRange = 4.0f;
 
     // ── Surfacing spot ─────────────────────────────────────────────────
     private double surfaceX, surfaceZ;
@@ -86,6 +79,11 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // When true, UpdateFacing freezes yaw so the serpent doesn't jerk
     // around during windup/strike.
     private bool lockFacing;
+
+    // When true, UpdateFacing aims the yaw at the target player instead
+    // of deriving it from the motion vector.  Used during the attack
+    // charge so the head points at the player, not along the orbit tangent.
+    private bool faceTarget;
 
     // ── Spiral approach fields ─────────────────────────────────────────
     private bool useSpiralApproach;
@@ -122,45 +120,25 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Dynamic hitbox — rotated AABB that follows the serpent's facing
-    //  Runs on BOTH client and server so spectral view shows the tube.
+    //  Head position — computed from entity position + yaw * offset
+    //  Used for attack triggering and spectral debug rendering.
     // ═══════════════════════════════════════════════════════════════════
-    private void UpdateHitbox()
+    private void GetHeadPosition(out double hx, out double hy, out double hz)
     {
-        float yaw = entity.SidedPos.Yaw - ModelYawOffset;
+        float yaw = entity.ServerPos.Yaw;
+        hx = entity.ServerPos.X + Math.Sin(yaw) * HeadForwardOffset;
+        hy = entity.ServerPos.Y;
+        hz = entity.ServerPos.Z + Math.Cos(yaw) * HeadForwardOffset;
+    }
 
-        // Skip if yaw hasn't changed enough to matter (~5°)
-        if (Math.Abs(yaw - lastHitboxYaw) < 0.09f) return;
-        lastHitboxYaw = yaw;
-        float sinYaw = (float)Math.Abs(Math.Sin(yaw));
-        float cosYaw = (float)Math.Abs(Math.Cos(yaw));
-
-        // Compute axis-aligned extents of the oriented rectangle
-        float halfX = (sinYaw * HitboxLength + cosYaw * HitboxWidth) * 0.5f;
-        float halfZ = (cosYaw * HitboxLength + sinYaw * HitboxWidth) * 0.5f;
-        float halfY = HitboxHeight * 0.5f;
-
-        var box = entity.SelectionBox;
-        if (box != null)
-        {
-            box.X1 = -halfX;
-            box.Y1 = -halfY;
-            box.Z1 = -halfZ;
-            box.X2 = halfX;
-            box.Y2 = halfY;
-            box.Z2 = halfZ;
-        }
-
-        var cbox = entity.CollisionBox;
-        if (cbox != null)
-        {
-            cbox.X1 = -halfX;
-            cbox.Y1 = -halfY;
-            cbox.Z1 = -halfZ;
-            cbox.X2 = halfX;
-            cbox.Y2 = halfY;
-            cbox.Z2 = halfZ;
-        }
+    private double HeadDistToPlayer()
+    {
+        if (targetPlayer?.Entity == null) return double.MaxValue;
+        GetHeadPosition(out double hx, out double hy, out double hz);
+        double dx = hx - targetPlayer.Entity.SidedPos.X;
+        double dy = hy - targetPlayer.Entity.SidedPos.Y;
+        double dz = hz - targetPlayer.Entity.SidedPos.Z;
+        return Math.Sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -171,12 +149,25 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         if (animName == null || animName == "off")
         {
             debugAnimName = null;
+            entity.AnimManager.StopAllAnimations();
+            currentAnim = null;
             TransitionTo(state);
             return;
         }
         debugAnimName = animName;
         debugAnimTimer = 0;
-        ForcePlayAnimation(animName);
+
+        // Stop everything, then start the requested animation fresh
+        entity.AnimManager.StopAllAnimations();
+        currentAnim = animName;
+        entity.AnimManager.StartAnimation(new AnimationMetaData
+        {
+            Animation = animName,
+            Code = animName,
+            AnimationSpeed = 1f,
+            EaseInSpeed = 999f,
+            BlendMode = EnumAnimationBlendMode.Average
+        }.Init());
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -185,10 +176,6 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     public override void OnGameTick(float deltaTime)
     {
         if (!entity.Alive) return;
-
-        // Update the oriented hitbox on BOTH client and server
-        UpdateHitbox();
-
         if (entity.Api.Side != EnumAppSide.Server) return;
 
         // ── Debug animation mode: freeze in place, replay anim ──
@@ -202,7 +189,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             if (debugAnimTimer >= DebugAnimInterval)
             {
                 debugAnimTimer = 0;
-                ForcePlayAnimation(debugAnimName);
+                // ResetAnimation replays a Hold animation from frame 0
+                // without needing a stop/start cycle
+                entity.AnimManager.ResetAnimation(debugAnimName);
             }
             return;
         }
@@ -313,9 +302,27 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         double horizSpeedSq = mx * mx + mz * mz;
 
         // Yaw — skip update when locked (during windup/strike)
-        if (!lockFacing && horizSpeedSq > 0.00001)
+        if (!lockFacing)
         {
-            float targetYaw = (float)Math.Atan2(mx, mz) + ModelYawOffset;
+            float targetYaw;
+
+            if (faceTarget && targetPlayer?.Entity != null)
+            {
+                // During attack charge: aim directly at the player
+                double dx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
+                double dz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+                targetYaw = (float)Math.Atan2(dx, dz) + ModelYawOffset;
+            }
+            else if (horizSpeedSq > 0.00001)
+            {
+                // Normal: derive yaw from motion direction
+                targetYaw = (float)Math.Atan2(mx, mz) + ModelYawOffset;
+            }
+            else
+            {
+                // No motion and not targeting — keep current yaw
+                targetYaw = smoothedYaw;
+            }
 
             if (!yawInitialized)
             {
@@ -324,8 +331,10 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             }
             else
             {
+                // Faster turn rate when facing target (attack charge)
+                float turnRate = faceTarget ? 8f : 5f;
                 float diff = GameMath.AngleRadDistance(smoothedYaw, targetYaw);
-                smoothedYaw += diff * Math.Min(1f, deltaTime * 5f);
+                smoothedYaw += diff * Math.Min(1f, deltaTime * turnRate);
             }
 
             entity.ServerPos.Yaw = smoothedYaw;
@@ -371,14 +380,21 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
     /// <summary>
     /// Force-restart an animation even if it is already the current one.
-    /// Needed for replaying Hold animations (debug mode, attack replays).
+    /// Uses ResetAnimation for Hold animations that are frozen on the last frame.
     /// </summary>
     private void ForcePlayAnimation(string code, float speed = 1f)
     {
-        // Always stop first — handles Hold animations that are frozen
+        if (currentAnim == code && entity.AnimManager.IsAnimationActive(code))
+        {
+            // Same animation already active (possibly frozen on last Hold frame)
+            // — reset it back to frame 0 instead of stop/start
+            entity.AnimManager.ResetAnimation(code);
+            return;
+        }
+
+        // Different animation — stop old, start new
         if (currentAnim != null)
             entity.AnimManager.StopAnimation(currentAnim);
-        entity.AnimManager.StopAnimation(code); // also stop by target name
 
         currentAnim = code;
         entity.AnimManager.StartAnimation(new AnimationMetaData
@@ -386,6 +402,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             Animation = code,
             Code = code,
             AnimationSpeed = speed,
+            EaseInSpeed = 999f,
             BlendMode = EnumAnimationBlendMode.Add
         }.Init());
     }
@@ -402,6 +419,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         isStriking = false;
         strikeDamageDealt = false;
         lockFacing = false;
+        faceTarget = false;
 
         if (config.DebugLogging)
         {
@@ -430,6 +448,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
             case SerpentState.Attacking:
                 PlayAnimation(AnimSlither);
+                faceTarget = true;  // Turn toward the player during charge
                 break;
 
             case SerpentState.Retreating:
@@ -603,10 +622,13 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // ═══════════════════════════════════════════════════════════════════
     //  State: Attacking – charge → windup → strike
     //
-    //  Charge:  slither toward the player at full speed.
-    //  Windup:  nearly stop, lock facing, play windup animation.
-    //  Strike:  play attack1, deal damage based on entity-to-player
-    //           distance (generous range — the animation IS the hit).
+    //  Charge:  slither toward the player so the HEAD arrives first.
+    //           The entity center targets a point HeadForwardOffset
+    //           behind the player (along the entity→player line).
+    //  Windup:  full stop, lock facing, play windup animation.
+    //           Triggered when head is within HeadAttackTriggerRange.
+    //  Strike:  play attack1, deal GUARANTEED damage (the proximity
+    //           check that triggered the windup IS the hit check).
     // ═══════════════════════════════════════════════════════════════════
     private void OnAttacking(float deltaTime)
     {
@@ -625,13 +647,12 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         double py = targetPlayer.Entity.SidedPos.Y;
         double pz = targetPlayer.Entity.SidedPos.Z;
 
-        double centerDist = entity.ServerPos.DistanceTo(targetPlayer.Entity.SidedPos.XYZ);
-
         if (!isWindingUp && !isStriking)
         {
             // ── Charge phase ──
-            // Offset target so the body stops behind the player,
-            // letting the head (and animation lunge) reach them.
+            // Move entity center so the HEAD arrives at the player.
+            // Target = player position offset BACK by HeadForwardOffset
+            // along the entity→player direction.
             double adx = px - entity.ServerPos.X;
             double adz = pz - entity.ServerPos.Z;
             double aDist = Math.Sqrt(adx * adx + adz * adz);
@@ -649,11 +670,14 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
             attackCooldownTimer -= deltaTime;
 
-            // Start windup when the entity centre is in range
-            if (centerDist < WindupTriggerRange && attackCooldownTimer <= 0)
+            // Check HEAD distance to player — this is the real trigger
+            double headDist = HeadDistToPlayer();
+
+            if (headDist < HeadAttackTriggerRange && attackCooldownTimer <= 0)
             {
                 isWindingUp = true;
                 lockFacing = true;
+                faceTarget = false;  // Stop targeting, freeze current facing
                 attackAnimTimer = 0;
                 strikeDamageDealt = false;
                 attackFromRight = !attackFromRight;
@@ -661,15 +685,15 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                         $"Serpent: winding up ({(attackFromRight ? "right" : "left")}), " +
-                        $"dist={centerDist:F1}");
+                        $"headDist={headDist:F1}");
             }
         }
         else if (isWindingUp)
         {
-            // ── Windup phase: nearly stop, facing locked ──
-            entity.ServerPos.Motion.X *= 0.9;
-            entity.ServerPos.Motion.Y *= 0.9;
-            entity.ServerPos.Motion.Z *= 0.9;
+            // ── Windup phase: full stop, facing locked ──
+            entity.ServerPos.Motion.X = 0;
+            entity.ServerPos.Motion.Y = 0;
+            entity.ServerPos.Motion.Z = 0;
 
             attackAnimTimer += deltaTime;
 
@@ -685,48 +709,29 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         }
         else if (isStriking)
         {
-            // ── Strike phase: small lunge, damage mid-animation ──
-            // Brief forward push toward the player
-            double sdx = px - entity.ServerPos.X;
-            double sdz = pz - entity.ServerPos.Z;
-            double sDist = Math.Sqrt(sdx * sdx + sdz * sdz);
-            if (sDist > 0.1)
-            {
-                double lungeSpeed = config.SerpentAttackSpeed * 0.5;
-                entity.ServerPos.Motion.X = (sdx / sDist) * lungeSpeed;
-                entity.ServerPos.Motion.Z = (sdz / sDist) * lungeSpeed;
-            }
-
+            // ── Strike phase: guaranteed damage ──
+            // The head was close enough to trigger the windup, so the
+            // strike always connects. No further distance check.
             attackAnimTimer += deltaTime;
 
-            // Deal damage based on entity-to-player distance.
-            // The strike animation swings the head forward; we use a
-            // generous range rather than trying to compute exact head pos
-            // which doesn't account for animation bone transforms.
             if (!strikeDamageDealt && attackAnimTimer >= StrikeDamageTime)
             {
                 strikeDamageDealt = true;
 
-                if (centerDist < StrikeDamageRange)
+                targetPlayer.Entity.ReceiveDamage(new DamageSource
                 {
-                    targetPlayer.Entity.ReceiveDamage(new DamageSource
-                    {
-                        Source = EnumDamageSource.Entity,
-                        SourceEntity = entity,
-                        Type = EnumDamageType.PiercingAttack,
-                        DamageTier = config.SerpentDamageTier
-                    }, config.SerpentAttackDamage);
+                    Source = EnumDamageSource.Entity,
+                    SourceEntity = entity,
+                    Type = EnumDamageType.PiercingAttack,
+                    DamageTier = config.SerpentDamageTier
+                }, config.SerpentAttackDamage);
 
-                    if (config.DebugLogging)
-                        UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                            $"Serpent hit {targetPlayer.PlayerName} " +
-                            $"for {config.SerpentAttackDamage} dmg (dist: {centerDist:F1})");
-                }
-                else if (config.DebugLogging)
+                if (config.DebugLogging)
                 {
+                    double headDist = HeadDistToPlayer();
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                        $"Serpent strike missed (dist: {centerDist:F1}, " +
-                        $"range: {StrikeDamageRange:F1})");
+                        $"Serpent hit {targetPlayer.PlayerName} " +
+                        $"for {config.SerpentAttackDamage} dmg (headDist: {headDist:F1})");
                 }
             }
 
