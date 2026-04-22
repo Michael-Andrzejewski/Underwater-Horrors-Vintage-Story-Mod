@@ -56,9 +56,10 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // the body behind the player so the head arrives first.
     private const float HeadForwardOffset = 9.0f;
 
-    // How many blocks below the player the serpent should cruise.
-    // Read from config so server owners can tune.
-    private float SubmergeDepth => config.SerpentSurfaceSubmergeDepth;
+    // Per-spiral-step flag: when true, this orbit rises to surface
+    // depth (fin-above-waves effect).  When false, stays at the normal
+    // (deeper) cruise depth.  Rolled in SetNextSpiralStep.
+    private bool currentStepAtSurface;
 
     // ── Head position (computed from entity yaw + forward offset) ──────
     // The head trigger range: how close the head must be to the player
@@ -96,6 +97,18 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // ── Spawn position for retreat ─────────────────────────────────────
     private double spawnX, spawnY, spawnZ;
     private bool spawnRecorded;
+
+    // ── Boat boredom ──────────────────────────────────────────────────
+    // After BoatBoredomGraceSeconds mounted, periodically roll to give
+    // up and retreat.  The ModSystem spawn loop can then spawn a
+    // fresh creature to replace this one.
+    private float mountedCircleTimer;
+    private float mountedCheckTimer;
+    // Set when a retreat was triggered by boat boredom.  Prevents the
+    // OnRetreating "resume stalking if player dismounts" shortcut, so
+    // briefly dismounting can't cancel the retreat — the serpent fully
+    // commits to leaving.
+    private bool committedRetreat;
 
     // ── Proximity-based aggro ─────────────────────────────────────────
     // Player within head range → immediate aggro.
@@ -233,9 +246,37 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             }
         }
 
-        // When player is mounted: just circle indefinitely at the
-        // surface without attacking.  No boredom retreat — the serpent
-        // orbits until the player dismounts or leaves the area.
+        // Boat boredom: after ~2 min of the player being mounted, roll
+        // every 30 s to retreat.  A replacement may spawn via the main
+        // spawn loop (mounted spawns are no longer blocked).
+        if (state == SerpentState.Stalking || state == SerpentState.Attacking)
+        {
+            if (targetPlayer?.Entity?.MountedOn != null)
+            {
+                mountedCircleTimer += deltaTime;
+                if (mountedCircleTimer >= config.BoatBoredomGraceSeconds)
+                {
+                    mountedCheckTimer += deltaTime;
+                    if (mountedCheckTimer >= 30f)
+                    {
+                        mountedCheckTimer = 0;
+                        if (entity.World.Rand.NextDouble() < config.BoatBoredomRetreatRollChance)
+                        {
+                            if (config.DebugLogging)
+                                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                                    $"Serpent bored after {mountedCircleTimer:F0}s mounted, retreating");
+                            committedRetreat = true;
+                            TransitionTo(SerpentState.Retreating);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                mountedCircleTimer = 0;
+                mountedCheckTimer = 0;
+            }
+        }
 
         stateTimer += deltaTime;
 
@@ -526,6 +567,12 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             (float)(rand.NextDouble() *
                 (config.SerpentSpiralStepDurationMax - config.SerpentSpiralStepDurationMin));
         radiusTransitionTime = 0;
+
+        // Roll whether this step rises to the surface (fin-above-waves).
+        currentStepAtSurface = rand.NextDouble() < config.SerpentSurfacePeekChance;
+        if (config.DebugLogging && currentStepAtSurface)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Serpent: surface-peek step ({radiusTransitionDuration:F0}s)");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -635,15 +682,20 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         double targetX = targetPlayer.Entity.SidedPos.X + Math.Cos(orbitAngle) * radius;
         double targetZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(orbitAngle) * radius;
 
-        // Target Y is relative to the actual water surface when
-        // available (player on a boat sits a block or two above the
-        // water, so playerY - 1 would leave the body partly exposed).
-        // Falls back to playerY - SubmergeDepth over open ocean.
+        // Target Y is relative to the actual water surface so the body
+        // is reliably submerged regardless of whether the player is
+        // swimming or sitting on a boat.  Depth depends on state:
+        //   Mounted  → always surface (show itself near the boat)
+        //   SurfaceStep → surface peek (fin above waves)
+        //   Otherwise → normal (deeper) cruise depth
         double pX = targetPlayer.Entity.SidedPos.X;
         double pY = targetPlayer.Entity.SidedPos.Y;
         double pZ = targetPlayer.Entity.SidedPos.Z;
         int waterY = FindWaterSurfaceYBelow(pX, pY, pZ, targetPlayer.Entity.SidedPos.Dimension);
-        double targetY = waterY - SubmergeDepth;
+        float depthBelowSurface = (playerMounted || currentStepAtSurface)
+            ? config.SerpentSurfaceSubmergeDepth
+            : config.SerpentNormalSubmergeDepth;
+        double targetY = waterY - depthBelowSurface;
 
         // Damped approach: no bang-bang bob, vertical motion capped
         // separately for a smooth surface-level glide.
@@ -747,7 +799,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 double offsetZ = pz - (adz / aDist) * HeadForwardOffset;
                 // Attack charge: high vertical budget so the head can
                 // rise/descend to match the player even from depth.
-                MoveTowardDamped(offsetX, py - SubmergeDepth, offsetZ,
+                MoveTowardDamped(offsetX, py - config.SerpentSurfaceSubmergeDepth, offsetZ,
                     config.SerpentAttackSpeed,
                     config.SerpentAttackSpeed,
                     config.SerpentVerticalSlewPerSec * 4,
@@ -755,7 +807,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             }
             else
             {
-                MoveTowardDamped(px, py - SubmergeDepth, pz,
+                MoveTowardDamped(px, py - config.SerpentSurfaceSubmergeDepth, pz,
                     config.SerpentAttackSpeed,
                     config.SerpentAttackSpeed,
                     config.SerpentVerticalSlewPerSec * 4,
@@ -857,7 +909,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     private void OnRetreating(float deltaTime)
     {
         UpdateShallowWaterCheck(deltaTime);
-        if (targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
+        // Boredom-committed retreats don't revert — they see it through.
+        if (!committedRetreat &&
+            targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
             targetPlayer.Entity.MountedOn == null && !IsInShallowWater)
         {
             if (config.DebugLogging)

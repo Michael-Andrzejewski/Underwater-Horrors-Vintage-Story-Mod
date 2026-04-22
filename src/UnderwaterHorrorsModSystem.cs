@@ -526,19 +526,35 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             if (player?.Entity == null || !player.Entity.Alive) continue;
 
-            // Skip if player already has an active creature
+            // If player already has a tracked creature, normally skip.
+            // But roll SecondCreatureSpawnChance for a bonus untracked
+            // spawn — gives rare "two threats at once" encounters.
+            bool spawnAsExtra = false;
             if (activeCreatures.TryGetValue(player.PlayerUID, out long existingId))
             {
                 Entity existing = sapi.World.GetEntityById(existingId);
                 if (existing != null && existing.Alive)
                 {
-                    continue;
+                    if (sapi.World.Rand.NextDouble() < Config.SecondCreatureSpawnChance)
+                    {
+                        spawnAsExtra = true;
+                        if (Config.DebugLogging)
+                            DebugLog(sapi, $"Bonus second-creature roll succeeded for {player.PlayerName}");
+                    }
+                    else
+                    {
+                        continue;
+                    }
                 }
-                // Creature is dead or gone, remove tracking
-                activeCreatures.Remove(player.PlayerUID);
-                landTimers.Remove(existingId);
-                if (Config.DebugLogging)
-                    DebugLog(sapi, $"Previous creature for {player.PlayerName} is dead or gone, clearing tracking");
+                else
+                {
+                    // Creature is dead or gone, remove tracking and fall
+                    // through to a normal spawn check.
+                    activeCreatures.Remove(player.PlayerUID);
+                    landTimers.Remove(existingId);
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"Previous creature for {player.PlayerName} is dead or gone, clearing tracking");
+                }
             }
 
             // NOTE: mounted players (on boat/raft) no longer skipped —
@@ -556,17 +572,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
             if (depth < Config.MinSaltwaterDepth) continue;
 
-            // Random chance check
-            double roll = sapi.World.Rand.NextDouble();
-            if (roll > Config.SpawnChancePerCheck)
+            // Primary spawns still need to pass the per-check dice.
+            // Second-creature spawns already rolled their own rare
+            // dice above, so they bypass this gate.
+            if (!spawnAsExtra)
             {
-                if (Config.DebugLogging)
-                    DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
-                continue;
-            }
+                double roll = sapi.World.Rand.NextDouble();
+                if (roll > Config.SpawnChancePerCheck)
+                {
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
+                    continue;
+                }
 
-            if (Config.DebugLogging)
-                DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
+                if (Config.DebugLogging)
+                    DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
+            }
 
             // Decide creature type
             bool spawnSerpent = sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
@@ -586,8 +607,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 creature = SpawnKraken(player);
             }
 
-            if (creature != null)
+            if (creature != null && !spawnAsExtra)
             {
+                // Only track the primary creature.  Extras manage their
+                // own lifecycle via the AI state machine.
                 activeCreatures[player.PlayerUID] = creature.EntityId;
             }
         }

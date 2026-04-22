@@ -29,10 +29,32 @@ public class UnderwaterHorrorsConfig
     public float SerpentProximityBodyDwellMin { get; set; } = 5f;
     public float SerpentProximityBodyDwellMax { get; set; } = 15f;
 
-    // Surface orbit depth: how many blocks below the player's Y the
-    // regular serpent cruises during Stalking.  1 = just below the
-    // surface (serpent body basically at waterline).
+    // Stalk depth configuration.
+    //   NormalSubmergeDepth — the regular serpent's usual cruise
+    //     depth below the water surface.  Deeper = less visible.
+    //   SurfaceSubmergeDepth — depth used during a "surface peek"
+    //     orbit step (serpent briefly rises for visibility) and when
+    //     the target player is mounted (both variants rise to boat
+    //     level).
+    //   SerpentSurfacePeekChance / DeepSerpentSurfacePeekChance —
+    //     per-spiral-step probability that the next orbit is at
+    //     surface depth instead of normal depth.  Higher for the
+    //     regular serpent; the deep variant should mostly stay deep.
+    public float SerpentNormalSubmergeDepth { get; set; } = 5f;
     public float SerpentSurfaceSubmergeDepth { get; set; } = 1f;
+    public float SerpentSurfacePeekChance { get; set; } = 0.4f;
+    public float DeepSerpentSurfacePeekChance { get; set; } = 0.1f;
+
+    // Boat boredom: player mounted for this long → roll for retreat
+    // every 30 s.  Existing behavior restored so a single creature
+    // doesn't circle forever; new spawns can still occur to replace it.
+    public float BoatBoredomGraceSeconds { get; set; } = 120f;
+    public float BoatBoredomRetreatRollChance { get; set; } = 0.5f;
+
+    // Chance per spawn check that a SECOND creature spawns even if the
+    // player already has one tracked.  Untracked — the second creature
+    // manages its own lifecycle via the AI state machine.
+    public float SecondCreatureSpawnChance { get; set; } = 0.005f;
 
     // Vertical-motion smoothing for the regular serpent.  Matches the
     // deep variant — playtesting showed 2x leeway was still too jittery
