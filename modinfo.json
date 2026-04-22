@@ -4,7 +4,7 @@
     "name": "Underwater Horrors",
     "authors": ["Soareverix"],
     "description": "Adds ocean horror creatures: a stalking Sea Serpent and a Kraken with grabbing tentacles.",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "side": "Universal",
     "dependencies": {
         "game": "1.21.0",
