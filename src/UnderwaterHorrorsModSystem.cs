@@ -48,12 +48,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         api.RegisterEntityBehaviorClass("underwaterhorrors:oceancreature", typeof(EntityBehaviorOceanCreature));
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpentai", typeof(EntityBehaviorSerpentAI));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:deepserpentai", typeof(EntityBehaviorDeepSerpentAI));
         api.RegisterEntityBehaviorClass("underwaterhorrors:krakenbody", typeof(EntityBehaviorKrakenBody));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentacle", typeof(EntityBehaviorTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:ambienttentacle", typeof(EntityBehaviorAmbientTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
 
         api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
+        api.RegisterEntity("SerpentEntity", typeof(SerpentEntity));
 
         api.Network.RegisterChannel("underwaterhorrors")
             .RegisterMessageType(typeof(DebugToggleMessage));
@@ -166,7 +168,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .EndSubCommand()
             .BeginSubCommand("spawn")
                 .WithDescription("Force spawn a creature on the calling player")
-                .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "kraken" }))
+                .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "deepserpent", "kraken" }))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dragspeed")
@@ -340,7 +342,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
         Entity creature;
         if (type == "serpent")
         {
-            creature = SpawnSerpent(caller);
+            creature = SpawnSerpent(caller, forceDeep: false);  // always regular
+        }
+        else if (type == "deepserpent")
+        {
+            creature = SpawnSerpent(caller, forceDeep: true);
         }
         else
         {
@@ -567,6 +573,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // Decide creature type
             bool spawnSerpent = sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
 
+            // ─── TEMP: kraken disabled for initial publish (model WIP) ───
+            // TO RE-ENABLE KRAKEN SPAWNING: delete the next line.
+            spawnSerpent = true;
+            // ─────────────────────────────────────────────────────────────
+
             Entity creature;
             if (spawnSerpent)
             {
@@ -627,14 +638,21 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     // Cached AssetLocations to avoid repeated allocations
     private static readonly AssetLocation SerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent");
+    private static readonly AssetLocation DeepSerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent2");
     private static readonly AssetLocation KrakenAsset = new AssetLocation("underwaterhorrors", "krakenbody");
 
-    private Entity SpawnSerpent(IServerPlayer player)
+    private Entity SpawnSerpent(IServerPlayer player, bool? forceDeep = null)
     {
-        EntityProperties props = sapi.World.GetEntityType(SerpentAsset);
+        // Decide serpent variant: normally rolled via DeepSerpentSpawnWeight,
+        // but forceDeep overrides (used by /uh spawn deepserpent).
+        bool deep = forceDeep ?? (sapi.World.Rand.NextDouble() < Config.DeepSerpentSpawnWeight);
+        AssetLocation asset = deep ? DeepSerpentAsset : SerpentAsset;
+        string label = deep ? "Deep Sea Serpent" : "Sea Serpent";
+
+        EntityProperties props = sapi.World.GetEntityType(asset);
         if (props == null)
         {
-            DebugLog(sapi, "ERROR: Could not find entity type underwaterhorrors:seaserpent");
+            DebugLog(sapi, $"ERROR: Could not find entity type {asset}");
             return null;
         }
 
@@ -656,7 +674,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         sapi.World.SpawnEntity(serpent);
 
         if (Config.DebugLogging)
-            DebugLog(sapi, $"SPAWNED Sea Serpent targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
+            DebugLog(sapi, $"SPAWNED {label} targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
 
         return serpent;
     }

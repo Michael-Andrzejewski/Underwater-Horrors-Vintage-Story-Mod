@@ -50,6 +50,30 @@ public class UnderwaterHorrorsConfig
     public float SerpentSpiralReductionMin { get; set; } = 5f;
     public float SerpentSpiralReductionMax { get; set; } = 15f;
 
+    // Deep serpent variant (stays deep, orbits in huge arcs, rises only to strike)
+    public float DeepSerpentSpawnWeight { get; set; } = 0.5f;       // 50% chance when a serpent is picked
+    public float DeepSerpentStalkDepthMin { get; set; } = 10f;      // 10 blocks below surface
+    public float DeepSerpentStalkDepthMax { get; set; } = 30f;      // 30 blocks below surface
+    public float DeepSerpentOrbitRadius { get; set; } = 15f;        // final approach radius
+    public float DeepSerpentInitialOrbitRadiusMin { get; set; } = 50f;
+    public float DeepSerpentInitialOrbitRadiusMax { get; set; } = 80f;
+    public float DeepSerpentSpiralStepDurationMin { get; set; } = 15f;
+    public float DeepSerpentSpiralStepDurationMax { get; set; } = 30f;
+    public float DeepSerpentSpiralReductionMin { get; set; } = 5f;
+    public float DeepSerpentSpiralReductionMax { get; set; } = 15f;
+    public float DeepSerpentMaxPitchRad { get; set; } = 0.005f;     // ~0.3° — nearly horizontal
+    public float DeepSerpentPitchInterpRate { get; set; } = 0.3f;   // very slow tilt lerp
+
+    // Vertical-motion smoothing for the damped controller.
+    // DeepSerpentMaxVerticalSpeed: hard cap on |Motion.Y| (blocks/tick
+    //   units that VS physics uses).  Much smaller than horizontal speed
+    //   so the body glides up/down very slowly even when dy is large.
+    // DeepSerpentVerticalSlewPerSec: max change in Motion.Y per second.
+    //   Prevents snap from e.g. +0.01 to -0.01 between ticks, smoothing
+    //   the moment where the serpent crosses through its target depth.
+    public float DeepSerpentMaxVerticalSpeed { get; set; } = 0.012f;
+    public float DeepSerpentVerticalSlewPerSec { get; set; } = 0.04f;
+
     // Kraken body
     public float KrakenContactDamage { get; set; } = 25f;
     public float KrakenContactRange { get; set; } = 3f;

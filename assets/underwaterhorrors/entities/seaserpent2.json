@@ -1,6 +1,6 @@
 {
-    "code": "seaserpent",
-    "class": "EntityAgent",
+    "code": "seaserpent2",
+    "class": "SerpentEntity",
     "habitat": "Sea",
     "hitboxSize": { "x": 2.0, "y": 1.5 },
     "deadHitboxSize": { "x": 2.0, "y": 1.0 },
@@ -13,8 +13,8 @@
     },
     "client": {
         "renderer": "Shape",
-        "texture": { "base": "underwaterhorrors:entity/serpent" },
-        "shape": { "base": "underwaterhorrors:entity/seaserpent" },
+        "texture": { "base": "underwaterhorrors:entity/serpent2" },
+        "shape": { "base": "underwaterhorrors:entity/seaserpent2" },
         "glowLevel": 0,
         "size": 1.0,
         "sizeForCulling": 15,
@@ -24,11 +24,11 @@
     },
     "server": {
         "behaviors": [
-            { "code": "health", "currenthealth": 80, "maxhealth": 80 },
+            { "code": "health", "currenthealth": 100, "maxhealth": 100 },
             { "code": "deaddecay", "decayHours": 0.25 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:oceancreature" },
-            { "code": "underwaterhorrors:serpentai" }
+            { "code": "underwaterhorrors:deepserpentai" }
         ],
         "spawnConditions": {
             "runtime": {

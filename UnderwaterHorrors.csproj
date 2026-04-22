@@ -34,16 +34,30 @@
   </ItemGroup>
 
   <Target Name="Package" AfterTargets="PostBuildEvent">
+    <!-- Extract the mod version from modinfo.json so the output zip has it baked in -->
+    <PropertyGroup>
+      <ModInfoContent>$([System.IO.File]::ReadAllText('$(ProjectDir)modinfo.json'))</ModInfoContent>
+      <ModVersion>$([System.Text.RegularExpressions.Regex]::Match($(ModInfoContent), '"version"\s*:\s*"([^"]+)"').Groups[1].Value)</ModVersion>
+      <ZipName>UnderwaterHorrors_$(ModVersion).zip</ZipName>
+    </PropertyGroup>
+
     <ItemGroup>
       <PackageFiles Include="$(TargetPath)" />
       <PackageFiles Include="modinfo.json" />
       <AssetFiles Include="assets\**\*" />
+      <!-- Clean up older versioned zips so only the current one is deployed -->
+      <OldZipsBin Include="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\UnderwaterHorrors*.zip" />
+      <OldZipsDeploy Include="$(APPDATA)\VintagestoryData\Mods\UnderwaterHorrors*.zip" />
     </ItemGroup>
+
+    <Delete Files="@(OldZipsBin)" />
+    <Delete Files="@(OldZipsDeploy)" />
+
     <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" />
     <Copy SourceFiles="@(AssetFiles)" DestinationFiles="@(AssetFiles->'$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\%(Identity)')" />
-    <ZipDirectory SourceDirectory="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" DestinationFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\UnderwaterHorrors.zip" Overwrite="true" />
-    <Copy SourceFiles="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\UnderwaterHorrors.zip" DestinationFolder="$(APPDATA)\VintagestoryData\Mods\" />
-    <Message Importance="high" Text="Deployed UnderwaterHorrors.zip to $(APPDATA)\VintagestoryData\Mods\" />
+    <ZipDirectory SourceDirectory="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" DestinationFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" Overwrite="true" />
+    <Copy SourceFiles="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" DestinationFolder="$(APPDATA)\VintagestoryData\Mods\" />
+    <Message Importance="high" Text="Deployed $(ZipName) to $(APPDATA)\VintagestoryData\Mods\" />
   </Target>
 
 </Project>
