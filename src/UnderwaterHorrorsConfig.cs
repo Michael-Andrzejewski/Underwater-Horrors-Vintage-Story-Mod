@@ -95,7 +95,7 @@ public class UnderwaterHorrorsConfig
     public float SerpentSpiralReductionMax { get; set; } = 15f;
 
     // Deep serpent variant (stays deep, orbits in huge arcs, rises only to strike)
-    public float DeepSerpentSpawnWeight { get; set; } = 0.5f;       // 50% chance when a serpent is picked
+    public float DeepSerpentSpawnWeight { get; set; } = 0.75f;      // 75% deep, 25% regular when a serpent is picked
     public float DeepSerpentStalkDepthMin { get; set; } = 10f;      // 10 blocks below surface
     public float DeepSerpentStalkDepthMax { get; set; } = 30f;      // 30 blocks below surface
     public float DeepSerpentOrbitRadius { get; set; } = 15f;        // final approach radius
