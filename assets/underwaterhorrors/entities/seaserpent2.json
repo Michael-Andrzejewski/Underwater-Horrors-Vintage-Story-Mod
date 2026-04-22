@@ -1,6 +1,6 @@
 {
     "code": "seaserpent2",
-    "class": "SerpentEntity",
+    "class": "DeepSerpentEntity",
     "habitat": "Sea",
     "hitboxSize": { "x": 2.0, "y": 1.5 },
     "deadHitboxSize": { "x": 2.0, "y": 1.0 },

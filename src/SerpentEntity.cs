@@ -4,29 +4,53 @@ using Vintagestory.API.Common.Entities;
 namespace UnderwaterHorrors;
 
 /// <summary>
-/// Custom EntityAgent for the serpents.  Exists solely to disable
-/// VS's built-in motion-driven rotation hacks that fire inside
-/// EntityShapeRenderer:
+/// Base entity class for both sea serpent variants.  Exists to:
 ///
-/// 1. <see cref="CanStepPitch"/> — VS measures (entity.Pos.Y - prevY)
-///    each render frame and injects up to ±0.3 rad (~17°) of Z-axis
-///    rotation (roll) into the model matrix.  For a long horizontal
-///    serpent that translates directly to "head or tail going toward
-///    the sky" on any vertical jitter.  The only switch is this
-///    property: when false, EntityShapeRenderer.updateStepPitch early-
-///    returns with stepPitch = 0.
+/// 1. Enlarge the frustum cull sphere so the long 9-block body doesn't
+///    get culled when only the middle is slightly outside the view
+///    frustum — the head/tail parts would visibly pop out of existence.
+///    Default FrustumSphereRadius is max(3, max(hitbox X, Y)) = 3 for
+///    our serpent, which is far smaller than the actual rendered body.
 ///
-/// 2. <see cref="CanSwivel"/> — VS injects up to ±0.4 rad of X-axis
-///    rotation based on motion direction changes (the
-///    "sidewaysSwivelAngle" that leans animals into turns).  On a
-///    9-block-long body this is visible as head/tail flipping up
-///    when the AI adjusts heading.
-///
-/// Both are strictly render-time hacks meant for four-legged land
-/// mobs.  Not appropriate for a large, always-horizontal sea
-/// creature.
+/// 2. Keep the entity always-active regardless of proximity to players,
+///    so AI and animations don't suspend at range — the serpent is
+///    supposed to orbit up to 80 blocks out.
 /// </summary>
 public class SerpentEntity : EntityAgent
+{
+    // Half the longest visible extent of the model (~9 blocks tip-to-tip)
+    // plus a safety margin.  The renderer culls a sphere of this radius
+    // centered on Pos; anything inside the radius gets rendered.
+    public override double FrustumSphereRadius => 15.0;
+
+    // Disables the server-side proximity suspension — without this, when
+    // the entity is >32 blocks from any player, VS pauses its
+    // behavior ticks and simulation, which we don't want for a stalking
+    // predator that spawns at long range.
+    public override bool AlwaysActive => true;
+}
+
+/// <summary>
+/// Deep serpent variant.  Inherits the render/activity overrides above
+/// AND additionally disables VS's motion-driven body rotation hacks
+/// that fire inside EntityShapeRenderer:
+///
+/// - CanStepPitch: VS measures (Pos.Y - prevY) every frame and injects
+///   up to ±0.3 rad of Z-axis rotation (roll) into the model matrix.
+///   Designed for four-legged land animals leaning when stepping up a
+///   block — disastrous for a long horizontal serpent, where any Y
+///   jitter snaps the head/tail toward the sky.  Only kill switch is
+///   overriding this virtual to false.
+///
+/// - CanSwivel / CanSwivelNow: VS injects up to ±0.4 rad of X-axis
+///   rotation based on motion-direction changes (leaning into turns).
+///   Visible as head/tail flipping up during heading adjustments.
+///
+/// The regular serpent keeps these enabled — its AI writes pitch
+/// intentionally for surfacing/hiss/attack poses, and the step-pitch
+/// feels natural for a surface swimmer.
+/// </summary>
+public class DeepSerpentEntity : SerpentEntity
 {
     public override bool CanStepPitch => false;
     public override bool CanSwivel => false;

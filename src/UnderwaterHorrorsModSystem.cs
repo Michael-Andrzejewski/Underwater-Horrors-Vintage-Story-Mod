@@ -56,6 +56,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
         api.RegisterEntity("SerpentEntity", typeof(SerpentEntity));
+        api.RegisterEntity("DeepSerpentEntity", typeof(DeepSerpentEntity));
 
         api.Network.RegisterChannel("underwaterhorrors")
             .RegisterMessageType(typeof(DebugToggleMessage));
@@ -540,13 +541,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     DebugLog(sapi, $"Previous creature for {player.PlayerName} is dead or gone, clearing tracking");
             }
 
-            // Skip if player is mounted (boat/raft)
-            if (player.Entity.MountedOn != null)
-            {
-                if (Config.DebugLogging)
-                    DebugLog(sapi, $"Spawn check: {player.PlayerName} is mounted, skipping");
-                continue;
-            }
+            // NOTE: mounted players (on boat/raft) no longer skipped —
+            // CountSaltwaterDepth scans down to find the water surface
+            // when mounted, so spawn can still fire.  The spawned
+            // serpent will circle harmlessly around the boat.
 
             // Count saltwater depth below player (early-exits once threshold is met)
             int depth = CountSaltwaterDepth(player.Entity, Config.MinSaltwaterDepth);
@@ -595,6 +593,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
     }
 
+    // How far above the water surface we're willing to look when finding
+    // water for mounted players (boats sit 1-2 blocks above surface).
+    private const int MountedWaterScanDownLimit = 5;
+
     private int CountSaltwaterDepth(Entity playerEntity, int earlyExitThreshold)
     {
         if (playerEntity?.SidedPos == null) return 0;
@@ -607,14 +609,32 @@ public class UnderwaterHorrorsModSystem : ModSystem
         int startY = (int)playerEntity.SidedPos.Y;
         int startZ = (int)playerEntity.SidedPos.Z;
         int dim = playerEntity.SidedPos.Dimension;
-        int count = 0;
 
         // Reuse a single BlockPos to avoid allocation per call
         reusableBlockPos.Set(startX, startY, startZ);
         reusableBlockPos.dimension = dim;
 
-        // Count saltwater below (including player's block)
-        for (int y = startY; y >= 0; y--)
+        // For mounted players (on a boat), their block is AIR.  Scan
+        // down a few blocks to find the water surface first.
+        int scanY = startY;
+        if (playerEntity is EntityAgent agent && agent.MountedOn != null)
+        {
+            int scanLimit = Math.Max(0, startY - MountedWaterScanDownLimit);
+            while (scanY > scanLimit)
+            {
+                reusableBlockPos.Y = scanY;
+                Block block = accessor.GetBlock(reusableBlockPos);
+                if (block != null && WaterHelper.IsSaltwater(block)) break;
+                scanY--;
+            }
+            // If we didn't find water, scanY will be at the limit with
+            // a non-water block — count will be 0 naturally.
+        }
+
+        int count = 0;
+
+        // Count saltwater below (including the water-surface block)
+        for (int y = scanY; y >= 0; y--)
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
@@ -623,8 +643,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (count >= earlyExitThreshold) return count;
         }
 
-        // Count saltwater above
-        for (int y = startY + 1; y < mapHeight; y++)
+        // Count saltwater above (useful when scanning from an in-water
+        // position — for mounted players scanY is already the surface
+        // so this loop won't find anything above).
+        for (int y = scanY + 1; y < mapHeight; y++)
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
@@ -634,6 +656,36 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         return count;
+    }
+
+    /// <summary>
+    /// Returns true if the player is directly above saltwater within a
+    /// short scan distance.  Used by the despawn check so mounted
+    /// players hovering over deep water (on a boat) don't falsely
+    /// trigger the "out of water" land timer.
+    /// </summary>
+    private bool PlayerHasSaltwaterBelow(Entity playerEntity, int scanBlocks)
+    {
+        if (playerEntity?.SidedPos == null) return false;
+        var accessor = sapi?.World?.BlockAccessor;
+        if (accessor == null) return false;
+
+        int startX = (int)playerEntity.SidedPos.X;
+        int startY = (int)playerEntity.SidedPos.Y;
+        int startZ = (int)playerEntity.SidedPos.Z;
+        int dim = playerEntity.SidedPos.Dimension;
+
+        reusableBlockPos.Set(startX, startY, startZ);
+        reusableBlockPos.dimension = dim;
+
+        int limit = Math.Max(0, startY - scanBlocks);
+        for (int y = startY; y >= limit; y--)
+        {
+            reusableBlockPos.Y = y;
+            Block block = accessor.GetBlock(reusableBlockPos);
+            if (block != null && WaterHelper.IsSaltwater(block)) return true;
+        }
+        return false;
     }
 
     // Cached AssetLocations to avoid repeated allocations
@@ -757,6 +809,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
             BlockPos feetPos = player.Entity.SidedPos.AsBlockPos;
             Block feetBlock = sapi.World.BlockAccessor.GetBlock(feetPos);
             bool inSaltwater = feetBlock != null && WaterHelper.IsSaltwater(feetBlock);
+
+            // Mounted players (on a boat) have AIR at their feet even
+            // over deep water.  Don't despawn if they're hovering over
+            // saltwater within a few blocks.
+            if (!inSaltwater && player.Entity.MountedOn != null)
+            {
+                inSaltwater = PlayerHasSaltwaterBelow(player.Entity, MountedWaterScanDownLimit);
+            }
 
             if (!inSaltwater)
             {

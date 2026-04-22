@@ -77,16 +77,19 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     private double spawnX, spawnY, spawnZ;
     private bool spawnRecorded;
 
-    // ── Boat boredom ───────────────────────────────────────────────────
-    private float mountedCircleTimer;
-    private float mountedCheckTimer;
+    // ── Proximity-based aggro ─────────────────────────────────────────
+    private float proximityBodyDwellTimer;
+    private float proximityBodyDwellThreshold;
 
-    // ── Vertical-motion slew limiter state ────────────────────────────
-    // We track the last Motion.Y we commanded so we can limit how fast
-    // it's allowed to change between ticks.  This smooths the transition
-    // from descending → holding → ascending so the body doesn't whip
-    // direction even when damping is correct.
-    private double lastCommandedMotionY;
+    /// <summary>
+    /// True while the serpent is in any attack phase (charging, winding
+    /// up, or striking).  Exposed so HorizontalLockRenderer can read it
+    /// and skip zeroing pitch while the head needs to aim at the player.
+    /// </summary>
+    public bool IsInAttackPhase => faceTarget || isWindingUp || isStriking;
+
+    // Slew-limiter state `lastCommandedMotionY` is inherited from
+    // EntityBehaviorOceanCreature and shared with MoveTowardDamped.
 
     private HorizontalLockRenderer lockRenderer;
 
@@ -114,7 +117,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             // these fields during the tick gets overwritten before draw.
             if (entity.Api is Vintagestory.API.Client.ICoreClientAPI capi)
             {
-                lockRenderer = new HorizontalLockRenderer(capi, entity);
+                lockRenderer = new HorizontalLockRenderer(capi, entity, this);
                 capi.Event.RegisterRenderer(lockRenderer,
                     Vintagestory.API.Client.EnumRenderStage.Before,
                     "underwaterhorrors-horizlock");
@@ -161,11 +164,14 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     {
         if (!entity.Alive) return;
 
-        // HORIZONTAL LOCK (runs on both sides): zero out every rotation
-        // axis except yaw, on both ServerPos and Pos.  This is the last
-        // line of defense before network sync and rendering.
-        ForceHorizontal(entity.ServerPos);
-        ForceHorizontal(entity.Pos);
+        // HORIZONTAL LOCK — zeroes Pitch/Roll/HeadPitch.  Skipped
+        // during attack phases so the mouth can aim at the player.
+        // HorizontalLockRenderer (client-side) performs the same check.
+        if (!IsInAttackPhase)
+        {
+            ForceHorizontal(entity.ServerPos);
+            ForceHorizontal(entity.Pos);
+        }
 
         if (entity.Api.Side != EnumAppSide.Server) return;
 
@@ -200,34 +206,8 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             }
         }
 
-        // Boat boredom
-        if (state == SerpentState.Stalking || state == SerpentState.Attacking)
-        {
-            if (targetPlayer?.Entity?.MountedOn != null)
-            {
-                mountedCircleTimer += deltaTime;
-                if (mountedCircleTimer >= 60f)
-                {
-                    mountedCheckTimer += deltaTime;
-                    if (mountedCheckTimer >= 30f)
-                    {
-                        mountedCheckTimer = 0;
-                        if (entity.World.Rand.NextDouble() < 0.5)
-                        {
-                            if (config.DebugLogging)
-                                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                                    $"DeepSerpent bored after {mountedCircleTimer:F0}s, retreating");
-                            TransitionTo(SerpentState.Retreating);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                mountedCircleTimer = 0;
-                mountedCheckTimer = 0;
-            }
-        }
+        // When mounted: circle indefinitely at the surface.  No boredom
+        // retreat — serpent orbits until player dismounts.
 
         stateTimer += deltaTime;
 
@@ -299,8 +279,22 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             entity.ServerPos.Yaw = smoothedYaw;
         }
 
-        // Pitch: hard-locked to 0 by ForceHorizontal at the top of tick
-        // AND by HorizontalLockRenderer every render frame.
+        // Pitch:
+        //   Stalking: hard-locked to 0 by ForceHorizontal (top of tick)
+        //     AND by HorizontalLockRenderer (every render frame).
+        //   Attack phases: aim directly at the player so the head can
+        //     tilt up/down to strike a target above or below.
+        if (IsInAttackPhase && targetPlayer?.Entity != null && !lockFacing)
+        {
+            double tdx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
+            double tdy = targetPlayer.Entity.SidedPos.Y - entity.ServerPos.Y;
+            double tdz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+            double horizToTarget = Math.Sqrt(tdx * tdx + tdz * tdz);
+            float targetPitch = -(float)Math.Atan2(tdy, Math.Max(horizToTarget, 0.001));
+            targetPitch = GameMath.Clamp(targetPitch, -1.0f, 1.0f);  // ~57° max
+            entity.ServerPos.Pitch += (targetPitch - entity.ServerPos.Pitch) *
+                Math.Min(1f, deltaTime * 6f);
+        }
     }
 
     /// <summary>
@@ -322,39 +316,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     //  causes visible vertical bobbing of the long body.  Here Motion
     //  tapers smoothly to zero at the target.
     // ═══════════════════════════════════════════════════════════════════
-    private void MoveTowardDamped(double targetX, double targetY, double targetZ, double maxSpeed, float deltaTime)
-    {
-        double dx = targetX - entity.SidedPos.X;
-        double dy = targetY - entity.SidedPos.Y;
-        double dz = targetZ - entity.SidedPos.Z;
-
-        // Proportional controller (gain 0.4 ≈ 3-tick convergence with no
-        // overshoot given VS physics integrates pos += Motion * dt * 60).
-        const double gain = 0.4;
-
-        // Horizontal: full speed cap.
-        double mx = GameMath.Clamp(dx * gain, -maxSpeed, maxSpeed);
-        double mz = GameMath.Clamp(dz * gain, -maxSpeed, maxSpeed);
-
-        // Vertical: tighter cap + slew-rate limit so depth adjustments
-        // happen as a slow, smooth glide rather than a snap whenever dy
-        // flips sign.
-        double vMax = config.DeepSerpentMaxVerticalSpeed;
-        double myTarget = GameMath.Clamp(dy * gain, -vMax, vMax);
-
-        // Slew-rate limit: Motion.Y can only change by
-        // (VerticalSlewPerSec × deltaTime) per tick.
-        double maxDelta = config.DeepSerpentVerticalSlewPerSec * Math.Max(0.001, deltaTime);
-        double myDelta = myTarget - lastCommandedMotionY;
-        if (myDelta > maxDelta) myDelta = maxDelta;
-        else if (myDelta < -maxDelta) myDelta = -maxDelta;
-        double my = lastCommandedMotionY + myDelta;
-        lastCommandedMotionY = my;
-
-        entity.SidedPos.Motion.X = mx;
-        entity.SidedPos.Motion.Y = my;
-        entity.SidedPos.Motion.Z = mz;
-    }
+    // MoveTowardDamped is inherited from EntityBehaviorOceanCreature.
 
     // ═══════════════════════════════════════════════════════════════════
     //  Animation helpers
@@ -426,10 +388,13 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
                 break;
             case SerpentState.Stalking:
                 PlayAnimation(AnimSlowSwim);
-                // Seed slew limiter with current Motion.Y so we don't try
-                // to ramp from a possibly-large value left over from the
-                // previous state (e.g. Rising's fixed Motion.Y).
                 lastCommandedMotionY = entity.ServerPos.Motion.Y;
+                proximityBodyDwellTimer = 0;
+                proximityBodyDwellThreshold =
+                    config.SerpentProximityBodyDwellMin +
+                    (float)(entity.World.Rand.NextDouble() *
+                        (config.SerpentProximityBodyDwellMax -
+                         config.SerpentProximityBodyDwellMin));
                 break;
             case SerpentState.Attacking:
                 PlayAnimation(AnimFastSwim);
@@ -558,14 +523,21 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     {
         if (targetPlayer?.Entity == null) return;
 
+        bool playerMounted = targetPlayer.Entity.MountedOn != null;
+
         float radius;
         if (useSpiralApproach)
         {
-            radiusTransitionTime += deltaTime;
+            // Freeze spiral when player is mounted — serpent keeps
+            // circling at current orbit rather than closing in.
+            if (!playerMounted)
+            {
+                radiusTransitionTime += deltaTime;
+            }
             float t = Math.Min(1f, radiusTransitionTime / radiusTransitionDuration);
             radius = orbitRadiusStart + (orbitRadiusEnd - orbitRadiusStart) * t;
 
-            if (t >= 1f)
+            if (!playerMounted && t >= 1f)
             {
                 orbitRadiusStart = orbitRadiusEnd;
                 if (orbitRadiusStart <= config.DeepSerpentOrbitRadius)
@@ -591,11 +563,80 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
 
         double targetX = targetPlayer.Entity.SidedPos.X + Math.Cos(orbitAngle) * radius;
         double targetZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(orbitAngle) * radius;
-        // Deep: stay 10-30 blocks BELOW the player's Y (chosen at spawn)
-        double targetY = targetPlayer.Entity.SidedPos.Y - stalkDepth;
 
-        // Damped approach with separate vertical cap + slew limit.
-        MoveTowardDamped(targetX, targetY, targetZ, config.SerpentApproachSpeed * 2, deltaTime);
+        // Deep normally stays 10-30 blocks below the player, BUT when
+        // the player is mounted (on a boat at the surface) the deep
+        // serpent rises to just below the water surface to show itself.
+        double targetY;
+        double vMax, vSlew;
+        if (playerMounted)
+        {
+            // Use actual water-surface Y — the boat is ~1-2 blocks
+            // above water, so playerY - offset would leave the body
+            // partly rendered above the waterline.
+            double pX = targetPlayer.Entity.SidedPos.X;
+            double pY = targetPlayer.Entity.SidedPos.Y;
+            double pZ = targetPlayer.Entity.SidedPos.Z;
+            int waterY = FindWaterSurfaceYBelow(pX, pY, pZ, targetPlayer.Entity.SidedPos.Dimension);
+            targetY = waterY - config.SerpentSurfaceSubmergeDepth;
+
+            // Boost the vertical speed while surfacing so the rise
+            // from 30 blocks deep takes ~15 seconds instead of 2
+            // minutes.  Still damped, so no whip — just more eager.
+            vMax = config.DeepSerpentMaxVerticalSpeed * 6f;
+            vSlew = config.DeepSerpentVerticalSlewPerSec * 6f;
+        }
+        else
+        {
+            targetY = targetPlayer.Entity.SidedPos.Y - stalkDepth;
+            vMax = config.DeepSerpentMaxVerticalSpeed;
+            vSlew = config.DeepSerpentVerticalSlewPerSec;
+        }
+
+        MoveTowardDamped(targetX, targetY, targetZ,
+            config.SerpentApproachSpeed * 2,
+            vMax,
+            vSlew,
+            deltaTime);
+
+        // Proximity aggro disabled when mounted.
+        if (!playerMounted)
+        {
+            double headDistNow = HeadDistToPlayer();
+            if (headDistNow < config.SerpentProximityHeadTriggerRange)
+            {
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        $"DeepSerpent: player in head range ({headDistNow:F1}), aggroing");
+                TransitionTo(SerpentState.Attacking);
+                return;
+            }
+
+            double bodyDx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
+            double bodyDy = targetPlayer.Entity.SidedPos.Y - entity.ServerPos.Y;
+            double bodyDz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+            double bodyDist = Math.Sqrt(bodyDx * bodyDx + bodyDy * bodyDy + bodyDz * bodyDz);
+            if (bodyDist < config.SerpentProximityBodyTriggerRange)
+            {
+                proximityBodyDwellTimer += deltaTime;
+                if (proximityBodyDwellTimer >= proximityBodyDwellThreshold)
+                {
+                    if (config.DebugLogging)
+                        UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                            $"DeepSerpent: player dwelled {proximityBodyDwellTimer:F1}s in body range, aggroing");
+                    TransitionTo(SerpentState.Attacking);
+                    return;
+                }
+            }
+            else
+            {
+                proximityBodyDwellTimer = 0;
+            }
+        }
+        else
+        {
+            proximityBodyDwellTimer = 0;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -627,12 +668,22 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             {
                 double offsetX = px - (adx / aDist) * HeadForwardOffset;
                 double offsetZ = pz - (adz / aDist) * HeadForwardOffset;
-                // Target player's Y directly — rising from depth
-                MoveTowardDamped(offsetX, py, offsetZ, config.SerpentAttackSpeed, deltaTime);
+                // Target player's Y directly — rising from depth.
+                // Attack phase uses much higher vertical budget so the
+                // serpent can actually reach the surface to strike.
+                MoveTowardDamped(offsetX, py, offsetZ,
+                    config.SerpentAttackSpeed,
+                    config.SerpentAttackSpeed,              // full vertical during attack
+                    config.DeepSerpentVerticalSlewPerSec * 4,
+                    deltaTime);
             }
             else
             {
-                MoveTowardDamped(px, py, pz, config.SerpentAttackSpeed, deltaTime);
+                MoveTowardDamped(px, py, pz,
+                    config.SerpentAttackSpeed,
+                    config.SerpentAttackSpeed,
+                    config.DeepSerpentVerticalSlewPerSec * 4,
+                    deltaTime);
             }
 
             attackCooldownTimer -= deltaTime;
@@ -641,8 +692,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             if (headDist < HeadAttackTriggerRange && attackCooldownTimer <= 0)
             {
                 isWindingUp = true;
-                lockFacing = true;
-                faceTarget = false;
+                // Keep facing the player through windup AND strike.
                 attackAnimTimer = 0;
                 strikeDamageDealt = false;
                 attackFromRight = !attackFromRight;
@@ -692,7 +742,6 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             if (attackAnimTimer >= StrikeDuration)
             {
                 isStriking = false;
-                lockFacing = false;
                 attackCooldownTimer = config.SerpentAttackCooldown;
                 PlayAnimation(AnimSlowSwim);
 

@@ -18,6 +18,28 @@ public class UnderwaterHorrorsConfig
     public int SerpentSpawnDepthMax { get; set; } = 40;
     public int SerpentSpawnHorizontalOffset { get; set; } = 15;
 
+    // Proximity-based aggro: player getting near the serpent forces
+    // a transition to Attacking regardless of spiral state.
+    // HeadTriggerRange: head-distance that immediately triggers aggro.
+    // BodyTriggerRange: body-distance at which the dwell timer starts.
+    // BodyDwellDurationMin/Max: random dwell time (seconds) before aggro
+    //   kicks in if the player stays within body range.
+    public float SerpentProximityHeadTriggerRange { get; set; } = 6f;
+    public float SerpentProximityBodyTriggerRange { get; set; } = 5f;
+    public float SerpentProximityBodyDwellMin { get; set; } = 5f;
+    public float SerpentProximityBodyDwellMax { get; set; } = 15f;
+
+    // Surface orbit depth: how many blocks below the player's Y the
+    // regular serpent cruises during Stalking.  1 = just below the
+    // surface (serpent body basically at waterline).
+    public float SerpentSurfaceSubmergeDepth { get; set; } = 1f;
+
+    // Vertical-motion smoothing for the regular serpent.  Matches the
+    // deep variant — playtesting showed 2x leeway was still too jittery
+    // on the long body.
+    public float SerpentMaxVerticalSpeed { get; set; } = 0.012f;
+    public float SerpentVerticalSlewPerSec { get; set; } = 0.04f;
+
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
 
