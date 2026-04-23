@@ -733,16 +733,41 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         var rand = sapi.World.Rand;
         int depthOffset = Config.SerpentSpawnDepthMin + rand.Next(Config.SerpentSpawnDepthMax - Config.SerpentSpawnDepthMin);
-        double angle = rand.NextDouble() * Math.PI * 2;
-        // Uniform disk distribution: sqrt() avoids clustering near center.
-        double dist = Math.Sqrt(rand.NextDouble()) * Config.SerpentSpawnHorizontalRadiusMax;
-        double offsetX = Math.Cos(angle) * dist;
-        double offsetZ = Math.Sin(angle) * dist;
+
+        // Retry horizontal position until we find one where the chosen
+        // spawn Y is inside a water block (no spawning into terrain when
+        // the random offset lands over a shore or shallow bottom).
+        double spawnX = 0, spawnZ = 0;
+        double spawnY = player.Entity.Pos.Y - depthOffset;
+        bool found = false;
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            double angle = rand.NextDouble() * Math.PI * 2;
+            // Uniform disk distribution: sqrt() avoids clustering near center.
+            double dist = Math.Sqrt(rand.NextDouble()) * Config.SerpentSpawnHorizontalRadiusMax;
+            double tryX = player.Entity.Pos.X + Math.Cos(angle) * dist;
+            double tryZ = player.Entity.Pos.Z + Math.Sin(angle) * dist;
+
+            reusableBlockPos.Set((int)tryX, (int)spawnY, (int)tryZ);
+            reusableBlockPos.dimension = player.Entity.Pos.Dimension;
+            Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
+            if (block != null && WaterHelper.IsWaterBlock(block))
+            {
+                spawnX = tryX;
+                spawnZ = tryZ;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            if (Config.DebugLogging)
+                DebugLog(sapi, $"Failed to find valid {label} spawn (no water within {Config.SerpentSpawnHorizontalRadiusMax} blocks of {player.PlayerName} at depth {depthOffset})");
+            return null;
+        }
 
         Entity serpent = sapi.World.ClassRegistry.CreateEntity(props);
-        double spawnX = player.Entity.Pos.X + offsetX;
-        double spawnY = player.Entity.Pos.Y - depthOffset;
-        double spawnZ = player.Entity.Pos.Z + offsetZ;
 
         serpent.Pos.SetPos(spawnX, spawnY, spawnZ);
         serpent.Pos.Dimension = player.Entity.Pos.Dimension;
@@ -765,38 +790,63 @@ public class UnderwaterHorrorsModSystem : ModSystem
             return null;
         }
 
-        // Pick a random horizontal offset from the player (uniform disk).
+        // Retry horizontal position until we find one that sits over a
+        // genuine water column with a sea floor (avoids spawning kraken
+        // inside a shoreline hill when the random offset lands on land).
         var rand = sapi.World.Rand;
-        double angle = rand.NextDouble() * Math.PI * 2;
-        double dist = Math.Sqrt(rand.NextDouble()) * Config.KrakenSpawnHorizontalRadiusMax;
-        double spawnX = player.Entity.Pos.X + Math.Cos(angle) * dist;
-        double spawnZ = player.Entity.Pos.Z + Math.Sin(angle) * dist;
-
-        // Find sea floor at the chosen horizontal position — scan through air, then water, until solid ground
         int startY = (int)player.Entity.Pos.Y;
+        double spawnX = 0, spawnZ = 0;
         int floorY = startY;
-        bool foundWater = false;
-        reusableBlockPos.Set((int)spawnX, startY, (int)spawnZ);
-        reusableBlockPos.dimension = player.Entity.Pos.Dimension;
+        bool found = false;
 
-        for (int y = startY; y >= 0; y--)
+        for (int attempt = 0; attempt < 10; attempt++)
         {
-            reusableBlockPos.Y = y;
-            Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
-            if (block == null) break;
-            bool isWater = WaterHelper.IsWaterBlock(block);
+            double angle = rand.NextDouble() * Math.PI * 2;
+            double dist = Math.Sqrt(rand.NextDouble()) * Config.KrakenSpawnHorizontalRadiusMax;
+            double tryX = player.Entity.Pos.X + Math.Cos(angle) * dist;
+            double tryZ = player.Entity.Pos.Z + Math.Sin(angle) * dist;
 
-            if (isWater)
+            // Scan down from player Y through air+water until we hit solid ground.
+            bool foundWater = false;
+            int tryFloorY = startY;
+            reusableBlockPos.Set((int)tryX, startY, (int)tryZ);
+            reusableBlockPos.dimension = player.Entity.Pos.Dimension;
+
+            for (int y = startY; y >= 0; y--)
             {
-                foundWater = true;
+                reusableBlockPos.Y = y;
+                Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
+                if (block == null) break;
+                bool isWater = WaterHelper.IsWaterBlock(block);
+
+                if (isWater)
+                {
+                    foundWater = true;
+                }
+                else if (foundWater)
+                {
+                    // Hit solid ground after passing through water — this is the sea floor
+                    tryFloorY = y + 1;
+                    break;
+                }
+                // Skip air/non-water blocks above the water surface
             }
-            else if (foundWater)
+
+            if (foundWater)
             {
-                // Hit solid ground after passing through water — this is the sea floor
-                floorY = y + 1;
+                spawnX = tryX;
+                spawnZ = tryZ;
+                floorY = tryFloorY;
+                found = true;
                 break;
             }
-            // Skip air/non-water blocks above the water surface
+        }
+
+        if (!found)
+        {
+            if (Config.DebugLogging)
+                DebugLog(sapi, $"Failed to find valid Kraken spawn (no water column within {Config.KrakenSpawnHorizontalRadiusMax} blocks of {player.PlayerName})");
+            return null;
         }
 
         Entity kraken = sapi.World.ClassRegistry.CreateEntity(props);
