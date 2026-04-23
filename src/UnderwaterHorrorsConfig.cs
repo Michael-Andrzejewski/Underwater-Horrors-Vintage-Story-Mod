@@ -13,10 +13,15 @@ public class UnderwaterHorrorsConfig
     public float SpawnChancePerCheck { get; set; } = 0.1f;
     public float SerpentSpawnWeight { get; set; } = 0.6f;
 
-    // Serpent spawn offsets
+    // Serpent spawn offsets. Horizontal position is randomized uniformly
+    // within a circle of the given max radius around the player.
     public int SerpentSpawnDepthMin { get; set; } = 25;
     public int SerpentSpawnDepthMax { get; set; } = 40;
-    public int SerpentSpawnHorizontalOffset { get; set; } = 15;
+    public int SerpentSpawnHorizontalRadiusMax { get; set; } = 50;
+
+    // Kraken spawn horizontal radius. Spawns on the sea floor within
+    // this radius of the player (vs always directly below).
+    public int KrakenSpawnHorizontalRadiusMax { get; set; } = 20;
 
     // Proximity-based aggro: player getting near the serpent forces
     // a transition to Attacking regardless of spiral state.
@@ -68,6 +73,10 @@ public class UnderwaterHorrorsConfig
     // Despawn system
     public float DespawnCheckIntervalSeconds { get; set; } = 2f;
     public float DespawnAfterLandSeconds { get; set; } = 30f;
+    // Despawn immediately if creature drifts farther than this from its
+    // target player (e.g. player escaped by boat, or respawned far after
+    // death). A new creature can then spawn naturally near the player.
+    public float DespawnMaxDistance { get; set; } = 500f;
 
     // Sea serpent
     public float SerpentOrbitRadius { get; set; } = 8f;

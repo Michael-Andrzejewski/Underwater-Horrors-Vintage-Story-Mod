@@ -594,7 +594,11 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             double dist = rand.NextDouble() * range;
 
             surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
-            surfaceY = targetPlayer.Entity.Pos.Y;
+            // Target sea-surface Y, not player Y — otherwise the surface
+            // point chases the player onto cliffs or deep underwater.
+            // Dragging phase still tracks the player directly via a
+            // separate code path, so grabs still work when diving.
+            surfaceY = Math.Min(targetPlayer.Entity.Pos.Y, config.CreatureMaxY);
             surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
         }
         else

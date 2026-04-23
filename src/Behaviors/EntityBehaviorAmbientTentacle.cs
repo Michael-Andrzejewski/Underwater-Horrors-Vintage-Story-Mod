@@ -38,6 +38,10 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
 
+        // Cap at sea level so the tentacle can't fly out of water
+        // (attack tentacle already does this; ambient was missing it).
+        ClampHeight();
+
         if (!initialized)
         {
             initialized = true;
@@ -82,7 +86,9 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
             double dist = rand.NextDouble() * range;
 
             surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
-            surfaceY = targetPlayer.Entity.Pos.Y;
+            // Target sea-surface Y, not player Y — otherwise tentacles
+            // chase the player onto cliffs or deep underwater.
+            surfaceY = Math.Min(targetPlayer.Entity.Pos.Y, config.CreatureMaxY);
             surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
         }
         else

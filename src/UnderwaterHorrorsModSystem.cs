@@ -734,8 +734,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
         var rand = sapi.World.Rand;
         int depthOffset = Config.SerpentSpawnDepthMin + rand.Next(Config.SerpentSpawnDepthMax - Config.SerpentSpawnDepthMin);
         double angle = rand.NextDouble() * Math.PI * 2;
-        double offsetX = Math.Cos(angle) * Config.SerpentSpawnHorizontalOffset;
-        double offsetZ = Math.Sin(angle) * Config.SerpentSpawnHorizontalOffset;
+        // Uniform disk distribution: sqrt() avoids clustering near center.
+        double dist = Math.Sqrt(rand.NextDouble()) * Config.SerpentSpawnHorizontalRadiusMax;
+        double offsetX = Math.Cos(angle) * dist;
+        double offsetZ = Math.Sin(angle) * dist;
 
         Entity serpent = sapi.World.ClassRegistry.CreateEntity(props);
         double spawnX = player.Entity.Pos.X + offsetX;
@@ -763,11 +765,18 @@ public class UnderwaterHorrorsModSystem : ModSystem
             return null;
         }
 
-        // Find sea floor directly below player — scan through air, then water, until solid ground
+        // Pick a random horizontal offset from the player (uniform disk).
+        var rand = sapi.World.Rand;
+        double angle = rand.NextDouble() * Math.PI * 2;
+        double dist = Math.Sqrt(rand.NextDouble()) * Config.KrakenSpawnHorizontalRadiusMax;
+        double spawnX = player.Entity.Pos.X + Math.Cos(angle) * dist;
+        double spawnZ = player.Entity.Pos.Z + Math.Sin(angle) * dist;
+
+        // Find sea floor at the chosen horizontal position — scan through air, then water, until solid ground
         int startY = (int)player.Entity.Pos.Y;
         int floorY = startY;
         bool foundWater = false;
-        reusableBlockPos.Set((int)player.Entity.Pos.X, startY, (int)player.Entity.Pos.Z);
+        reusableBlockPos.Set((int)spawnX, startY, (int)spawnZ);
         reusableBlockPos.dimension = player.Entity.Pos.Dimension;
 
         for (int y = startY; y >= 0; y--)
@@ -791,14 +800,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         Entity kraken = sapi.World.ClassRegistry.CreateEntity(props);
-        kraken.Pos.SetPos(player.Entity.Pos.X, floorY, player.Entity.Pos.Z);
+        kraken.Pos.SetPos(spawnX, floorY, spawnZ);
         kraken.Pos.Dimension = player.Entity.Pos.Dimension;
         kraken.Pos.SetFrom(kraken.Pos);
         kraken.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(kraken);
 
         if (Config.DebugLogging)
-            DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({player.Entity.Pos.X:F1}, {floorY}, {player.Entity.Pos.Z:F1})");
+            DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({spawnX:F1}, {floorY}, {spawnZ:F1})");
 
         return kraken;
     }
@@ -824,6 +833,23 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
             if (player?.Entity == null)
             {
+                despawnRemoveList.Add(playerUid);
+                continue;
+            }
+
+            // Distance despawn: if the creature has drifted too far from
+            // its target player (escaped by boat, or player respawned far
+            // away after death), remove it so a new one can spawn naturally.
+            double ddx = creature.Pos.X - player.Entity.Pos.X;
+            double ddy = creature.Pos.Y - player.Entity.Pos.Y;
+            double ddz = creature.Pos.Z - player.Entity.Pos.Z;
+            double distSq = ddx * ddx + ddy * ddy + ddz * ddz;
+            double maxDist = Config.DespawnMaxDistance;
+            if (distSq > maxDist * maxDist)
+            {
+                if (Config.DebugLogging)
+                    DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): too far from {player.PlayerName} ({Math.Sqrt(distSq):F0} > {maxDist} blocks)");
+                creature.Die(EnumDespawnReason.Expire);
                 despawnRemoveList.Add(playerUid);
                 continue;
             }
