@@ -141,19 +141,19 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // ═══════════════════════════════════════════════════════════════════
     private void GetHeadPosition(out double hx, out double hy, out double hz)
     {
-        float yaw = entity.ServerPos.Yaw;
-        hx = entity.ServerPos.X + Math.Sin(yaw) * HeadForwardOffset;
-        hy = entity.ServerPos.Y;
-        hz = entity.ServerPos.Z + Math.Cos(yaw) * HeadForwardOffset;
+        float yaw = entity.Pos.Yaw;
+        hx = entity.Pos.X + Math.Sin(yaw) * HeadForwardOffset;
+        hy = entity.Pos.Y;
+        hz = entity.Pos.Z + Math.Cos(yaw) * HeadForwardOffset;
     }
 
     private double HeadDistToPlayer()
     {
         if (targetPlayer?.Entity == null) return double.MaxValue;
         GetHeadPosition(out double hx, out double hy, out double hz);
-        double dx = hx - targetPlayer.Entity.SidedPos.X;
-        double dy = hy - targetPlayer.Entity.SidedPos.Y;
-        double dz = hz - targetPlayer.Entity.SidedPos.Z;
+        double dx = hx - targetPlayer.Entity.Pos.X;
+        double dy = hy - targetPlayer.Entity.Pos.Y;
+        double dz = hz - targetPlayer.Entity.Pos.Z;
         return Math.Sqrt(dx * dx + dy * dy + dz * dz);
     }
 
@@ -197,9 +197,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // ── Debug animation mode: freeze in place, replay anim ──
         if (debugAnimName != null)
         {
-            entity.ServerPos.Motion.X = 0;
-            entity.ServerPos.Motion.Y = 0;
-            entity.ServerPos.Motion.Z = 0;
+            entity.Pos.Motion.X = 0;
+            entity.Pos.Motion.Y = 0;
+            entity.Pos.Motion.Z = 0;
 
             debugAnimTimer += deltaTime;
             if (debugAnimTimer >= DebugAnimInterval)
@@ -216,9 +216,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         if (!spawnRecorded)
         {
             spawnRecorded = true;
-            spawnX = entity.ServerPos.X;
-            spawnY = entity.ServerPos.Y;
-            spawnZ = entity.ServerPos.Z;
+            spawnX = entity.Pos.X;
+            spawnY = entity.Pos.Y;
+            spawnZ = entity.Pos.Z;
         }
 
         ResolveTarget();
@@ -301,8 +301,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         var rand = entity.World.Rand;
         float angle = (float)(rand.NextDouble() * Math.PI * 2);
         float dist = SurfaceDistMin + (float)(rand.NextDouble() * (SurfaceDistMax - SurfaceDistMin));
-        surfaceX = targetPlayer.Entity.SidedPos.X + Math.Cos(angle) * dist;
-        surfaceZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(angle) * dist;
+        surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
+        surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
 
         if (config.DebugLogging)
             UnderwaterHorrorsModSystem.DebugLog(entity.Api,
@@ -315,9 +315,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // ═══════════════════════════════════════════════════════════════════
     private void UpdateFacing(float deltaTime)
     {
-        double mx = entity.ServerPos.Motion.X;
-        double mz = entity.ServerPos.Motion.Z;
-        double my = entity.ServerPos.Motion.Y;
+        double mx = entity.Pos.Motion.X;
+        double mz = entity.Pos.Motion.Z;
+        double my = entity.Pos.Motion.Y;
         double horizSpeedSq = mx * mx + mz * mz;
 
         // Yaw — skip update when locked (during windup/strike)
@@ -328,8 +328,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             if (faceTarget && targetPlayer?.Entity != null)
             {
                 // During attack charge: aim directly at the player
-                double dx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
-                double dz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+                double dx = targetPlayer.Entity.Pos.X - entity.Pos.X;
+                double dz = targetPlayer.Entity.Pos.Z - entity.Pos.Z;
                 targetYaw = (float)Math.Atan2(dx, dz) + ModelYawOffset;
             }
             else if (horizSpeedSq > 0.00001)
@@ -356,7 +356,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 smoothedYaw += diff * Math.Min(1f, deltaTime * turnRate);
             }
 
-            entity.ServerPos.Yaw = smoothedYaw;
+            entity.Pos.Yaw = smoothedYaw;
         }
 
         // Pitch
@@ -377,9 +377,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             if (inAttack && targetPlayer?.Entity != null)
             {
                 // Aim pitch directly at the player (mouth-to-target).
-                double tdx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
-                double tdy = targetPlayer.Entity.SidedPos.Y - entity.ServerPos.Y;
-                double tdz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+                double tdx = targetPlayer.Entity.Pos.X - entity.Pos.X;
+                double tdy = targetPlayer.Entity.Pos.Y - entity.Pos.Y;
+                double tdz = targetPlayer.Entity.Pos.Z - entity.Pos.Z;
                 double horizToTarget = Math.Sqrt(tdx * tdx + tdz * tdz);
                 targetPitch = -(float)Math.Atan2(tdy, Math.Max(horizToTarget, 0.001));
                 targetPitch = GameMath.Clamp(targetPitch, -maxPitchRad, maxPitchRad);
@@ -394,16 +394,16 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // Faster interpolation during attack so the head snaps to
         // the player in time for the strike.
         float pitchLerpRate = inAttack ? 6f : 2f;
-        entity.ServerPos.Pitch += (targetPitch - entity.ServerPos.Pitch) *
+        entity.Pos.Pitch += (targetPitch - entity.Pos.Pitch) *
             Math.Min(1f, deltaTime * pitchLerpRate);
 
         // Sink boost is useful for the regular serpent pitching down
         // to dive, but skip during attack so we don't fight the
         // aimed-at-player pitch.
-        if (!inAttack && entity.ServerPos.Pitch > 0.02f)
+        if (!inAttack && entity.Pos.Pitch > 0.02f)
         {
-            float sinkBoost = entity.ServerPos.Pitch * 3f;
-            entity.ServerPos.Motion.Y -= sinkBoost * deltaTime;
+            float sinkBoost = entity.Pos.Pitch * 3f;
+            entity.Pos.Motion.Y -= sinkBoost * deltaTime;
         }
     }
 
@@ -501,13 +501,13 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                         (config.SerpentProximityBodyDwellMax -
                          config.SerpentProximityBodyDwellMin));
                 // Seed slew limiter so we don't ramp from old Motion.Y.
-                lastCommandedMotionY = entity.ServerPos.Motion.Y;
+                lastCommandedMotionY = entity.Pos.Motion.Y;
                 break;
 
             case SerpentState.Attacking:
                 PlayAnimation(AnimSlither);
                 faceTarget = true;  // Turn toward the player during charge
-                lastCommandedMotionY = entity.ServerPos.Motion.Y;
+                lastCommandedMotionY = entity.Pos.Motion.Y;
                 break;
 
             case SerpentState.Retreating:
@@ -582,21 +582,21 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     {
         if (targetPlayer?.Entity == null) return;
 
-        double targetY = targetPlayer.Entity.SidedPos.Y;
+        double targetY = targetPlayer.Entity.Pos.Y;
 
-        entity.ServerPos.Motion.Y = config.SerpentRiseSpeed;
+        entity.Pos.Motion.Y = config.SerpentRiseSpeed;
 
-        double dx = surfaceX - entity.ServerPos.X;
-        double dz = surfaceZ - entity.ServerPos.Z;
+        double dx = surfaceX - entity.Pos.X;
+        double dz = surfaceZ - entity.Pos.Z;
         double horizDist = Math.Sqrt(dx * dx + dz * dz);
 
         if (horizDist > 1)
         {
-            entity.ServerPos.Motion.X = (dx / horizDist) * config.SerpentApproachSpeed;
-            entity.ServerPos.Motion.Z = (dz / horizDist) * config.SerpentApproachSpeed;
+            entity.Pos.Motion.X = (dx / horizDist) * config.SerpentApproachSpeed;
+            entity.Pos.Motion.Z = (dz / horizDist) * config.SerpentApproachSpeed;
         }
 
-        if (entity.ServerPos.Y >= targetY - 2)
+        if (entity.Pos.Y >= targetY - 2)
         {
             TransitionTo(SerpentState.Surfacing);
         }
@@ -609,22 +609,22 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     {
         if (targetPlayer?.Entity == null) return;
 
-        double dx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
-        double dz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+        double dx = targetPlayer.Entity.Pos.X - entity.Pos.X;
+        double dz = targetPlayer.Entity.Pos.Z - entity.Pos.Z;
         double dist = Math.Sqrt(dx * dx + dz * dz);
 
         if (dist > 0.5)
         {
-            entity.ServerPos.Motion.X = (dx / dist) * config.SerpentApproachSpeed * 0.2;
-            entity.ServerPos.Motion.Z = (dz / dist) * config.SerpentApproachSpeed * 0.2;
+            entity.Pos.Motion.X = (dx / dist) * config.SerpentApproachSpeed * 0.2;
+            entity.Pos.Motion.Z = (dz / dist) * config.SerpentApproachSpeed * 0.2;
         }
         else
         {
-            entity.ServerPos.Motion.X = 0;
-            entity.ServerPos.Motion.Z = 0;
+            entity.Pos.Motion.X = 0;
+            entity.Pos.Motion.Z = 0;
         }
 
-        entity.ServerPos.Motion.Y = 0;
+        entity.Pos.Motion.Y = 0;
 
         if (stateTimer >= 2.5f)
         {
@@ -679,8 +679,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         float effectiveOrbitSpeed = config.SerpentOrbitSpeed * config.SerpentOrbitRadius / radius;
         orbitAngle += effectiveOrbitSpeed * deltaTime;
 
-        double targetX = targetPlayer.Entity.SidedPos.X + Math.Cos(orbitAngle) * radius;
-        double targetZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(orbitAngle) * radius;
+        double targetX = targetPlayer.Entity.Pos.X + Math.Cos(orbitAngle) * radius;
+        double targetZ = targetPlayer.Entity.Pos.Z + Math.Sin(orbitAngle) * radius;
 
         // Target Y is relative to the actual water surface so the body
         // is reliably submerged regardless of whether the player is
@@ -688,10 +688,10 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         //   Mounted  → always surface (show itself near the boat)
         //   SurfaceStep → surface peek (fin above waves)
         //   Otherwise → normal (deeper) cruise depth
-        double pX = targetPlayer.Entity.SidedPos.X;
-        double pY = targetPlayer.Entity.SidedPos.Y;
-        double pZ = targetPlayer.Entity.SidedPos.Z;
-        int waterY = FindWaterSurfaceYBelow(pX, pY, pZ, targetPlayer.Entity.SidedPos.Dimension);
+        double pX = targetPlayer.Entity.Pos.X;
+        double pY = targetPlayer.Entity.Pos.Y;
+        double pZ = targetPlayer.Entity.Pos.Z;
+        int waterY = FindWaterSurfaceYBelow(pX, pY, pZ, targetPlayer.Entity.Pos.Dimension);
         float depthBelowSurface = (playerMounted || currentStepAtSurface)
             ? config.SerpentSurfaceSubmergeDepth
             : config.SerpentNormalSubmergeDepth;
@@ -721,9 +721,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 return;
             }
 
-            double bodyDx = targetPlayer.Entity.SidedPos.X - entity.ServerPos.X;
-            double bodyDy = targetPlayer.Entity.SidedPos.Y - entity.ServerPos.Y;
-            double bodyDz = targetPlayer.Entity.SidedPos.Z - entity.ServerPos.Z;
+            double bodyDx = targetPlayer.Entity.Pos.X - entity.Pos.X;
+            double bodyDy = targetPlayer.Entity.Pos.Y - entity.Pos.Y;
+            double bodyDz = targetPlayer.Entity.Pos.Z - entity.Pos.Z;
             double bodyDist = Math.Sqrt(bodyDx * bodyDx + bodyDy * bodyDy + bodyDz * bodyDz);
             if (bodyDist < config.SerpentProximityBodyTriggerRange)
             {
@@ -779,9 +779,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             return;
         }
 
-        double px = targetPlayer.Entity.SidedPos.X;
-        double py = targetPlayer.Entity.SidedPos.Y;
-        double pz = targetPlayer.Entity.SidedPos.Z;
+        double px = targetPlayer.Entity.Pos.X;
+        double py = targetPlayer.Entity.Pos.Y;
+        double pz = targetPlayer.Entity.Pos.Z;
 
         if (!isWindingUp && !isStriking)
         {
@@ -789,8 +789,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             // Move entity center so the HEAD arrives at the player.
             // Target = player position offset BACK by HeadForwardOffset
             // along the entity→player direction.
-            double adx = px - entity.ServerPos.X;
-            double adz = pz - entity.ServerPos.Z;
+            double adx = px - entity.Pos.X;
+            double adz = pz - entity.Pos.Z;
             double aDist = Math.Sqrt(adx * adx + adz * adz);
 
             if (aDist > 0.1)
@@ -838,9 +838,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         else if (isWindingUp)
         {
             // ── Windup phase: full stop, facing locked ──
-            entity.ServerPos.Motion.X = 0;
-            entity.ServerPos.Motion.Y = 0;
-            entity.ServerPos.Motion.Z = 0;
+            entity.Pos.Motion.X = 0;
+            entity.Pos.Motion.Y = 0;
+            entity.Pos.Motion.Z = 0;
 
             attackAnimTimer += deltaTime;
 
@@ -921,9 +921,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             return;
         }
 
-        double dx = spawnX - entity.ServerPos.X;
-        double dy = spawnY - entity.ServerPos.Y;
-        double dz = spawnZ - entity.ServerPos.Z;
+        double dx = spawnX - entity.Pos.X;
+        double dy = spawnY - entity.Pos.Y;
+        double dz = spawnZ - entity.Pos.Z;
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist > 3.0)

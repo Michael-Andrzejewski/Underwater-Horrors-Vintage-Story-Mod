@@ -81,16 +81,16 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
             double angle = rand.NextDouble() * Math.PI * 2;
             double dist = rand.NextDouble() * range;
 
-            surfaceX = targetPlayer.Entity.SidedPos.X + Math.Cos(angle) * dist;
-            surfaceY = targetPlayer.Entity.SidedPos.Y;
-            surfaceZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(angle) * dist;
+            surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
+            surfaceY = targetPlayer.Entity.Pos.Y;
+            surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
         }
         else
         {
             // Fallback: rise straight up from current position
-            surfaceX = entity.SidedPos.X;
-            surfaceY = entity.SidedPos.Y + 20;
-            surfaceZ = entity.SidedPos.Z;
+            surfaceX = entity.Pos.X;
+            surfaceY = entity.Pos.Y + 20;
+            surfaceZ = entity.Pos.Z;
         }
 
         // Randomize rise speed: base speed * random factor (0.8 to 1.3)
@@ -115,9 +115,9 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     {
         MoveToward(surfaceX, surfaceY, surfaceZ, riseSpeed);
 
-        double dx = surfaceX - entity.SidedPos.X;
-        double dy = surfaceY - entity.SidedPos.Y;
-        double dz = surfaceZ - entity.SidedPos.Z;
+        double dx = surfaceX - entity.Pos.X;
+        double dy = surfaceY - entity.Pos.Y;
+        double dz = surfaceZ - entity.Pos.Z;
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist < 2.0)
@@ -139,20 +139,20 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         double targetZ = surfaceZ + Math.Sin(orbitAngle) * radius;
         double targetY = surfaceY + Math.Sin(stateTimer * bobSpeed) * bobAmp;
 
-        double dx = targetX - entity.SidedPos.X;
-        double dy = targetY - entity.SidedPos.Y;
-        double dz = targetZ - entity.SidedPos.Z;
+        double dx = targetX - entity.Pos.X;
+        double dy = targetY - entity.Pos.Y;
+        double dz = targetZ - entity.Pos.Z;
 
-        entity.SidedPos.Motion.X = dx * 0.1;
-        entity.SidedPos.Motion.Y = dy * 0.1;
-        entity.SidedPos.Motion.Z = dz * 0.1;
+        entity.Pos.Motion.X = dx * 0.1;
+        entity.Pos.Motion.Y = dy * 0.1;
+        entity.Pos.Motion.Z = dz * 0.1;
     }
 
     private void OnSinking(float deltaTime)
     {
-        entity.SidedPos.Motion.X = 0;
-        entity.SidedPos.Motion.Y = -config.RetreatSpeed;
-        entity.SidedPos.Motion.Z = 0;
+        entity.Pos.Motion.X = 0;
+        entity.Pos.Motion.Y = -config.RetreatSpeed;
+        entity.Pos.Motion.Z = 0;
 
         if (stateTimer >= config.RetreatDuration)
         {

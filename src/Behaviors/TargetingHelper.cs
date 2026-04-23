@@ -31,7 +31,7 @@ public static class TargetingHelper
         if (player?.Entity == null) return true;
 
         long entityId = entity.EntityId;
-        int playerBlockY = (int)player.Entity.SidedPos.Y;
+        int playerBlockY = (int)player.Entity.Pos.Y;
         double now = entity.World.ElapsedMilliseconds;
 
         // Check cache: valid if not expired and player hasn't moved vertically
@@ -61,12 +61,12 @@ public static class TargetingHelper
     {
         var accessor = entity.World.BlockAccessor;
         int mapHeight = accessor.MapSizeY;
-        int startX = (int)player.Entity.SidedPos.X;
-        int startY = (int)player.Entity.SidedPos.Y;
-        int startZ = (int)player.Entity.SidedPos.Z;
+        int startX = (int)player.Entity.Pos.X;
+        int startY = (int)player.Entity.Pos.Y;
+        int startZ = (int)player.Entity.Pos.Z;
 
         scanPos.Set(startX, startY, startZ);
-        scanPos.dimension = player.Entity.SidedPos.Dimension;
+        scanPos.dimension = player.Entity.Pos.Dimension;
 
         int waterCount = 0;
 
@@ -130,7 +130,7 @@ public static class TargetingHelper
         {
             if (player.Entity == null || !player.Entity.Alive) continue;
 
-            double dist = entity.SidedPos.DistanceTo(player.Entity.SidedPos.XYZ);
+            double dist = entity.Pos.DistanceTo(player.Entity.Pos.XYZ);
             if (dist < closestDist)
             {
                 closestDist = dist;

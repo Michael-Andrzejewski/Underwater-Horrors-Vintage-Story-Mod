@@ -229,9 +229,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
                 segProps = outerProps ?? innerProps;
 
             Entity seg = entity.World.ClassRegistry.CreateEntity(segProps);
-            seg.ServerPos.SetPos(entity.ServerPos.X, entity.ServerPos.Y, entity.ServerPos.Z);
-            seg.ServerPos.Dimension = entity.ServerPos.Dimension;
-            seg.Pos.SetFrom(seg.ServerPos);
+            seg.Pos.SetPos(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
+            seg.Pos.Dimension = entity.Pos.Dimension;
+            seg.Pos.SetFrom(seg.Pos);
             entity.World.SpawnEntity(seg);
             segmentIds[i] = seg.EntityId;
             segmentEntities[i] = seg;
@@ -263,14 +263,14 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         if (body != null && body.Alive)
         {
-            reusableAnchor.Set(body.SidedPos.X, body.SidedPos.Y + 1, body.SidedPos.Z);
+            reusableAnchor.Set(body.Pos.X, body.Pos.Y + 1, body.Pos.Z);
         }
         else
         {
-            reusableAnchor.Set(entity.SidedPos.X, entity.SidedPos.Y - 5, entity.SidedPos.Z);
+            reusableAnchor.Set(entity.Pos.X, entity.Pos.Y - 5, entity.Pos.Z);
         }
 
-        Vec3d tip = entity.SidedPos.XYZ;
+        Vec3d tip = entity.Pos.XYZ;
 
         SplineHelper.ComputeTentacleControlPoints(reusableAnchor, tip, config.TentacleArchHeightFactor, out Vec3d b1, out Vec3d b2);
 
@@ -310,9 +310,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        double px = targetPlayer.Entity.SidedPos.X;
-        double py = targetPlayer.Entity.SidedPos.Y;
-        double pz = targetPlayer.Entity.SidedPos.Z;
+        double px = targetPlayer.Entity.Pos.X;
+        double py = targetPlayer.Entity.Pos.Y;
+        double pz = targetPlayer.Entity.Pos.Z;
 
         for (int i = 0; i < ClawCount; i++)
         {
@@ -321,9 +321,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             double cy = py + ClawOffsets[i][1];
             double cz = pz + ClawOffsets[i][2];
 
-            claw.ServerPos.SetPos(cx, cy, cz);
-            claw.ServerPos.Dimension = entity.ServerPos.Dimension;
-            claw.Pos.SetFrom(claw.ServerPos);
+            claw.Pos.SetPos(cx, cy, cz);
+            claw.Pos.Dimension = entity.Pos.Dimension;
+            claw.Pos.SetFrom(claw.Pos);
             entity.World.SpawnEntity(claw);
 
             clawIds[i] = claw.EntityId;
@@ -356,9 +356,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         if (clawEntities == null || targetPlayer?.Entity == null) return;
 
-        double px = targetPlayer.Entity.SidedPos.X;
-        double py = targetPlayer.Entity.SidedPos.Y;
-        double pz = targetPlayer.Entity.SidedPos.Z;
+        double px = targetPlayer.Entity.Pos.X;
+        double py = targetPlayer.Entity.Pos.Y;
+        double pz = targetPlayer.Entity.Pos.Z;
 
         for (int i = 0; i < clawEntities.Length; i++)
         {
@@ -420,9 +420,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             if (seg == null || !seg.Alive) continue;
 
             Entity light = entity.World.ClassRegistry.CreateEntity(lightProps);
-            light.ServerPos.SetPos(seg.ServerPos.X, seg.ServerPos.Y, seg.ServerPos.Z);
-            light.ServerPos.Dimension = entity.ServerPos.Dimension;
-            light.Pos.SetFrom(light.ServerPos);
+            light.Pos.SetPos(seg.Pos.X, seg.Pos.Y, seg.Pos.Z);
+            light.Pos.Dimension = entity.Pos.Dimension;
+            light.Pos.SetFrom(light.Pos);
 
             // Initial HSV — static brightness unless pulsing is enabled
             light.WatchedAttributes.SetBytes("hsv", new byte[] { BiolumHue, BiolumSat, BiolumVStatic });
@@ -492,7 +492,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             }
 
             // Move light to segment position
-            light.TeleportToDouble(seg.ServerPos.X, seg.ServerPos.Y, seg.ServerPos.Z);
+            light.TeleportToDouble(seg.Pos.X, seg.Pos.Y, seg.Pos.Z);
 
             if (pulsing)
             {
@@ -593,15 +593,15 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             double angle = rand.NextDouble() * Math.PI * 2;
             double dist = rand.NextDouble() * range;
 
-            surfaceX = targetPlayer.Entity.SidedPos.X + Math.Cos(angle) * dist;
-            surfaceY = targetPlayer.Entity.SidedPos.Y;
-            surfaceZ = targetPlayer.Entity.SidedPos.Z + Math.Sin(angle) * dist;
+            surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
+            surfaceY = targetPlayer.Entity.Pos.Y;
+            surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
         }
         else
         {
-            surfaceX = entity.SidedPos.X;
-            surfaceY = entity.SidedPos.Y + 20;
-            surfaceZ = entity.SidedPos.Z;
+            surfaceX = entity.Pos.X;
+            surfaceY = entity.Pos.Y + 20;
+            surfaceZ = entity.Pos.Z;
         }
 
         if (config.DebugLogging)
@@ -621,9 +621,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         MoveToward(surfaceX, surfaceY, surfaceZ, config.TentacleRiseSpeed);
 
-        double dx = surfaceX - entity.SidedPos.X;
-        double dy = surfaceY - entity.SidedPos.Y;
-        double dz = surfaceZ - entity.SidedPos.Z;
+        double dx = surfaceX - entity.Pos.X;
+        double dy = surfaceY - entity.Pos.Y;
+        double dz = surfaceZ - entity.Pos.Z;
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist < 2.0)
@@ -645,13 +645,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         double bobZ = surfaceZ + Math.Cos(stateTimer * 0.5) * 2.0;
         double bobY = surfaceY + Math.Sin(stateTimer * 0.7) * 1.0;
 
-        double dx = bobX - entity.SidedPos.X;
-        double dy = bobY - entity.SidedPos.Y;
-        double dz = bobZ - entity.SidedPos.Z;
+        double dx = bobX - entity.Pos.X;
+        double dy = bobY - entity.Pos.Y;
+        double dz = bobZ - entity.Pos.Z;
 
-        entity.SidedPos.Motion.X = dx * 0.05;
-        entity.SidedPos.Motion.Y = dy * 0.05;
-        entity.SidedPos.Motion.Z = dz * 0.05;
+        entity.Pos.Motion.X = dx * 0.05;
+        entity.Pos.Motion.Y = dy * 0.05;
+        entity.Pos.Motion.Z = dz * 0.05;
 
         if (stateTimer >= config.TentacleLingerDuration)
         {
@@ -686,10 +686,10 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        double clampedY = Math.Min(targetPlayer.Entity.SidedPos.Y, config.CreatureMaxY);
-        MoveToward(targetPlayer.Entity.SidedPos.X, clampedY, targetPlayer.Entity.SidedPos.Z, config.TentacleReachSpeed);
+        double clampedY = Math.Min(targetPlayer.Entity.Pos.Y, config.CreatureMaxY);
+        MoveToward(targetPlayer.Entity.Pos.X, clampedY, targetPlayer.Entity.Pos.Z, config.TentacleReachSpeed);
 
-        double dist = entity.SidedPos.DistanceTo(targetPlayer.Entity.SidedPos.XYZ);
+        double dist = entity.Pos.DistanceTo(targetPlayer.Entity.Pos.XYZ);
         if (dist < config.TentacleGrabRange)
         {
             TransitionTo(TentacleState.Dragging);
@@ -726,13 +726,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        double playerX = targetPlayer.Entity.SidedPos.X;
-        double playerY = targetPlayer.Entity.SidedPos.Y;
-        double playerZ = targetPlayer.Entity.SidedPos.Z;
+        double playerX = targetPlayer.Entity.Pos.X;
+        double playerY = targetPlayer.Entity.Pos.Y;
+        double playerZ = targetPlayer.Entity.Pos.Z;
 
-        double dx = body.SidedPos.X - playerX;
-        double dy = body.SidedPos.Y - playerY;
-        double dz = body.SidedPos.Z - playerZ;
+        double dx = body.Pos.X - playerX;
+        double dy = body.Pos.Y - playerY;
+        double dz = body.Pos.Z - playerZ;
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist > 0.5)
@@ -762,9 +762,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         // Keep tentacle tip below player
         entity.TeleportToDouble(
-            targetPlayer.Entity.SidedPos.X,
-            targetPlayer.Entity.SidedPos.Y + config.TentacleGrabYOffset,
-            targetPlayer.Entity.SidedPos.Z
+            targetPlayer.Entity.Pos.X,
+            targetPlayer.Entity.Pos.Y + config.TentacleGrabYOffset,
+            targetPlayer.Entity.Pos.Z
         );
     }
 
@@ -772,15 +772,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         reusablePassabilityPos.Set((int)x, (int)y, (int)z);
         Block block = entity.World.BlockAccessor.GetBlock(reusablePassabilityPos);
-        return block == null || block.BlockMaterial == EnumBlockMaterial.Liquid || !block.SideSolid[BlockFacing.UP.Index];
+        // VS 1.22: EnumBlockMaterial.Liquid was split into Water/Lava. Water is passable
+        // for the tentacle; lava is not (and shouldn't be water-dwelling anyway).
+        return block == null || block.BlockMaterial == EnumBlockMaterial.Water || !block.SideSolid[BlockFacing.UP.Index];
     }
 
     private void OnSinking(float deltaTime)
     {
         // Sink downward toward sea floor
-        entity.SidedPos.Motion.X = 0;
-        entity.SidedPos.Motion.Y = -config.RetreatSpeed;
-        entity.SidedPos.Motion.Z = 0;
+        entity.Pos.Motion.X = 0;
+        entity.Pos.Motion.Y = -config.RetreatSpeed;
+        entity.Pos.Motion.Z = 0;
 
         if (stateTimer >= config.TentacleSinkDuration)
         {
@@ -796,13 +798,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         if (body != null && body.Alive)
         {
-            MoveToward(body.SidedPos.X, body.SidedPos.Y, body.SidedPos.Z, config.TentacleReachSpeed);
+            MoveToward(body.Pos.X, body.Pos.Y, body.Pos.Z, config.TentacleReachSpeed);
         }
         else
         {
-            entity.SidedPos.Motion.X = 0;
-            entity.SidedPos.Motion.Y = -config.RetreatSpeed;
-            entity.SidedPos.Motion.Z = 0;
+            entity.Pos.Motion.X = 0;
+            entity.Pos.Motion.Y = -config.RetreatSpeed;
+            entity.Pos.Motion.Z = 0;
         }
 
         if (stateTimer >= config.RetreatDuration)

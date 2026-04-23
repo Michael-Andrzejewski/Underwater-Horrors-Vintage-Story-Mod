@@ -470,7 +470,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             if (e == null || !e.Alive) continue;
             if (e.Code?.Path != "seaserpent") continue;
-            double dist = e.ServerPos.DistanceTo(caller.Entity.ServerPos.XYZ);
+            double dist = e.Pos.DistanceTo(caller.Entity.Pos.XYZ);
             if (dist < nearestDist)
             {
                 nearestDist = dist;
@@ -567,7 +567,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
             if (Config.DebugLogging && depth > 0)
             {
-                DebugLog(sapi, $"Spawn check: {player.PlayerName} at ({player.Entity.SidedPos.X:F0}, {player.Entity.SidedPos.Y:F0}, {player.Entity.SidedPos.Z:F0}) - saltwater depth: {depth} (need {Config.MinSaltwaterDepth})");
+                DebugLog(sapi, $"Spawn check: {player.PlayerName} at ({player.Entity.Pos.X:F0}, {player.Entity.Pos.Y:F0}, {player.Entity.Pos.Z:F0}) - saltwater depth: {depth} (need {Config.MinSaltwaterDepth})");
             }
 
             if (depth < Config.MinSaltwaterDepth) continue;
@@ -622,16 +622,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private int CountSaltwaterDepth(Entity playerEntity, int earlyExitThreshold)
     {
-        if (playerEntity?.SidedPos == null) return 0;
+        if (playerEntity?.Pos == null) return 0;
 
         var accessor = sapi?.World?.BlockAccessor;
         if (accessor == null) return 0;
 
         int mapHeight = accessor.MapSizeY;
-        int startX = (int)playerEntity.SidedPos.X;
-        int startY = (int)playerEntity.SidedPos.Y;
-        int startZ = (int)playerEntity.SidedPos.Z;
-        int dim = playerEntity.SidedPos.Dimension;
+        int startX = (int)playerEntity.Pos.X;
+        int startY = (int)playerEntity.Pos.Y;
+        int startZ = (int)playerEntity.Pos.Z;
+        int dim = playerEntity.Pos.Dimension;
 
         // Reuse a single BlockPos to avoid allocation per call
         reusableBlockPos.Set(startX, startY, startZ);
@@ -689,14 +689,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
     /// </summary>
     private bool PlayerHasSaltwaterBelow(Entity playerEntity, int scanBlocks)
     {
-        if (playerEntity?.SidedPos == null) return false;
+        if (playerEntity?.Pos == null) return false;
         var accessor = sapi?.World?.BlockAccessor;
         if (accessor == null) return false;
 
-        int startX = (int)playerEntity.SidedPos.X;
-        int startY = (int)playerEntity.SidedPos.Y;
-        int startZ = (int)playerEntity.SidedPos.Z;
-        int dim = playerEntity.SidedPos.Dimension;
+        int startX = (int)playerEntity.Pos.X;
+        int startY = (int)playerEntity.Pos.Y;
+        int startZ = (int)playerEntity.Pos.Z;
+        int dim = playerEntity.Pos.Dimension;
 
         reusableBlockPos.Set(startX, startY, startZ);
         reusableBlockPos.dimension = dim;
@@ -738,13 +738,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
         double offsetZ = Math.Sin(angle) * Config.SerpentSpawnHorizontalOffset;
 
         Entity serpent = sapi.World.ClassRegistry.CreateEntity(props);
-        double spawnX = player.Entity.SidedPos.X + offsetX;
-        double spawnY = player.Entity.SidedPos.Y - depthOffset;
-        double spawnZ = player.Entity.SidedPos.Z + offsetZ;
+        double spawnX = player.Entity.Pos.X + offsetX;
+        double spawnY = player.Entity.Pos.Y - depthOffset;
+        double spawnZ = player.Entity.Pos.Z + offsetZ;
 
-        serpent.ServerPos.SetPos(spawnX, spawnY, spawnZ);
-        serpent.ServerPos.Dimension = player.Entity.SidedPos.Dimension;
-        serpent.Pos.SetFrom(serpent.ServerPos);
+        serpent.Pos.SetPos(spawnX, spawnY, spawnZ);
+        serpent.Pos.Dimension = player.Entity.Pos.Dimension;
+        serpent.Pos.SetFrom(serpent.Pos);
         serpent.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(serpent);
 
@@ -764,11 +764,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         // Find sea floor directly below player — scan through air, then water, until solid ground
-        int startY = (int)player.Entity.SidedPos.Y;
+        int startY = (int)player.Entity.Pos.Y;
         int floorY = startY;
         bool foundWater = false;
-        reusableBlockPos.Set((int)player.Entity.SidedPos.X, startY, (int)player.Entity.SidedPos.Z);
-        reusableBlockPos.dimension = player.Entity.SidedPos.Dimension;
+        reusableBlockPos.Set((int)player.Entity.Pos.X, startY, (int)player.Entity.Pos.Z);
+        reusableBlockPos.dimension = player.Entity.Pos.Dimension;
 
         for (int y = startY; y >= 0; y--)
         {
@@ -791,14 +791,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         Entity kraken = sapi.World.ClassRegistry.CreateEntity(props);
-        kraken.ServerPos.SetPos(player.Entity.SidedPos.X, floorY, player.Entity.SidedPos.Z);
-        kraken.ServerPos.Dimension = player.Entity.SidedPos.Dimension;
-        kraken.Pos.SetFrom(kraken.ServerPos);
+        kraken.Pos.SetPos(player.Entity.Pos.X, floorY, player.Entity.Pos.Z);
+        kraken.Pos.Dimension = player.Entity.Pos.Dimension;
+        kraken.Pos.SetFrom(kraken.Pos);
         kraken.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(kraken);
 
         if (Config.DebugLogging)
-            DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({player.Entity.SidedPos.X:F1}, {floorY}, {player.Entity.SidedPos.Z:F1})");
+            DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({player.Entity.Pos.X:F1}, {floorY}, {player.Entity.Pos.Z:F1})");
 
         return kraken;
     }
@@ -829,7 +829,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             }
 
             // Check if player's feet are in saltwater using cached block ID check
-            BlockPos feetPos = player.Entity.SidedPos.AsBlockPos;
+            BlockPos feetPos = player.Entity.Pos.AsBlockPos;
             Block feetBlock = sapi.World.BlockAccessor.GetBlock(feetPos);
             bool inSaltwater = feetBlock != null && WaterHelper.IsSaltwater(feetBlock);
 

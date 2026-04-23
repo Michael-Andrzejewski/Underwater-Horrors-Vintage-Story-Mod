@@ -41,25 +41,25 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     protected void ClampHeight()
     {
         double maxY = config.CreatureMaxY;
-        if (entity.SidedPos.Y > maxY)
+        if (entity.Pos.Y > maxY)
         {
-            entity.SidedPos.Y = maxY;
-            if (entity.SidedPos.Motion.Y > 0) entity.SidedPos.Motion.Y = 0;
+            entity.Pos.Y = maxY;
+            if (entity.Pos.Motion.Y > 0) entity.Pos.Motion.Y = 0;
         }
     }
 
     protected void MoveToward(double targetX, double targetY, double targetZ, double speed, double minDist = 0.1)
     {
-        double dx = targetX - entity.SidedPos.X;
-        double dy = targetY - entity.SidedPos.Y;
-        double dz = targetZ - entity.SidedPos.Z;
+        double dx = targetX - entity.Pos.X;
+        double dy = targetY - entity.Pos.Y;
+        double dz = targetZ - entity.Pos.Z;
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist < minDist) return;
 
-        entity.SidedPos.Motion.X = (dx / dist) * speed;
-        entity.SidedPos.Motion.Y = (dy / dist) * speed;
-        entity.SidedPos.Motion.Z = (dz / dist) * speed;
+        entity.Pos.Motion.X = (dx / dist) * speed;
+        entity.Pos.Motion.Y = (dy / dist) * speed;
+        entity.Pos.Motion.Z = (dz / dist) * speed;
     }
 
     // Slew-rate limiter state for MoveTowardDamped.  Shared between
@@ -106,9 +106,9 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         double horizSpeed, double maxVerticalSpeed, double verticalSlewPerSec,
         float deltaTime)
     {
-        double dx = targetX - entity.SidedPos.X;
-        double dy = targetY - entity.SidedPos.Y;
-        double dz = targetZ - entity.SidedPos.Z;
+        double dx = targetX - entity.Pos.X;
+        double dy = targetY - entity.Pos.Y;
+        double dz = targetZ - entity.Pos.Z;
 
         const double gain = 0.4;
 
@@ -123,9 +123,9 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         double my = lastCommandedMotionY + myDelta;
         lastCommandedMotionY = my;
 
-        entity.SidedPos.Motion.X = mx;
-        entity.SidedPos.Motion.Y = my;
-        entity.SidedPos.Motion.Z = mz;
+        entity.Pos.Motion.X = mx;
+        entity.Pos.Motion.Y = my;
+        entity.Pos.Motion.Z = mz;
     }
 
     /// <summary>

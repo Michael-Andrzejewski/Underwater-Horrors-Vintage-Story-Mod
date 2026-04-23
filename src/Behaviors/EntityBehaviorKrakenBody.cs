@@ -33,9 +33,9 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         if (entity.Api.Side != EnumAppSide.Server) return;
 
         // Stay stationary
-        entity.SidedPos.Motion.X = 0;
-        entity.SidedPos.Motion.Y = 0;
-        entity.SidedPos.Motion.Z = 0;
+        entity.Pos.Motion.X = 0;
+        entity.Pos.Motion.Y = 0;
+        entity.Pos.Motion.Z = 0;
 
         if (!tentaclesSpawned)
         {
@@ -100,7 +100,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     private void SpawnTentacles()
     {
         if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawning tentacles at ({entity.ServerPos.X:F1}, {entity.ServerPos.Y:F1}, {entity.ServerPos.Z:F1})");
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawning tentacles at ({entity.Pos.X:F1}, {entity.Pos.Y:F1}, {entity.Pos.Z:F1})");
 
         SpawnAttackTentacle();
 
@@ -115,13 +115,13 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             for (int i = 0; i < count; i++)
             {
                 double angle = (2 * Math.PI / count) * i;
-                double spawnX = entity.ServerPos.X + Math.Cos(angle) * radius;
-                double spawnZ = entity.ServerPos.Z + Math.Sin(angle) * radius;
+                double spawnX = entity.Pos.X + Math.Cos(angle) * radius;
+                double spawnZ = entity.Pos.Z + Math.Sin(angle) * radius;
 
                 Entity ambient = entity.World.ClassRegistry.CreateEntity(ambientProps);
-                ambient.ServerPos.SetPos(spawnX, entity.ServerPos.Y + 1, spawnZ);
-                ambient.ServerPos.Dimension = entity.ServerPos.Dimension;
-                ambient.Pos.SetFrom(ambient.ServerPos);
+                ambient.Pos.SetPos(spawnX, entity.Pos.Y + 1, spawnZ);
+                ambient.Pos.Dimension = entity.Pos.Dimension;
+                ambient.Pos.SetFrom(ambient.Pos);
 
                 if (!string.IsNullOrEmpty(targetUid))
                 {
@@ -148,9 +148,9 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         if (attackProps == null) return;
 
         Entity tentacle = entity.World.ClassRegistry.CreateEntity(attackProps);
-        tentacle.ServerPos.SetPos(entity.ServerPos.X, entity.ServerPos.Y + 1, entity.ServerPos.Z);
-        tentacle.ServerPos.Dimension = entity.ServerPos.Dimension;
-        tentacle.Pos.SetFrom(tentacle.ServerPos);
+        tentacle.Pos.SetPos(entity.Pos.X, entity.Pos.Y + 1, entity.Pos.Z);
+        tentacle.Pos.Dimension = entity.Pos.Dimension;
+        tentacle.Pos.SetFrom(tentacle.Pos);
         if (!string.IsNullOrEmpty(targetUid))
         {
             tentacle.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", targetUid);
@@ -176,9 +176,9 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             if (player.Entity.MountedOn != null) continue;
 
             // Use squared distance to avoid sqrt when out of range
-            double dx = entity.SidedPos.X - player.Entity.SidedPos.X;
-            double dy = entity.SidedPos.Y - player.Entity.SidedPos.Y;
-            double dz = entity.SidedPos.Z - player.Entity.SidedPos.Z;
+            double dx = entity.Pos.X - player.Entity.Pos.X;
+            double dy = entity.Pos.Y - player.Entity.Pos.Y;
+            double dz = entity.Pos.Z - player.Entity.Pos.Z;
             double distSq = dx * dx + dy * dy + dz * dz;
 
             if (distSq < rangeSq)

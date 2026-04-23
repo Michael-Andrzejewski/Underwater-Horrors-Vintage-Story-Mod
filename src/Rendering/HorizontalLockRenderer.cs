@@ -35,7 +35,7 @@ public class HorizontalLockRenderer : IRenderer
         // can point at the player.
         if (behavior != null && behavior.IsInAttackPhase) return;
         EntityBehaviorDeepSerpentAI.ForceHorizontal(entity.Pos);
-        EntityBehaviorDeepSerpentAI.ForceHorizontal(entity.ServerPos);
+        EntityBehaviorDeepSerpentAI.ForceHorizontal(entity.Pos);
     }
 
     public void Dispose() { }
