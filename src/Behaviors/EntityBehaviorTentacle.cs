@@ -13,6 +13,7 @@ public enum TentacleState
     Lingering,
     Reaching,
     Dragging,
+    Stalling,    // Player out of water OR on a boat — slow drift/orbit, 30s timeout
     Sinking,
     Retreating
 }
@@ -45,6 +46,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private TentacleState state = TentacleState.Idle;
     private float stateTimer;
     private bool speedDebuffApplied;
+
+    // Kraken-death handling: once the body is dead, AI logic stops, no
+    // new entities spawn, claws/lights are cleaned up, and the tentacle
+    // falls passively for TentacleKrakenDeathFallDuration seconds before
+    // calling Die. Latches via a flag so cleanup runs exactly once.
+    private bool krakenDeathHandled;
+    private float krakenDeathTimer;
 
     // Chain of segment entities that fills the spline from body to tip.
     // See TentacleSegmentChain for the trail-follow + pitch+roll math.
@@ -114,6 +122,37 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         ResolveTarget();
         ClampHeight();
 
+        // Kraken-death short-circuit. If the body died this tick (or any
+        // earlier tick) we run cleanup once, then this branch every tick:
+        // skip ALL state logic, biolum spawning, claw spawning, respawn
+        // signals, etc. The chain still updates so segments visibly fall
+        // with the tentacle. After TentacleKrakenDeathFallDuration the
+        // tentacle dies cleanly; the chain.Despawn in OnEntityDespawn
+        // takes the segments with it.
+        Entity body = GetBody();
+        if (body == null || !body.Alive)
+        {
+            if (!krakenDeathHandled)
+            {
+                krakenDeathHandled = true;
+                krakenDeathTimer = 0f;
+                if (clawsSpawned) DespawnClaws();
+                RemoveSpeedDebuff();
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        "Tentacle: kraken body dead, falling passively (no new spawns).");
+            }
+            krakenDeathTimer += deltaTime;
+            if (krakenDeathTimer > config.TentacleKrakenDeathFallDuration)
+            {
+                entity.Die(EnumDespawnReason.Expire);
+                return;
+            }
+            UpdateChainPositions();
+            UpdateHeadFacing();
+            return;
+        }
+
         EnsureChainCreated();
         chain?.EnsureSpawned();
 
@@ -149,16 +188,27 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             TransitionTo(TentacleState.Sinking);
         }
 
-        // Throttled shallow water retreat check
+        // Stall trigger. The moment the player exits the water OR mounts
+        // a boat during Reaching/Dragging, the tentacle stops actively
+        // chasing and enters Stalling — slow drift toward body if on
+        // land, slow orbit around the boat if mounted. Stalling has its
+        // own 30s despawn timer (TentacleStallDespawnSeconds); if the
+        // player returns to a chase-able state before then, Stalling
+        // hands control back to Reaching.
+        //
+        // (IsInShallowWater explicitly returns false when mounted, so
+        // we OR with a separate mount check here. UpdateShallowWaterCheck
+        // is throttled to 0.5s — cheap to call every tick.)
         if (state == TentacleState.Reaching || state == TentacleState.Dragging)
         {
             UpdateShallowWaterCheck(deltaTime);
-
-            if (IsInShallowWater)
+            bool playerMounted = targetPlayer?.Entity?.MountedOn != null;
+            if (IsInShallowWater || playerMounted)
             {
                 if (config.DebugLogging)
-                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: player in shallow water, retreating");
-                TransitionTo(TentacleState.Retreating);
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        $"Tentacle: stalling (shallowWater={IsInShallowWater}, mounted={playerMounted})");
+                TransitionTo(TentacleState.Stalling);
             }
         }
 
@@ -180,6 +230,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
                 break;
             case TentacleState.Dragging:
                 OnDragging(deltaTime);
+                break;
+            case TentacleState.Stalling:
+                OnStalling(deltaTime);
                 break;
             case TentacleState.Sinking:
                 OnSinking(deltaTime);
@@ -224,6 +277,23 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         chain?.Despawn();
         DespawnClaws();
         base.OnEntityDespawn(despawn);
+    }
+
+    /// <summary>
+    /// Fires when the head entity dies via damage (player kill). Without
+    /// this, the head's deaddecay keeps AllowDespawn=false so the corpse
+    /// sticks around for the configured decay window — and OnEntityDespawn
+    /// won't fire until then, leaving the entire chain/claws dangling. We
+    /// run cleanup right away and force the head itself to despawn.
+    /// </summary>
+    public override void OnEntityDeath(DamageSource damageSourceForDeath)
+    {
+        base.OnEntityDeath(damageSourceForDeath);
+        RemoveSpeedDebuff();
+        DespawnBiolumLights();
+        chain?.Despawn();
+        DespawnClaws();
+        if (entity is EntityAgent agent) agent.AllowDespawn = true;
     }
 
     // --- Cached body lookup ---
@@ -321,12 +391,24 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     private void DespawnClaws()
     {
-        if (clawEntities == null) return;
+        if (clawIds == null) return;
 
-        for (int i = 0; i < clawEntities.Length; i++)
+        // Force AllowDespawn=true on every claw, alive or dead.
+        // EntityBehaviorDeadDecay sets AllowDespawn=false during init so
+        // player-killed corpses won't despawn until its decay timer fires.
+        // The reported "floating static claw" was the player's own kill —
+        // CheckAnyClawDead transitioned the tentacle to Sinking, but the
+        // dead corpse stayed because its AllowDespawn was still false.
+        // Setting it true here lets the server's ShouldDespawn check
+        // remove the corpse on the next tick.
+        for (int i = 0; i < clawIds.Length; i++)
         {
-            Entity claw = clawEntities[i];
-            if (claw != null && claw.Alive)
+            long id = clawIds[i];
+            if (id == 0) continue;
+            Entity claw = entity.World.GetEntityById(id);
+            if (claw == null) continue;
+            if (claw is EntityAgent agent) agent.AllowDespawn = true;
+            if (claw.Alive)
             {
                 claw.Die(EnumDespawnReason.Expire);
             }
@@ -646,15 +728,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         if (stateTimer >= config.TentacleLingerDuration)
         {
-            // Signal ambient tentacles to sink
+            // Signal ambient tentacles to scatter (fan out across the sea
+            // floor instead of sinking + despawning). The kraken body's
+            // ambient siblings poll this attribute every tick.
             Entity body = GetBody();
             if (body != null && body.Alive)
             {
-                body.WatchedAttributes.SetBool("underwaterhorrors:sinkAmbient", true);
-                body.WatchedAttributes.MarkPathDirty("underwaterhorrors:sinkAmbient");
+                body.WatchedAttributes.SetBool("underwaterhorrors:scatterAmbient", true);
+                body.WatchedAttributes.MarkPathDirty("underwaterhorrors:scatterAmbient");
 
                 if (config.DebugLogging)
-                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Attack tentacle: signaled ambient tentacles to sink");
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Attack tentacle: signaled ambient tentacles to scatter");
             }
 
             TransitionTo(TentacleState.Reaching);
@@ -669,13 +753,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        if (targetPlayer.Entity.MountedOn != null)
-        {
-            if (config.DebugLogging)
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle: {targetPlayer.PlayerName} is mounted, sinking");
-            TransitionTo(TentacleState.Sinking);
-            return;
-        }
+        // Note: mounted/shallow-water transitions are handled by the
+        // Stalling check at the top of OnGameTick — this state body
+        // only runs when the player is actually chase-able.
 
         double clampedY = Math.Min(targetPlayer.Entity.Pos.Y, config.CreatureMaxY);
         MoveToward(targetPlayer.Entity.Pos.X, clampedY, targetPlayer.Entity.Pos.Z, config.TentacleReachSpeed);
@@ -684,6 +764,80 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         if (dist < config.TentacleGrabRange)
         {
             TransitionTo(TentacleState.Dragging);
+        }
+    }
+
+    /// <summary>
+    /// Player is out of water (on land/beach) OR mounted on a boat.
+    /// The tentacle holds station nearby — slowly drifting back toward
+    /// the kraken body if the player is on land, or orbiting the boat
+    /// if mounted — for up to TentacleStallDespawnSeconds. If the
+    /// player returns to a chase-able state inside that window the
+    /// tentacle resumes Reaching from where it stalled. Otherwise it
+    /// transitions to Retreating and despawns.
+    /// </summary>
+    private void OnStalling(float deltaTime)
+    {
+        if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
+        {
+            TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        // Despawn once the stall window expires.
+        if (stateTimer >= config.TentacleStallDespawnSeconds)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"Tentacle stalled for {stateTimer:F1}s, retreating + despawning");
+            TransitionTo(TentacleState.Retreating);
+            return;
+        }
+
+        // Recompute the trigger conditions each tick. The shallow-water
+        // check is throttled to 0.5s so it's cheap.
+        UpdateShallowWaterCheck(deltaTime);
+        bool playerMounted = targetPlayer.Entity.MountedOn != null;
+        bool playerOutOfWater = IsInShallowWater;
+
+        // Player came back into chase-able state — resume Reaching.
+        if (!playerMounted && !playerOutOfWater)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    "Tentacle: player back in deep water + dismounted, resuming Reaching");
+            TransitionTo(TentacleState.Reaching);
+            return;
+        }
+
+        if (playerMounted)
+        {
+            // Slow circular orbit around the boat at slightly below
+            // the player's Y, capped at the surface so the tentacle
+            // doesn't poke above water.
+            float orbitAngle = stateTimer * config.TentacleStallOrbitSpeed;
+            double radius = config.TentacleStallOrbitRadius;
+            double tx = targetPlayer.Entity.Pos.X + Math.Cos(orbitAngle) * radius;
+            double ty = Math.Min(targetPlayer.Entity.Pos.Y - 1.5, config.CreatureMaxY);
+            double tz = targetPlayer.Entity.Pos.Z + Math.Sin(orbitAngle) * radius;
+            MoveToward(tx, ty, tz, config.TentacleStallBoatSpeed);
+        }
+        else
+        {
+            // Drift slowly back toward the kraken body. Visible "I'm
+            // giving up but still around" motion rather than a hard
+            // retreat.
+            Entity body = GetBody();
+            if (body != null && body.Alive)
+            {
+                MoveToward(body.Pos.X, body.Pos.Y + 1, body.Pos.Z, config.TentacleStallDriftSpeed);
+            }
+            else
+            {
+                entity.Pos.Motion.X = 0;
+                entity.Pos.Motion.Y = -config.TentacleStallDriftSpeed;
+                entity.Pos.Motion.Z = 0;
+            }
         }
     }
 

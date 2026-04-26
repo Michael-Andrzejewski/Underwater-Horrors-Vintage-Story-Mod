@@ -143,15 +143,28 @@ public class TentacleSegmentChain
 
     /// <summary>
     /// Kills all segment entities. Safe to call multiple times.
+    ///
+    /// Forces AllowDespawn=true on every segment, alive or dead. The
+    /// EntityBehaviorDeadDecay sets AllowDespawn=false during init so
+    /// that player-killed corpses linger (the decay timer eventually
+    /// flips it back). Without forcing it here, segments killed by
+    /// player damage (HP=1, easy to hit) stayed in the world for the
+    /// full decay duration after the parent tentacle dispatched them
+    /// — that's the "floating static claw" the user was seeing on the
+    /// chain tip.
     /// </summary>
     public void Despawn()
     {
-        if (segmentEntities == null) return;
+        if (segmentIds == null) return;
 
-        for (int i = 0; i < segmentEntities.Length; i++)
+        for (int i = 0; i < segmentIds.Length; i++)
         {
-            Entity seg = segmentEntities[i];
-            if (seg != null && seg.Alive)
+            long id = segmentIds[i];
+            if (id == 0) continue;
+            Entity seg = tipEntity.World.GetEntityById(id);
+            if (seg == null) continue;
+            if (seg is EntityAgent agent) agent.AllowDespawn = true;
+            if (seg.Alive)
             {
                 seg.Die(EnumDespawnReason.Expire);
             }

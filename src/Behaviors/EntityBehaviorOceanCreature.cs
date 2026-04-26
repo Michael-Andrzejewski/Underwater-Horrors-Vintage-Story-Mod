@@ -95,6 +95,36 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     }
 
     /// <summary>
+    /// Scans down from <paramref name="fromY"/> to find the sea floor
+    /// at (x, z) — the first solid (non-water/non-air) block. Returns
+    /// the Y of the SPACE just above that solid block, so a tentacle
+    /// targeting this Y will sit ON the floor rather than inside it.
+    /// Returns <paramref name="fromY"/> if no floor found within
+    /// <paramref name="maxScan"/> blocks (open chunk).
+    /// </summary>
+    protected int FindSeaFloorYBelow(double x, double fromY, double z, int dimension, int maxScan = 80)
+    {
+        var accessor = entity.World.BlockAccessor;
+        int startY = (int)fromY;
+        int limit = Math.Max(0, startY - maxScan);
+        scanPos.Set((int)x, startY, (int)z);
+        scanPos.dimension = dimension;
+        for (int y = startY; y >= limit; y--)
+        {
+            scanPos.Y = y;
+            Block block = accessor.GetBlock(scanPos);
+            if (block == null) continue;
+            // Treat anything that isn't liquid, isn't air (id != 0), and
+            // isn't replaceable as the sea floor.
+            if (block.Id != 0 && !block.IsLiquid() && block.Replaceable < 6000)
+            {
+                return y + 1;
+            }
+        }
+        return (int)fromY;
+    }
+
+    /// <summary>
     /// Proportional (gain 0.4 ≈ 3-tick convergence with no overshoot)
     /// controller with a tighter cap on vertical speed and a slew-rate
     /// limiter on Motion.Y.  Eliminates the bang-bang limit-cycle that

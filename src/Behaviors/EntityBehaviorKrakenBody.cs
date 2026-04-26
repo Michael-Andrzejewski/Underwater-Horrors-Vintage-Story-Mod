@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -15,6 +16,13 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     private float tentacleRespawnTimer;
     private bool waitingToRespawnTentacle;
     private UnderwaterHorrorsConfig config;
+
+    // All ambient tentacles ever spawned (risers + ground). When the
+    // attack tentacle dies and the promote timer fires, one of these
+    // (whichever's still alive) is selected, killed, and replaced by
+    // a fresh attack tentacle at its position. Stale IDs are pruned
+    // lazily inside PickAlivePromotionCandidate.
+    private readonly List<long> ambientTentacleIds = new();
 
     // Cached AssetLocations
     private static readonly AssetLocation AmbientTentacleAsset = new AssetLocation("underwaterhorrors", "krakenambienttentacle");
@@ -63,7 +71,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             if (tentacleRespawnTimer <= 0)
             {
                 waitingToRespawnTentacle = false;
-                SpawnAttackTentacle();
+                PromoteAmbientToAttack();
             }
             return;
         }
@@ -87,10 +95,17 @@ public class EntityBehaviorKrakenBody : EntityBehavior
 
         if (needsRespawn)
         {
+            // Promotion delay (30-120s by default) — long enough that the
+            // player gets some breathing room after killing the attacker
+            // but short enough that a wandering tentacle eventually steps
+            // up. Falls back to spawning at body if no ambients are alive.
             var rand = entity.World.Rand;
-            float delay = config.TentacleRespawnDelayMin + (float)(rand.NextDouble() * (config.TentacleRespawnDelayMax - config.TentacleRespawnDelayMin));
+            float delay = config.AmbientPromoteToAttackDelayMin
+                + (float)(rand.NextDouble()
+                          * (config.AmbientPromoteToAttackDelayMax - config.AmbientPromoteToAttackDelayMin));
             if (config.DebugLogging)
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken attack tentacle sinking/dead, new tentacle in {delay:F1}s");
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"Kraken attack tentacle gone, promoting an ambient in {delay:F1}s");
             waitingToRespawnTentacle = true;
             tentacleRespawnTimer = delay;
             attackTentacleId = 0;
@@ -101,55 +116,83 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     private void SpawnTentacles()
     {
         if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawning tentacles at ({entity.Pos.X:F1}, {entity.Pos.Y:F1}, {entity.Pos.Z:F1})");
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Kraken spawning tentacles at ({entity.Pos.X:F1}, {entity.Pos.Y:F1}, {entity.Pos.Z:F1}) — " +
+                $"1 attack + {config.KrakenAmbientTentacleCount} risers + {config.KrakenGroundTentacleCount} ground");
 
         SpawnAttackTentacle();
 
-        // Spawn ambient tentacles evenly spaced around body
         string targetUid = entity.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
         EntityProperties ambientProps = entity.World.GetEntityType(AmbientTentacleAsset);
-        if (ambientProps != null)
+        if (ambientProps == null) return;
+
+        // Risers: spaced evenly around the body, rise to the surface.
+        int riserCount = config.KrakenAmbientTentacleCount;
+        float radius = config.KrakenTentacleSpawnRadius;
+        for (int i = 0; i < riserCount; i++)
         {
-            int count = config.KrakenAmbientTentacleCount;
-            float radius = config.KrakenTentacleSpawnRadius;
-
-            for (int i = 0; i < count; i++)
-            {
-                double angle = (2 * Math.PI / count) * i;
-                double spawnX = entity.Pos.X + Math.Cos(angle) * radius;
-                double spawnZ = entity.Pos.Z + Math.Sin(angle) * radius;
-
-                Entity ambient = entity.World.ClassRegistry.CreateEntity(ambientProps);
-                ambient.Pos.SetPos(spawnX, entity.Pos.Y + 1, spawnZ);
-                ambient.Pos.Dimension = entity.Pos.Dimension;
-                ambient.Pos.SetFrom(ambient.Pos);
-
-                if (!string.IsNullOrEmpty(targetUid))
-                {
-                    ambient.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", targetUid);
-                }
-                ambient.WatchedAttributes.SetFloat("underwaterhorrors:orbitPhase", (float)angle);
-                ambient.WatchedAttributes.SetLong("underwaterhorrors:krakenBodyId", entity.EntityId);
-
-                entity.World.SpawnEntity(ambient);
-            }
-            if (config.DebugLogging)
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken spawned {count} ambient tentacles (radius: {radius})");
+            double angle = (2 * Math.PI / riserCount) * i;
+            double spawnX = entity.Pos.X + Math.Cos(angle) * radius;
+            double spawnZ = entity.Pos.Z + Math.Sin(angle) * radius;
+            SpawnAmbientTentacle(ambientProps, spawnX, entity.Pos.Y + 1, spawnZ, (float)angle, targetUid, groundMode: false);
         }
+
+        // Ground tentacles: also spaced around the body but flagged as
+        // ground-mode so they skip Rising and immediately start crawling
+        // along the sea floor toward random distant points. Phase-offset
+        // so their initial angles are between the risers' (so the kraken
+        // looks evenly "spidered" on the floor).
+        int groundCount = config.KrakenGroundTentacleCount;
+        for (int i = 0; i < groundCount; i++)
+        {
+            double angle = (2 * Math.PI / groundCount) * i + (Math.PI / groundCount);
+            double spawnX = entity.Pos.X + Math.Cos(angle) * radius;
+            double spawnZ = entity.Pos.Z + Math.Sin(angle) * radius;
+            SpawnAmbientTentacle(ambientProps, spawnX, entity.Pos.Y + 1, spawnZ, (float)angle, targetUid, groundMode: true);
+        }
+    }
+
+    private void SpawnAmbientTentacle(EntityProperties props, double x, double y, double z,
+        float orbitPhase, string targetUid, bool groundMode)
+    {
+        Entity ambient = entity.World.ClassRegistry.CreateEntity(props);
+        ambient.Pos.SetPos(x, y, z);
+        ambient.Pos.Dimension = entity.Pos.Dimension;
+        ambient.Pos.SetFrom(ambient.Pos);
+
+        if (!string.IsNullOrEmpty(targetUid))
+        {
+            ambient.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", targetUid);
+        }
+        ambient.WatchedAttributes.SetFloat("underwaterhorrors:orbitPhase", orbitPhase);
+        ambient.WatchedAttributes.SetLong("underwaterhorrors:krakenBodyId", entity.EntityId);
+        if (groundMode)
+        {
+            ambient.WatchedAttributes.SetBool("underwaterhorrors:groundMode", true);
+        }
+
+        entity.World.SpawnEntity(ambient);
+        ambientTentacleIds.Add(ambient.EntityId);
     }
 
     private void SpawnAttackTentacle()
     {
-        // Reset the sink signal so the next cycle of ambient tentacles works
-        entity.WatchedAttributes.SetBool("underwaterhorrors:sinkAmbient", false);
+        // Reset the scatter signal so newly-spawned ambients (if any
+        // are spawned later via expansion) start in their normal state.
+        entity.WatchedAttributes.SetBool("underwaterhorrors:scatterAmbient", false);
 
+        SpawnAttackTentacleAt(entity.Pos.X, entity.Pos.Y + 1, entity.Pos.Z);
+    }
+
+    private void SpawnAttackTentacleAt(double x, double y, double z)
+    {
         string targetUid = entity.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
 
         EntityProperties attackProps = entity.World.GetEntityType(AttackTentacleAsset);
         if (attackProps == null) return;
 
         Entity tentacle = entity.World.ClassRegistry.CreateEntity(attackProps);
-        tentacle.Pos.SetPos(entity.Pos.X, entity.Pos.Y + 1, entity.Pos.Z);
+        tentacle.Pos.SetPos(x, y, z);
         tentacle.Pos.Dimension = entity.Pos.Dimension;
         tentacle.Pos.SetFrom(tentacle.Pos);
         if (!string.IsNullOrEmpty(targetUid))
@@ -162,7 +205,64 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         cachedAttackTentacle = tentacle;
 
         if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Kraken spawned attack tentacle");
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Kraken spawned attack tentacle at ({x:F1}, {y:F1}, {z:F1})");
+    }
+
+    /// <summary>
+    /// Picks a random surviving ambient tentacle, kills it, and spawns
+    /// a new attack tentacle at its position. If no ambients are alive,
+    /// falls back to spawning the attack at the body. Also resets the
+    /// scatter signal so the OTHER survivors stay in wandering mode
+    /// rather than instantly converting (only the new attack tentacle's
+    /// own Lingering→Reaching transition re-asserts the scatter signal).
+    /// </summary>
+    private void PromoteAmbientToAttack()
+    {
+        Entity chosen = PickAlivePromotionCandidate();
+        if (chosen != null)
+        {
+            double x = chosen.Pos.X;
+            double y = chosen.Pos.Y;
+            double z = chosen.Pos.Z;
+            ambientTentacleIds.Remove(chosen.EntityId);
+            chosen.Die(EnumDespawnReason.Expire);
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"Kraken promoted ambient {chosen.EntityId} → new attack tentacle at ({x:F1}, {y:F1}, {z:F1})");
+            // Reset scatter so the chosen ambient's siblings keep wandering;
+            // they'll only re-scatter when the new attack tentacle finishes
+            // its own rise/linger and starts Reaching.
+            entity.WatchedAttributes.SetBool("underwaterhorrors:scatterAmbient", false);
+            SpawnAttackTentacleAt(x, y, z);
+        }
+        else
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    "Kraken: no ambients alive to promote, falling back to body-spawn");
+            SpawnAttackTentacle();
+        }
+    }
+
+    private Entity PickAlivePromotionCandidate()
+    {
+        // Prune dead/missing IDs in place; collect the live ones.
+        List<Entity> alive = null;
+        for (int i = ambientTentacleIds.Count - 1; i >= 0; i--)
+        {
+            long id = ambientTentacleIds[i];
+            Entity e = entity.World.GetEntityById(id);
+            if (e == null || !e.Alive)
+            {
+                ambientTentacleIds.RemoveAt(i);
+                continue;
+            }
+            alive ??= new List<Entity>();
+            alive.Add(e);
+        }
+        if (alive == null || alive.Count == 0) return null;
+        return alive[entity.World.Rand.Next(alive.Count)];
     }
 
     private void DealContactDamage()

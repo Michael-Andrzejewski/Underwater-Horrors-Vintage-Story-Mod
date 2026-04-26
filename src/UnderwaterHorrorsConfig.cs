@@ -137,8 +137,20 @@ public class UnderwaterHorrorsConfig
     // Kraken body
     public float KrakenContactDamage { get; set; } = 25f;
     public float KrakenContactRange { get; set; } = 3f;
+    // 4 ambient risers + 4 ground wanderers + 1 attack tentacle = 9 total
+    // (3 ambient risers in older versions; the 4th makes the kraken feel
+    // larger when one of the 3 surface risers transitions into the attack
+    // tentacle slot via promotion).
     public int KrakenAmbientTentacleCount { get; set; } = 3;
+    // Ground tentacles slither across the sea floor instead of rising.
+    // They make the kraken's footprint feel huge and obviously alive.
+    public int KrakenGroundTentacleCount { get; set; } = 4;
     public float KrakenTentacleSpawnRadius { get; set; } = 5f;
+
+    // How long after the kraken body dies before each tentacle and its
+    // chain are removed. Zero state logic runs during this window — the
+    // tentacle just falls passively under whatever motion remains.
+    public float TentacleKrakenDeathFallDuration { get; set; } = 6f;
 
     // Attack tentacle
     public float TentacleIdleDuration { get; set; } = 2f;
@@ -171,6 +183,65 @@ public class UnderwaterHorrorsConfig
     public int ShallowWaterThreshold { get; set; } = 3;
     public float RetreatSpeed { get; set; } = 0.06f;
     public float RetreatDuration { get; set; } = 8f;
+
+    // Stalling state: the attack tentacle enters Stalling the moment
+    // the player leaves the water OR mounts a boat. While stalling it
+    // either drifts slowly back toward the kraken body (player on land)
+    // or wanders in a slow circle around the player (player on boat) —
+    // it does NOT actively chase. If the player returns to a chase-able
+    // state (back in water, dismounted) before the timer expires the
+    // tentacle resumes Reaching from where it stalled. Otherwise the
+    // tentacle transitions to Retreating and despawns gracefully.
+    public float TentacleStallDespawnSeconds { get; set; } = 30f;
+    public float TentacleStallOrbitRadius   { get; set; } = 4f;
+    public float TentacleStallOrbitSpeed    { get; set; } = 0.3f;
+    // Drift speeds during Stalling. Slow on purpose so the visible
+    // intent reads as "lurking" rather than "leaving".
+    public float TentacleStallDriftSpeed    { get; set; } = 0.018f;
+    public float TentacleStallBoatSpeed     { get; set; } = 0.03f;
+
+    // Ambient tentacle wandering — used for both the post-rise scatter
+    // (when the attack tentacle starts pursuing) and for the 4 ground
+    // tentacles that crawl the sea floor from the moment they spawn.
+    // Range is centered on the kraken body. Min=5 so they pick varied
+    // distances (not always the perimeter), giving the floor-crawling
+    // motion a more natural, hypnotic feel as they reach + re-target
+    // continuously. Idle is short (1.5–4s) so they're nearly always in
+    // motion.
+    public float AmbientTentacleWanderRangeMin { get; set; } = 5f;
+    public float AmbientTentacleWanderRangeMax { get; set; } = 80f;
+    public float AmbientTentacleWanderSpeed { get; set; } = 0.05f;
+    public float AmbientTentacleWanderIdleMin { get; set; } = 1.5f;
+    public float AmbientTentacleWanderIdleMax { get; set; } = 4f;
+    // Maximum per-tick Y change while a ground tentacle is wandering. When
+    // terrain rises/drops between two adjacent XZ steps, FindSeaFloorYBelow
+    // returns a different floor height — applying it raw makes the tip
+    // teleport up by the full delta, which the user described as "kind of
+    // teleport up when something is in the way". Clamping the per-tick Y
+    // delta turns that into a smooth climb (≈3 blocks/s at 30Hz).
+    public float AmbientTentacleVerticalStepMax { get; set; } = 0.1f;
+
+    // Post-scatter risers: when the attack tentacle starts pursuing, the
+    // 3 surface-orbiting risers leave Orbiting and run a two-phase
+    // sequence — first a brief sink (visually "they're done with the
+    // surface, retreating") and then a midwater wander that mirrors the
+    // ground tentacles' hypnotic crawl but in open water above the body.
+    //
+    // ScatterSinkDuration: seconds spent descending toward midwater
+    // before the SurfaceWandering wander kicks in.
+    // SurfaceWanderRangeMin/Max: horizontal radius (blocks) around the
+    // kraken body for picking the next midwater target.
+    // SurfaceWanderDepthMax: how far below the surface the deepest
+    // midwater target can be (Y in [surface - DepthMax, surface]).
+    public float AmbientScatterSinkDuration { get; set; } = 10f;
+    public float AmbientSurfaceWanderRangeMin { get; set; } = 5f;
+    public float AmbientSurfaceWanderRangeMax { get; set; } = 30f;
+    public float AmbientSurfaceWanderDepthMax { get; set; } = 20f;
+    // Promotion: when the attack tentacle dies, kraken body waits this
+    // long, then picks a random surviving ambient tentacle and respawns
+    // a new attack tentacle at its position (killing the chosen ambient).
+    public float AmbientPromoteToAttackDelayMin { get; set; } = 30f;
+    public float AmbientPromoteToAttackDelayMax { get; set; } = 120f;
 
     // Bioluminescence — pulsing glow that travels along tentacles
     public bool BiolumActive { get; set; } = false;
