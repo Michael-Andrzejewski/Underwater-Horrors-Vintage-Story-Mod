@@ -442,7 +442,10 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             double cy = py + ClawOffsets[i][1];
             double cz = pz + ClawOffsets[i][2];
 
-            claw.TeleportToDouble(cx, cy, cz);
+            // Pos.SetPos rather than TeleportToDouble — claws follow the
+            // player one block out and never cross unloaded chunks; we
+            // don't need teleport semantics or chunk-load priority.
+            claw.Pos.SetPos(cx, cy, cz);
         }
     }
 
@@ -560,8 +563,10 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
                 if (seg == null || !seg.Alive) continue;
             }
 
-            // Move light to segment position
-            light.TeleportToDouble(seg.Pos.X, seg.Pos.Y, seg.Pos.Z);
+            // Move light to segment position. Pos.SetPos avoids the
+            // chunk-load-priority + teleport-flag overhead — lights
+            // shadow segments which are already at loaded positions.
+            light.Pos.SetPos(seg.Pos.X, seg.Pos.Y, seg.Pos.Z);
 
             if (pulsing)
             {
@@ -905,8 +910,11 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             }
         }
 
-        // Keep tentacle tip below player
-        entity.TeleportToDouble(
+        // Keep tentacle tip below player. Pos.SetPos rather than
+        // TeleportToDouble — the head stays one block from the player,
+        // who already loaded the chunk, so we don't need teleport
+        // semantics. Saves a LoadChunkColumnPriority call per tick.
+        entity.Pos.SetPos(
             targetPlayer.Entity.Pos.X,
             targetPlayer.Entity.Pos.Y + config.TentacleGrabYOffset,
             targetPlayer.Entity.Pos.Z

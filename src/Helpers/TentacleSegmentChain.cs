@@ -61,6 +61,14 @@ public class TentacleSegmentChain
     // this 90° around Y is invisible at default-tilt.)
     private const float YawCancelBakedOffset = -(float)(Math.PI / 2.0);
 
+    // Per-segment "was emerged last tick" flags + last anchor position.
+    // Together they let us skip the position+orientation write for any
+    // body-stacked segment whose state and anchor haven't changed: most
+    // of the chain spends most of its life waiting at the body, so this
+    // cuts ~70-90% of the per-segment writes per tick on a short spline.
+    private bool[] lastWasEmerged;
+    private double lastAnchorX = double.NaN, lastAnchorY, lastAnchorZ;
+
     public int Count => segmentCount;
     public Entity[] Segments => segmentEntities;
     public long[] SegmentIds => segmentIds;
@@ -230,8 +238,21 @@ public class TentacleSegmentChain
             }
         }
 
-        // PASS 2 — teleport + orient. Tangent is the chord to the next
-        // segment's position (or to the tip for the topmost emerged segment).
+        // PASS 2 — write position + orientation. We use Pos.SetPos rather
+        // than TeleportToDouble because chain segments don't need teleport
+        // semantics (LoadChunkColumnPriority, mountable handling, IsTeleport
+        // flag). Pos.SetPos is just three field assignments and the server's
+        // normal entity-broadcast tick picks up the change for clients —
+        // also producing smooth client-side lerping instead of teleport
+        // snaps, which fits a moving chain better.
+        //
+        // We also skip the write entirely for body-stacked segments whose
+        // emergence state and the body anchor are unchanged from last
+        // tick. On a short spline most segments are at the anchor and never
+        // need re-positioning.
+        bool anchorChanged = anchorX != lastAnchorX || anchorY != lastAnchorY || anchorZ != lastAnchorZ;
+        lastAnchorX = anchorX; lastAnchorY = anchorY; lastAnchorZ = anchorZ;
+
         for (int i = 0; i < N; i++)
         {
             Entity seg = segmentEntities[i];
@@ -242,16 +263,31 @@ public class TentacleSegmentChain
                 if (seg == null || !seg.Alive) continue;
             }
 
-            Vec3d sp = segmentPositions[i];
-            seg.TeleportToDouble(sp.X, sp.Y, sp.Z);
+            bool emerged = segmentEmerged[i];
 
-            if (i == 0 || !segmentEmerged[i])
+            if (!emerged)
             {
-                SetOrientation(seg, YawCancelBakedOffset, 0f, 0f);
+                // Body-stacked. Only write if the segment just transitioned
+                // back to body (was emerged last tick) or the anchor moved.
+                bool needsWrite = lastWasEmerged[i] || anchorChanged;
+                if (needsWrite)
+                {
+                    Vec3d sp = segmentPositions[i];
+                    seg.Pos.SetPos(sp.X, sp.Y, sp.Z);
+                    SetOrientation(seg, YawCancelBakedOffset, 0f, 0f);
+                }
+                lastWasEmerged[i] = false;
                 continue;
             }
 
-            // Pick the "next" point: the next emerged segment's position, or
+            // Emerged segment — always write, both position (the spline
+            // shape can change every tick as the tip moves) and orientation
+            // (tangent depends on neighbor positions which also change).
+            Vec3d sp_e = segmentPositions[i];
+            seg.Pos.SetPos(sp_e.X, sp_e.Y, sp_e.Z);
+            lastWasEmerged[i] = true;
+
+            // Tangent = chord to next emerged segment's position, or to
             // the spline tip if this is the topmost emerged segment.
             double nx, ny, nz;
             if (i + 1 < N && segmentEmerged[i + 1])
@@ -264,9 +300,9 @@ public class TentacleSegmentChain
                 nx = tip.X; ny = tip.Y; nz = tip.Z;
             }
 
-            double tx = nx - sp.X;
-            double ty = ny - sp.Y;
-            double tz = nz - sp.Z;
+            double tx = nx - sp_e.X;
+            double ty = ny - sp_e.Y;
+            double tz = nz - sp_e.Z;
             double tlen = Math.Sqrt(tx * tx + ty * ty + tz * tz);
             if (tlen > 1e-6)
             {
@@ -297,7 +333,15 @@ public class TentacleSegmentChain
         if (segmentPositions != null && segmentPositions.Length == n) return;
         segmentPositions = new Vec3d[n];
         segmentEmerged = new bool[n];
-        for (int i = 0; i < n; i++) segmentPositions[i] = new Vec3d();
+        lastWasEmerged = new bool[n];
+        for (int i = 0; i < n; i++)
+        {
+            segmentPositions[i] = new Vec3d();
+            // Initialize to true so the first pass-2 sees a transition
+            // (was emerged → not emerged) and writes the body anchor
+            // position to every body-stacked segment exactly once.
+            lastWasEmerged[i] = true;
+        }
     }
 
     /// <summary>
