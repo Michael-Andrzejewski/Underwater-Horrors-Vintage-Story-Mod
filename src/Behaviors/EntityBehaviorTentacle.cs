@@ -67,9 +67,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private long cachedBodyId;
     private Entity cachedBody;
 
-    // Cached AssetLocations
+    // Cached AssetLocations. SegmentOuterAsset is used as the visible tip
+    // of the chain (closest to the krakententacle entity, which itself
+    // renders as the claw — see krakententacle.json).
     private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
+    private static readonly AssetLocation SegmentOuterAsset = new AssetLocation("underwaterhorrors", "krakententsegment_outer");
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
     private static readonly AssetLocation BiolightAsset = new AssetLocation("underwaterhorrors", "biolight");
 
@@ -231,7 +234,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         if (chain != null) return;
         chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
-            SegmentInnerAsset, SegmentMidAsset);
+            SegmentInnerAsset, SegmentMidAsset, SegmentOuterAsset);
     }
 
     private void UpdateChainPositions()

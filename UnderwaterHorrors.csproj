@@ -48,10 +48,23 @@
       <!-- Clean up older versioned zips so only the current one is deployed -->
       <OldZipsBin Include="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\UnderwaterHorrors*.zip" />
       <OldZipsDeploy Include="$(APPDATA)\VintagestoryData\Mods\UnderwaterHorrors*.zip" />
+      <!--
+        VS hashes the zip contents into a unique unpack-cache directory
+        name. Each `dotnet build` produces a new zip with the same name
+        but different hash, leaving the previous unpack cache directory
+        behind with its own UnderwaterHorrors.dll. On next game launch
+        VS would try to load BOTH dlls, hit "Assembly with same name
+        already loaded" and skip the mod. Wipe stale cache dirs every
+        build so only the freshly-deployed zip is ever unpacked.
+      -->
+      <StaleUnpackCache
+        Include="$([System.IO.Directory]::GetDirectories('$(APPDATA)\VintagestoryData\Cache\unpack', 'UnderwaterHorrors*'))"
+        Condition="Exists('$(APPDATA)\VintagestoryData\Cache\unpack')" />
     </ItemGroup>
 
     <Delete Files="@(OldZipsBin)" />
     <Delete Files="@(OldZipsDeploy)" />
+    <RemoveDir Directories="@(StaleUnpackCache)" />
 
     <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" />
     <Copy SourceFiles="@(AssetFiles)" DestinationFiles="@(AssetFiles->'$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\%(Identity)')" />

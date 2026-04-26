@@ -36,6 +36,7 @@ public class TentacleSegmentChain
     private readonly double segmentVisualHeight;
     private readonly AssetLocation baseSegmentAsset;
     private readonly AssetLocation midSegmentAsset;
+    private readonly AssetLocation tipOuterAsset;
 
     private long[] segmentIds;
     private Entity[] segmentEntities;
@@ -53,14 +54,23 @@ public class TentacleSegmentChain
     public long[] SegmentIds => segmentIds;
     public bool Spawned => spawned;
 
+    /// <param name="tipOuterAsset">
+    /// Optional shape used for the last chain position (closest to the
+    /// rising tip). Lets the visible "tip" of the chain be a different
+    /// model — e.g. the wider segment_outer piece — while the rest of
+    /// the chain stays as mid segments. Pass null to use mid for every
+    /// non-base position.
+    /// </param>
     public TentacleSegmentChain(Entity tipEntity, int segmentCount, double segmentVisualHeight,
-        AssetLocation baseSegmentAsset, AssetLocation midSegmentAsset)
+        AssetLocation baseSegmentAsset, AssetLocation midSegmentAsset,
+        AssetLocation tipOuterAsset = null)
     {
         this.tipEntity = tipEntity;
         this.segmentCount = segmentCount;
         this.segmentVisualHeight = segmentVisualHeight;
         this.baseSegmentAsset = baseSegmentAsset;
         this.midSegmentAsset = midSegmentAsset;
+        this.tipOuterAsset = tipOuterAsset;
     }
 
     /// <summary>
@@ -76,14 +86,31 @@ public class TentacleSegmentChain
 
         EntityProperties baseProps = tipEntity.World.GetEntityType(baseSegmentAsset);
         EntityProperties midProps  = tipEntity.World.GetEntityType(midSegmentAsset);
+        EntityProperties tipProps  = tipOuterAsset != null
+            ? tipEntity.World.GetEntityType(tipOuterAsset)
+            : null;
 
         if (baseProps == null) return;
 
         for (int i = 0; i < segmentCount; i++)
         {
-            // i=0 is the base segment that sits on top of the body block.
-            // i>=1 use the mid (continuous trunk) shape and stack along the spline.
-            EntityProperties props = (i == 0) ? baseProps : (midProps ?? baseProps);
+            // i=0           : base segment, sits on top of the body block
+            // 1 .. N-2      : mid (continuous trunk) — bulk of the chain
+            // i = N-1       : optional tip-outer (e.g. segment_outer) closest
+            //                 to the rising tip; falls back to mid if not set
+            EntityProperties props;
+            if (i == 0)
+            {
+                props = baseProps;
+            }
+            else if (i == segmentCount - 1 && tipProps != null)
+            {
+                props = tipProps;
+            }
+            else
+            {
+                props = midProps ?? baseProps;
+            }
 
             Entity seg = tipEntity.World.ClassRegistry.CreateEntity(props);
             seg.Pos.SetPos(tipEntity.Pos.X, tipEntity.Pos.Y, tipEntity.Pos.Z);

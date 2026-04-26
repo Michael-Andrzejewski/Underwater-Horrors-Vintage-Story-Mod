@@ -14,7 +14,7 @@
     "client": {
         "renderer": "Shape",
         "texture": { "base": "game:entity/lore/shiver/bellhead" },
-        "shape": { "base": "underwaterhorrors:entity/krakententacle" },
+        "shape": { "base": "underwaterhorrors:entity/krakententacleclaw" },
         "glowLevel": 32,
         "size": 2.5,
         "behaviors": []
