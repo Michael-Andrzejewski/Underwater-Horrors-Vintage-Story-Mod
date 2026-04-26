@@ -110,14 +110,30 @@ public class BioluminescentGlowRenderer : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
-        if (Mode == 0) return;
-        if (stage != GetStageForMode(Mode)) return;
-
         timeAccum += deltaTime;
+
+        // Three rendering paths share this renderer:
+        //   1. Test mode (Mode != 0) - renders for ALL kraken segments
+        //      at the test mode's stage. Used by /uh biolumtest.
+        //   2. Production - renders mode-10-style pulse for entities
+        //      tagged WatchedAttributes["underwaterhorrors:bioluminescent"].
+        //      Always at AfterOIT (mode 10's stage). Used for the night
+        //      kraken variant.
+        //   3. Nothing - early-out cheap.
+        bool testActive = Mode != 0;
+        bool productionActive = !testActive && AnyBioluminescentEntityLoaded();
+
+        if (!testActive && !productionActive) return;
+
+        EnumRenderStage activeStage = testActive
+            ? GetStageForMode(Mode)
+            : EnumRenderStage.AfterOIT;
+        if (stage != activeStage) return;
+
         diagFrameCounter++;
         bool logThisFrame = (diagFrameCounter % 120) == 0;
 
-        if (Mode != lastReportedMode)
+        if (testActive && Mode != lastReportedMode)
         {
             lastReportedMode = Mode;
             string shaderState = compileFailed ? "(SHADER FAILED - only mode 1 will draw)"
@@ -136,7 +152,7 @@ public class BioluminescentGlowRenderer : IRenderer
             }
         }
 
-        if (logThisFrame)
+        if (logThisFrame && testActive)
         {
             capi.Logger.Notification(
                 $"[underwaterhorrors] biolumglow mode={Mode} stage={stage} matched={matched} compileFailed={compileFailed}");
@@ -150,7 +166,23 @@ public class BioluminescentGlowRenderer : IRenderer
 
         if (compileFailed || shaderProg == null || quadMeshRef == null) return;
 
-        DrawShaderForMode(Mode, matched);
+        // Production: use mode 10 parameters (pulse) and gate by flag.
+        // Test mode: existing path - render for all matched entities.
+        int effectiveMode = testActive ? Mode : 10;
+        DrawShaderForMode(effectiveMode, matched, filterByBiolumFlag: !testActive);
+    }
+
+    private bool AnyBioluminescentEntityLoaded()
+    {
+        var entities = capi.World.LoadedEntities;
+        if (entities == null) return false;
+        foreach (Entity e in entities.Values)
+        {
+            if (!IsTentacleChain(e)) continue;
+            if (e.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
+                return true;
+        }
+        return false;
     }
 
     private void DrawLineDiagnostic(int matched)
@@ -355,7 +387,7 @@ public class BioluminescentGlowRenderer : IRenderer
         return p;
     }
 
-    private void DrawShaderForMode(int mode, int matchedEntities)
+    private void DrawShaderForMode(int mode, int matchedEntities, bool filterByBiolumFlag = false)
     {
         var p = GetParams(mode);
         var render = capi.Render;
@@ -382,7 +414,7 @@ public class BioluminescentGlowRenderer : IRenderer
         // PASS 1: core/main billboard
         shaderProg.Uniform("scale",     p.ScaleCore);
         shaderProg.Uniform("glowColor", p.ColorR, p.ColorG, p.ColorB, p.CoreAlpha);
-        DrawAllEntities(p);
+        DrawAllEntities(p, filterByBiolumFlag);
 
         // PASS 2: optional soft halo on top of the core
         if (p.ScaleHalo > 0f && p.HaloAlpha > 0f)
@@ -392,7 +424,7 @@ public class BioluminescentGlowRenderer : IRenderer
             // Use halo-only branch for the second pass so the outer glow
             // doesn't have a hot center stacked on top of the core.
             shaderProg.Uniform("modeBranch", 4);
-            DrawAllEntities(p);
+            DrawAllEntities(p, filterByBiolumFlag);
         }
 
         shaderProg.Stop();
@@ -404,7 +436,7 @@ public class BioluminescentGlowRenderer : IRenderer
         render.GlEnableCullFace();
     }
 
-    private void DrawAllEntities(ModeParams p)
+    private void DrawAllEntities(ModeParams p, bool filterByBiolumFlag = false)
     {
         var render = capi.Render;
         var cameraPos = capi.World.Player.Entity.CameraPos;
@@ -413,6 +445,9 @@ public class BioluminescentGlowRenderer : IRenderer
         foreach (Entity entity in capi.World.LoadedEntities.Values)
         {
             if (!IsTentacleChain(entity)) continue;
+            if (filterByBiolumFlag &&
+                !entity.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
+                continue;
 
             double cx, cy, cz;
             if (p.UseTrunkOffset)

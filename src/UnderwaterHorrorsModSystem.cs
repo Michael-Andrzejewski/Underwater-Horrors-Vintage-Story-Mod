@@ -877,13 +877,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
             }
 
-            // Decide creature type
+            // Decide creature type. SerpentSpawnWeight=0.75 means 75% of
+            // the time we spawn a serpent, 25% a kraken.
             bool spawnSerpent = sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
-
-            // ─── TEMP: kraken disabled for initial publish (model WIP) ───
-            // TO RE-ENABLE KRAKEN SPAWNING: delete the next line.
-            spawnSerpent = true;
-            // ─────────────────────────────────────────────────────────────
 
             Entity creature;
             if (spawnSerpent)
@@ -1178,10 +1174,24 @@ public class UnderwaterHorrorsModSystem : ModSystem
         kraken.Pos.Dimension = player.Entity.Pos.Dimension;
         kraken.Pos.SetFrom(kraken.Pos);
         kraken.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
+
+        // Day vs night kraken: night-spawned krakens get a bioluminescent
+        // flag that the client renderer reads to draw a pulsing cyan glow.
+        // The flag propagates from the body to its tentacles in
+        // EntityBehaviorKrakenBody, then to chain segments in
+        // TentacleSegmentChain.EnsureSpawned, so a single check at spawn
+        // time fixes the visual identity for the kraken's whole life.
+        double hour = sapi.World.Calendar.HourOfDay;
+        bool isDay = hour >= Config.DayKrakenStartHour && hour < Config.DayKrakenEndHour;
+        if (!isDay)
+        {
+            kraken.WatchedAttributes.SetBool("underwaterhorrors:bioluminescent", true);
+        }
+
         sapi.World.SpawnEntity(kraken);
 
         if (Config.DebugLogging)
-            DebugLog(sapi, $"SPAWNED Kraken targeting {player.PlayerName} on sea floor at ({spawnX:F1}, {floorY}, {spawnZ:F1})");
+            DebugLog(sapi, $"SPAWNED Kraken ({(isDay ? "day" : "NIGHT-bioluminescent")}, hour={hour:F1}) targeting {player.PlayerName} on sea floor at ({spawnX:F1}, {floorY}, {spawnZ:F1})");
 
         return kraken;
     }

@@ -173,6 +173,12 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         {
             ambient.WatchedAttributes.SetBool("underwaterhorrors:groundMode", true);
         }
+        // Propagate the day/night bioluminescent flag from the body so
+        // the renderer can decide per-entity whether to draw the glow.
+        if (entity.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
+        {
+            ambient.WatchedAttributes.SetBool("underwaterhorrors:bioluminescent", true);
+        }
 
         entity.World.SpawnEntity(ambient);
         ambientTentacleIds.Add(ambient.EntityId);
@@ -203,6 +209,11 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             tentacle.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", targetUid);
         }
         tentacle.WatchedAttributes.SetLong("underwaterhorrors:krakenBodyId", entity.EntityId);
+        // Propagate bioluminescent flag (day vs night kraken).
+        if (entity.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
+        {
+            tentacle.WatchedAttributes.SetBool("underwaterhorrors:bioluminescent", true);
+        }
         entity.World.SpawnEntity(tentacle);
         attackTentacleId = tentacle.EntityId;
         cachedAttackTentacle = tentacle;

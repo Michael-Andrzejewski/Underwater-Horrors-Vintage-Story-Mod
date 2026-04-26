@@ -18,7 +18,16 @@ public class UnderwaterHorrorsConfig
     public float SpawnCheckIntervalSeconds { get; set; } = 5f;
     public int MinSaltwaterDepth { get; set; } = 50;
     public float SpawnChancePerCheck { get; set; } = 0.1f;
-    public float SerpentSpawnWeight { get; set; } = 0.6f;
+    // Probability that a hostile spawn is a serpent vs a kraken.
+    // 0.75 -> 75% serpent / 25% kraken.
+    public float SerpentSpawnWeight { get; set; } = 0.75f;
+
+    // Day/night threshold for kraken bioluminescence. Krakens spawning
+    // during [DayKrakenStartHour, DayKrakenEndHour) on the VS calendar
+    // get NO glow; outside this window they get a pulsing cyan glow
+    // matching biolumtest mode 10. Defaults: 6 AM to 10 PM = "day".
+    public float DayKrakenStartHour { get; set; } = 6f;
+    public float DayKrakenEndHour { get; set; } = 22f;
 
     // Serpent spawn offsets. Horizontal position is randomized uniformly
     // within a circle of the given max radius around the player.

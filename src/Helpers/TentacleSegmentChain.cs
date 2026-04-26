@@ -149,6 +149,14 @@ public class TentacleSegmentChain
             seg.Pos.SetPos(tipEntity.Pos.X, tipEntity.Pos.Y, tipEntity.Pos.Z);
             seg.Pos.Dimension = tipEntity.Pos.Dimension;
             seg.Pos.SetFrom(seg.Pos);
+            // Propagate the day/night bioluminescent flag from the
+            // owning tentacle (which inherited it from the kraken body)
+            // so the renderer's per-entity check finds it on every
+            // visible chain piece.
+            if (tipEntity.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
+            {
+                seg.WatchedAttributes.SetBool("underwaterhorrors:bioluminescent", true);
+            }
             tipEntity.World.SpawnEntity(seg);
             segmentIds[i] = seg.EntityId;
             segmentEntities[i] = seg;
