@@ -47,6 +47,11 @@ public class EntityBehaviorTentacleRenderer : EntityBehavior
     public override void OnGameTick(float deltaTime)
     {
         if (entity.Api.Side != EnumAppSide.Client) return;
+        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false))
+        {
+            ClearPoses();
+            return;
+        }
 
         // Read synced body position from WatchedAttributes
         double bodyX = entity.WatchedAttributes.GetDouble("underwaterhorrors:bodyX", entity.Pos.X);

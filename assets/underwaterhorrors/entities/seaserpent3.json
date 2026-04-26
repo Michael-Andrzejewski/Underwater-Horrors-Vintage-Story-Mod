@@ -1,0 +1,47 @@
+{
+    "code": "seaserpent3",
+    "class": "DeepSerpentEntity",
+    "habitat": "Sea",
+    "hitboxSize": { "x": 2.0, "y": 1.5 },
+    "deadHitboxSize": { "x": 2.0, "y": 1.0 },
+    "eyeHeight": 4.5,
+    "weight": 500,
+    "canClimb": false,
+    "knockbackResistance": 1.0,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "textures": {
+            "serpent.png":  { "base": "underwaterhorrors:entity/serpent" },
+            "serpent2.png": { "base": "underwaterhorrors:entity/serpent2" },
+            "serpent3.png": { "base": "underwaterhorrors:entity/serpent2" },
+            "serpent4.png": { "base": "underwaterhorrors:entity/serpent2" }
+        },
+        "shape": { "base": "underwaterhorrors:entity/seaserpent3" },
+        "glowLevel": 0,
+        "size": 1.0,
+        "sizeForCulling": 15,
+        "behaviors": [
+            { "code": "interpolateposition" }
+        ]
+    },
+    "server": {
+        "behaviors": [
+            { "code": "health", "currenthealth": 100, "maxhealth": 100 },
+            { "code": "deaddecay", "decayHours": 0.25 },
+            { "code": "controlledphysics", "stepHeight": 0.0 },
+            { "code": "underwaterhorrors:oceancreature" },
+            { "code": "underwaterhorrors:deepserpentai" }
+        ],
+        "spawnConditions": {
+            "runtime": {
+                "group": "hostile",
+                "chance": 0,
+                "maxQuantity": 0
+            }
+        }
+    },
+    "sounds": {}
+}

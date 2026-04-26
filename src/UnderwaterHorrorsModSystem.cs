@@ -91,6 +91,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private static readonly AssetLocation[] ModEntityTypes = new[]
     {
         new AssetLocation("underwaterhorrors", "seaserpent"),
+        new AssetLocation("underwaterhorrors", "seaserpent2"),
+        new AssetLocation("underwaterhorrors", "seaserpent3"),
         new AssetLocation("underwaterhorrors", "krakenbody"),
         new AssetLocation("underwaterhorrors", "krakententacle"),
         new AssetLocation("underwaterhorrors", "krakenambienttentacle"),
@@ -98,6 +100,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
         new AssetLocation("underwaterhorrors", "krakententsegment"),
         new AssetLocation("underwaterhorrors", "krakententsegment_mid"),
         new AssetLocation("underwaterhorrors", "krakententsegment_outer"),
+        new AssetLocation("underwaterhorrors", "krakententbase"),
+        new AssetLocation("underwaterhorrors", "krakententmid"),
+        new AssetLocation("underwaterhorrors", "krakententtaper"),
+        new AssetLocation("underwaterhorrors", "krakententsnapper"),
+        new AssetLocation("underwaterhorrors", "krakententexamp"),
     };
 
     private void ApplyGlow(bool on)
@@ -169,7 +176,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .EndSubCommand()
             .BeginSubCommand("spawn")
                 .WithDescription("Force spawn a creature on the calling player")
-                .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "deepserpent", "kraken" }))
+                .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "deepserpent", "serpent3", "kraken" }))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dragspeed")
@@ -214,6 +221,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
                         .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                         .HandleWith(OnCmdBiolumPulse)
                     .EndSubCommand()
+                .EndSubCommand()
+                .BeginSubCommand("show")
+                    .WithDescription("Spawn a single kraken model in front of you, frozen with no AI, for inspection")
+                    .WithArgs(api.ChatCommands.Parsers.Word("part", new[] {
+                        "body", "tentacle", "ambient", "segment", "segment_mid", "segment_outer", "claw",
+                        "base", "mid", "taper", "snapper", "examp"
+                    }))
+                    .HandleWith(OnCmdKrakenShow)
                 .EndSubCommand()
             .EndSubCommand();
     }
@@ -349,6 +364,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             creature = SpawnSerpent(caller, forceDeep: true);
         }
+        else if (type == "serpent3")
+        {
+            creature = SpawnSerpent3(caller);
+        }
         else
         {
             creature = SpawnKraken(caller);
@@ -453,6 +472,54 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TextCommandResult.Success($"Kraken biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}");
     }
 
+    private TextCommandResult OnCmdKrakenShow(TextCommandCallingArgs args)
+    {
+        string part = args.Parsers[0].GetValue() as string;
+        IServerPlayer caller = args.Caller.Player as IServerPlayer;
+        if (caller?.Entity == null) return TextCommandResult.Error("Must be called by a player");
+
+        string code = part switch
+        {
+            "body"          => "krakenbody",
+            "tentacle"      => "krakententacle",
+            "ambient"       => "krakenambienttentacle",
+            "segment"       => "krakententsegment",
+            "segment_mid"   => "krakententsegment_mid",
+            "segment_outer" => "krakententsegment_outer",
+            "claw"          => "krakententacleclaw",
+            "base"          => "krakententbase",
+            "mid"           => "krakententmid",
+            "taper"         => "krakententtaper",
+            "snapper"       => "krakententsnapper",
+            "examp"         => "krakententexamp",
+            _ => null,
+        };
+        if (code == null) return TextCommandResult.Error("Unknown part");
+
+        AssetLocation asset = new AssetLocation("underwaterhorrors", code);
+        EntityProperties props = sapi.World.GetEntityType(asset);
+        if (props == null) return TextCommandResult.Error($"Entity type {asset} not registered");
+
+        // Spawn 4 blocks ahead of the player along their yaw, at eye height
+        float yaw = caller.Entity.Pos.Yaw;
+        const double dist = 4.0;
+        double sx = caller.Entity.Pos.X + Math.Sin(yaw) * dist;
+        double sz = caller.Entity.Pos.Z + Math.Cos(yaw) * dist;
+        double sy = caller.Entity.Pos.Y;
+
+        Entity ent = sapi.World.ClassRegistry.CreateEntity(props);
+        ent.Pos.SetPos(sx, sy, sz);
+        ent.Pos.Dimension = caller.Entity.Pos.Dimension;
+        ent.Pos.SetFrom(ent.Pos);
+
+        // Mark as static so AI behaviors and tentacle renderer skip — pure inspection
+        ent.WatchedAttributes.SetBool("underwaterhorrors:static", true);
+
+        sapi.World.SpawnEntity(ent);
+
+        return TextCommandResult.Success($"Spawned {code} (static) at ({sx:F1}, {sy:F1}, {sz:F1}) — clean up with /uh killall");
+    }
+
     private TextCommandResult OnCmdSerpentAnim(TextCommandCallingArgs args)
     {
         string animName = args.Parsers[0].GetValue() as string;
@@ -514,6 +581,19 @@ public class UnderwaterHorrorsModSystem : ModSystem
             config = new UnderwaterHorrorsConfig();
             sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
             Mod.Logger.Notification("Created default UnderwaterHorrors config.");
+        }
+
+        // One-shot migration: earlier mod versions shipped with
+        // DebugLogging=true by default and that flag spams chat for everyone
+        // on the server. The first time we load a config that hasn't been
+        // through this migration, force the flag off and mark the migration
+        // applied. Subsequent loads (and any /uh debug on or hand-edit) are
+        // left alone so debug mode is still reachable when wanted.
+        if (!config.DebugLoggingResetApplied)
+        {
+            config.DebugLogging = false;
+            config.DebugLoggingResetApplied = true;
+            sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
         }
         return config;
     }
@@ -714,6 +794,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // Cached AssetLocations to avoid repeated allocations
     private static readonly AssetLocation SerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent");
     private static readonly AssetLocation DeepSerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent2");
+    private static readonly AssetLocation Serpent3Asset = new AssetLocation("underwaterhorrors", "seaserpent3");
     private static readonly AssetLocation KrakenAsset = new AssetLocation("underwaterhorrors", "krakenbody");
 
     private Entity SpawnSerpent(IServerPlayer player, bool? forceDeep = null)
@@ -777,6 +858,41 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         if (Config.DebugLogging)
             DebugLog(sapi, $"SPAWNED {label} targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
+
+        return serpent;
+    }
+
+    /// <summary>
+    /// Prototype spawn for the new "serpent3" model. Spawns 4 blocks in front
+    /// of the player at eye level so the model can be visually inspected
+    /// immediately, then hands off to DeepSerpentAI like the deep serpent.
+    /// AI will pull it underwater on its own — until then the player can see
+    /// the rotation/scale/textures up close.
+    /// </summary>
+    private Entity SpawnSerpent3(IServerPlayer player)
+    {
+        EntityProperties props = sapi.World.GetEntityType(Serpent3Asset);
+        if (props == null)
+        {
+            DebugLog(sapi, $"ERROR: Could not find entity type {Serpent3Asset}");
+            return null;
+        }
+
+        float yaw = player.Entity.Pos.Yaw;
+        const double dist = 4.0;
+        double spawnX = player.Entity.Pos.X + Math.Sin(yaw) * dist;
+        double spawnZ = player.Entity.Pos.Z + Math.Cos(yaw) * dist;
+        double spawnY = player.Entity.Pos.Y;
+
+        Entity serpent = sapi.World.ClassRegistry.CreateEntity(props);
+        serpent.Pos.SetPos(spawnX, spawnY, spawnZ);
+        serpent.Pos.Dimension = player.Entity.Pos.Dimension;
+        serpent.Pos.SetFrom(serpent.Pos);
+        serpent.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
+        sapi.World.SpawnEntity(serpent);
+
+        if (Config.DebugLogging)
+            DebugLog(sapi, $"SPAWNED Serpent3 prototype targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1})");
 
         return serpent;
     }

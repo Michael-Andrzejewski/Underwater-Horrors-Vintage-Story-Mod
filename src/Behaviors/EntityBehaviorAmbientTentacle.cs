@@ -2,6 +2,7 @@ using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 
 namespace UnderwaterHorrors;
 
@@ -14,6 +15,14 @@ public enum AmbientTentacleState
 
 public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
 {
+    // Same chain config as the attack tentacle — shape and arch logic match.
+    // See EntityBehaviorTentacle / TentacleSegmentChain for the math.
+    private const int SegmentCount = 96;
+    private const double SegmentVisualHeight = 0.84;
+
+    private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
+    private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
+
     private AmbientTentacleState state = AmbientTentacleState.Rising;
     private float stateTimer;
     private bool initialized;
@@ -31,12 +40,16 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     private long cachedBodyId;
     private Entity cachedBody;
 
+    // Chain of segment entities filling the spline from kraken body to tip.
+    private TentacleSegmentChain chain;
+
     public EntityBehaviorAmbientTentacle(Entity entity) : base(entity) { }
 
     public override void OnGameTick(float deltaTime)
     {
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
+        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
 
         // Cap at sea level so the tentacle can't fly out of water
         // (attack tentacle already does this; ambient was missing it).
@@ -47,6 +60,9 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
             initialized = true;
             Initialize();
         }
+
+        EnsureChainCreated();
+        chain?.EnsureSpawned();
 
         // Check sink signal from kraken body every tick during Orbiting
         if (state == AmbientTentacleState.Orbiting && ShouldSink())
@@ -67,6 +83,60 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
             case AmbientTentacleState.Sinking:
                 OnSinking(deltaTime);
                 break;
+        }
+
+        UpdateChainPositions();
+        UpdateHeadFacing();
+    }
+
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        chain?.Despawn();
+        base.OnEntityDespawn(despawn);
+    }
+
+    private void EnsureChainCreated()
+    {
+        if (chain != null) return;
+        chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
+            SegmentInnerAsset, SegmentMidAsset);
+    }
+
+    private void UpdateChainPositions()
+    {
+        if (chain == null) return;
+        GetBodyAnchor(out double anchorX, out double anchorY, out double anchorZ);
+        chain.UpdatePositions(anchorX, anchorY, anchorZ, config.TentacleArchHeightFactor);
+    }
+
+    private void UpdateHeadFacing()
+    {
+        // Ambient tentacles don't attack, so always align with the spline
+        // tangent at the tip — the head bell points along where the spline
+        // is going (toward the surface, leaning over the orbit point).
+        GetBodyAnchor(out double anchorX, out double anchorY, out double anchorZ);
+        var anchor = new Vec3d(anchorX, anchorY, anchorZ);
+        TentacleHeadAlignment.AlignToTangent(entity, anchor, config.TentacleArchHeightFactor);
+    }
+
+    /// <summary>
+    /// Anchor point for the spline base. Normally the kraken body block;
+    /// falls back to a point below the tip if the body is gone.
+    /// </summary>
+    private void GetBodyAnchor(out double x, out double y, out double z)
+    {
+        Entity body = GetBody();
+        if (body != null && body.Alive)
+        {
+            x = body.Pos.X;
+            y = body.Pos.Y + 1;
+            z = body.Pos.Z;
+        }
+        else
+        {
+            x = entity.Pos.X;
+            y = entity.Pos.Y - 5;
+            z = entity.Pos.Z;
         }
     }
 

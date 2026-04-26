@@ -3,7 +3,14 @@ namespace UnderwaterHorrors;
 public class UnderwaterHorrorsConfig
 {
     // Debug
-    public bool DebugLogging { get; set; } = true;
+    public bool DebugLogging { get; set; } = false;
+
+    // One-shot migration flag. Earlier mod versions shipped with
+    // DebugLogging=true by default, which spammed chat for everyone.
+    // The first load after upgrading flips DebugLogging to false and sets
+    // this flag to true; from then on we never touch DebugLogging again,
+    // so /uh debug on (or hand-editing the config) sticks across restarts.
+    public bool DebugLoggingResetApplied { get; set; } = false;
     public bool GlowDebugActive { get; set; } = false;
     public bool SpectralDebugActive { get; set; } = false;
 

@@ -1,0 +1,36 @@
+{
+    "code": "krakententsnapper",
+    "class": "EntityAgent",
+    "habitat": "Underwater",
+    "hitboxSize": { "x": 1.0, "y": 2.0 },
+    "deadHitboxSize": { "x": 0.5, "y": 0.5 },
+    "eyeHeight": 0.5,
+    "weight": 1,
+    "canClimb": false,
+    "knockbackResistance": 1.0,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "game:entity/lore/shiver/bellhead" },
+        "shape": { "base": "underwaterhorrors:entity/krakententsnapper" },
+        "glowLevel": 32,
+        "size": 2.0,
+        "behaviors": []
+    },
+    "server": {
+        "behaviors": [
+            { "code": "health", "currenthealth": 1, "maxhealth": 1 },
+            { "code": "deaddecay", "decayHours": 0.01 }
+        ],
+        "spawnConditions": {
+            "runtime": {
+                "group": "hostile",
+                "chance": 0,
+                "maxQuantity": 0
+            }
+        }
+    },
+    "sounds": {}
+}

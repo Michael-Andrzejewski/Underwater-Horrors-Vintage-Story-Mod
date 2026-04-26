@@ -31,6 +31,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     {
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
+        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
 
         // Stay stationary
         entity.Pos.Motion.X = 0;

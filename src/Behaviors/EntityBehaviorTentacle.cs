@@ -19,17 +19,25 @@ public enum TentacleState
 
 public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 {
-    private const int SegmentCount = 8;
+    // Coverage = SegmentCount * SegmentVisualHeight. The kraken sits on the
+    // sea floor and the tip rises to the surface (CreatureMaxY=110), so the
+    // spline can be 50+ blocks of vertical chord plus arch. With 96 segments
+    // at 0.84 blocks each we cover ~80 blocks of arc length — enough for
+    // even deep-ocean spawns.
+    private const int SegmentCount = 96;
     private const int ClawCount = 4;
+
+    // Visual height of one mid segment in world blocks. Cube4 trunk is 9 voxels
+    // tall; entity client.size is 1.5; 16 voxels per block: 9 * 1.5 / 16 = 0.84.
+    private const double SegmentVisualHeight = 0.84;
 
     private TentacleState state = TentacleState.Idle;
     private float stateTimer;
     private bool speedDebuffApplied;
 
-    // Chain segment entities — cached references to avoid GetEntityById every frame
-    private long[] segmentIds;
-    private Entity[] segmentEntities;
-    private bool segmentsSpawned;
+    // Chain of segment entities that fills the spline from body to tip.
+    // See TentacleSegmentChain for the trail-follow + pitch+roll math.
+    private TentacleSegmentChain chain;
 
     // Claw entities (spawned around player during Dragging) — cached references
     private long[] clawIds;
@@ -59,13 +67,9 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private long cachedBodyId;
     private Entity cachedBody;
 
-    // Reusable Vec3d for spline calculations to avoid allocation per frame
-    private Vec3d reusableAnchor = new Vec3d();
-
-    // Cached AssetLocations — three segment variants for bioluminescent wave phasing
+    // Cached AssetLocations
     private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
-    private static readonly AssetLocation SegmentOuterAsset = new AssetLocation("underwaterhorrors", "krakententsegment_outer");
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
     private static readonly AssetLocation BiolightAsset = new AssetLocation("underwaterhorrors", "biolight");
 
@@ -91,18 +95,16 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
+        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
 
         ResolveTarget();
         ClampHeight();
 
-        if (!segmentsSpawned)
-        {
-            segmentsSpawned = true;
-            SpawnSegments();
-        }
+        EnsureChainCreated();
+        chain?.EnsureSpawned();
 
         // Spawn biolum lights if enabled and segments exist
-        if (!biolumsSpawned && segmentsSpawned && config.BiolumActive)
+        if (!biolumsSpawned && chain != null && chain.Spawned && config.BiolumActive)
         {
             SpawnBiolumLights();
         }
@@ -173,14 +175,39 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
                 break;
         }
 
-        PositionSegments();
+        UpdateChainPositions();
+        UpdateHeadFacing();
+    }
+
+    // Snap the head to face the spline tangent (or the target player when
+    // attacking). Same world-axis pitch+roll decomposition as the segment
+    // chain — see TentacleHeadAlignment / TentacleSegmentChain for the math.
+    //
+    // No lerp: writing Pos.Pitch/Roll/Yaw directly each tick means there's
+    // no carry-over from the previous frame, so the head doesn't drift on
+    // its own momentum and doesn't lag behind the tangent direction.
+    private void UpdateHeadFacing()
+    {
+        if ((state == TentacleState.Reaching || state == TentacleState.Dragging) && targetPlayer?.Entity != null)
+        {
+            TentacleHeadAlignment.AlignToward(entity,
+                targetPlayer.Entity.Pos.X,
+                targetPlayer.Entity.Pos.Y,
+                targetPlayer.Entity.Pos.Z);
+        }
+        else
+        {
+            GetBodyAnchor(out double anchorX, out double anchorY, out double anchorZ);
+            var anchor = new Vec3d(anchorX, anchorY, anchorZ);
+            TentacleHeadAlignment.AlignToTangent(entity, anchor, config.TentacleArchHeightFactor);
+        }
     }
 
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
         RemoveSpeedDebuff();
         DespawnBiolumLights();
-        DespawnSegments();
+        chain?.Despawn();
         DespawnClaws();
         base.OnEntityDespawn(despawn);
     }
@@ -200,95 +227,39 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     // --- Chain segments ---
 
-    private void SpawnSegments()
+    private void EnsureChainCreated()
     {
-        segmentIds = new long[SegmentCount];
-        segmentEntities = new Entity[SegmentCount];
-
-        // Resolve all three segment variants
-        EntityProperties innerProps = entity.World.GetEntityType(SegmentInnerAsset);
-        EntityProperties midProps   = entity.World.GetEntityType(SegmentMidAsset);
-        EntityProperties outerProps = entity.World.GetEntityType(SegmentOuterAsset);
-
-        if (innerProps == null)
-        {
-            if (config.DebugLogging)
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "ERROR: Could not find entity type underwaterhorrors:krakententsegment");
-            return;
-        }
-
-        for (int i = 0; i < SegmentCount; i++)
-        {
-            // Pick segment variant by position: inner (0-2), mid (3-4), outer (5-7)
-            EntityProperties segProps;
-            if (i <= 2)
-                segProps = innerProps;
-            else if (i <= 4)
-                segProps = midProps ?? innerProps;
-            else
-                segProps = outerProps ?? innerProps;
-
-            Entity seg = entity.World.ClassRegistry.CreateEntity(segProps);
-            seg.Pos.SetPos(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
-            seg.Pos.Dimension = entity.Pos.Dimension;
-            seg.Pos.SetFrom(seg.Pos);
-            entity.World.SpawnEntity(seg);
-            segmentIds[i] = seg.EntityId;
-            segmentEntities[i] = seg;
-        }
-
-        if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle spawned {SegmentCount} chain segments (inner/mid/outer)");
+        if (chain != null) return;
+        chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
+            SegmentInnerAsset, SegmentMidAsset);
     }
 
-    private void DespawnSegments()
+    private void UpdateChainPositions()
     {
-        if (segmentEntities == null) return;
-
-        for (int i = 0; i < segmentEntities.Length; i++)
-        {
-            Entity seg = segmentEntities[i];
-            if (seg != null && seg.Alive)
-            {
-                seg.Die(EnumDespawnReason.Expire);
-            }
-        }
+        if (chain == null) return;
+        GetBodyAnchor(out double anchorX, out double anchorY, out double anchorZ);
+        chain.UpdatePositions(anchorX, anchorY, anchorZ, config.TentacleArchHeightFactor);
     }
 
-    private void PositionSegments()
+    /// <summary>
+    /// Anchor point for the spline base. Normally the kraken body block;
+    /// falls back to a point below the tip if the body is gone (so the
+    /// spline still has somewhere to root while the tentacle sinks).
+    /// </summary>
+    private void GetBodyAnchor(out double x, out double y, out double z)
     {
-        if (segmentEntities == null) return;
-
         Entity body = GetBody();
-
         if (body != null && body.Alive)
         {
-            reusableAnchor.Set(body.Pos.X, body.Pos.Y + 1, body.Pos.Z);
+            x = body.Pos.X;
+            y = body.Pos.Y + 1;
+            z = body.Pos.Z;
         }
         else
         {
-            reusableAnchor.Set(entity.Pos.X, entity.Pos.Y - 5, entity.Pos.Z);
-        }
-
-        Vec3d tip = entity.Pos.XYZ;
-
-        SplineHelper.ComputeTentacleControlPoints(reusableAnchor, tip, config.TentacleArchHeightFactor, out Vec3d b1, out Vec3d b2);
-
-        for (int i = 0; i < segmentEntities.Length; i++)
-        {
-            Entity seg = segmentEntities[i];
-            // Re-validate cached reference if stale
-            if (seg == null || !seg.Alive)
-            {
-                seg = entity.World.GetEntityById(segmentIds[i]);
-                segmentEntities[i] = seg;
-                if (seg == null || !seg.Alive) continue;
-            }
-
-            double t = (double)(i + 1) / (SegmentCount + 1);
-            Vec3d pos = SplineHelper.EvalCubicBezier(reusableAnchor, b1, b2, tip, t);
-
-            seg.TeleportToDouble(pos.X, pos.Y, pos.Z);
+            x = entity.Pos.X;
+            y = entity.Pos.Y - 5;
+            z = entity.Pos.Z;
         }
     }
 
@@ -401,7 +372,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     private void SpawnBiolumLights()
     {
-        if (segmentEntities == null) return;
+        if (chain == null || !chain.Spawned) return;
 
         EntityProperties lightProps = entity.World.GetEntityType(BiolightAsset);
         if (lightProps == null)
@@ -411,12 +382,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        biolumIds = new long[SegmentCount];
-        biolumEntities = new Entity[SegmentCount];
+        int count = chain.Count;
+        biolumIds = new long[count];
+        biolumEntities = new Entity[count];
 
-        for (int i = 0; i < SegmentCount; i++)
+        for (int i = 0; i < count; i++)
         {
-            Entity seg = segmentEntities[i];
+            Entity seg = chain.Segments[i];
             if (seg == null || !seg.Alive) continue;
 
             Entity light = entity.World.ClassRegistry.CreateEntity(lightProps);
@@ -435,7 +407,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         biolumsSpawned = true;
 
         if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle spawned {SegmentCount} biolum lights");
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Tentacle spawned {count} biolum lights");
     }
 
     private void DespawnBiolumLights()
@@ -463,13 +435,14 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     /// </summary>
     private void UpdateBiolumPulse()
     {
-        if (biolumEntities == null || segmentEntities == null) return;
+        if (biolumEntities == null || chain == null || !chain.Spawned) return;
 
         bool pulsing = config.BiolumPulsing;
         float t = (float)entity.World.ElapsedMilliseconds / 1000f;
         float speed = config.BiolumPulseSpeed;
 
-        for (int i = 0; i < SegmentCount; i++)
+        int count = chain.Count;
+        for (int i = 0; i < count; i++)
         {
             Entity light = biolumEntities[i];
             // Re-validate cached reference if stale
@@ -483,11 +456,11 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
                 if (light == null || !light.Alive) continue;
             }
 
-            Entity seg = segmentEntities[i];
+            Entity seg = chain.Segments[i];
             if (seg == null || !seg.Alive)
             {
-                seg = entity.World.GetEntityById(segmentIds[i]);
-                segmentEntities[i] = seg;
+                seg = entity.World.GetEntityById(chain.SegmentIds[i]);
+                chain.Segments[i] = seg;
                 if (seg == null || !seg.Alive) continue;
             }
 
@@ -510,7 +483,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     /// </summary>
     public void SetBiolumActive(bool active)
     {
-        if (active && !biolumsSpawned && segmentsSpawned)
+        if (active && !biolumsSpawned && chain != null && chain.Spawned)
         {
             SpawnBiolumLights();
         }
