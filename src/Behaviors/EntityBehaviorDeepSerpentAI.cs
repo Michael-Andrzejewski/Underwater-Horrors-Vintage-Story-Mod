@@ -170,6 +170,9 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     // ═══════════════════════════════════════════════════════════════════
     public override void OnGameTick(float deltaTime)
     {
+        // Vanilla gate: skip when no client within SimulationRange.
+        // See EntityBehaviorTentacle.OnGameTick for rationale.
+        if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
 
         // HORIZONTAL LOCK — zeroes Pitch/Roll/HeadPitch.  Skipped

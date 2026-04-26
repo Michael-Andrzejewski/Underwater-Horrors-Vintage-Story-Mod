@@ -115,6 +115,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     public override void OnGameTick(float deltaTime)
     {
+        // Vanilla gate: skip the entire AI tick when the entity is Inactive
+        // (no client within SimulationRange = 128 blocks). Same pattern
+        // vsessentialsmod's BehaviorTaskAI uses on line 1 of its tick body.
+        // Without this, every tentacle keeps running full state-machine +
+        // chain updates even on a server with no nearby players.
+        if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
         if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
@@ -265,8 +271,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         else
         {
             GetBodyAnchor(out double anchorX, out double anchorY, out double anchorZ);
-            var anchor = new Vec3d(anchorX, anchorY, anchorZ);
-            TentacleHeadAlignment.AlignToTangent(entity, anchor, config.TentacleArchHeightFactor);
+            TentacleHeadAlignment.AlignToTangent(entity, anchorX, anchorY, anchorZ, config.TentacleArchHeightFactor);
         }
     }
 

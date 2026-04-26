@@ -37,6 +37,9 @@ public class EntityBehaviorKrakenBody : EntityBehavior
 
     public override void OnGameTick(float deltaTime)
     {
+        // Vanilla gate: skip when no client within SimulationRange.
+        // See EntityBehaviorTentacle.OnGameTick for rationale.
+        if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
         if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;

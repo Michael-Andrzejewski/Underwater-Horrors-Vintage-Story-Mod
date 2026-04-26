@@ -49,6 +49,12 @@ public class TentacleSegmentChain
     private Vec3d[] sampledPos;
 
     private readonly Vec3d reusableAnchor = new Vec3d();
+    // Reusable spline-math buffers — keep all per-tick Bezier work
+    // allocation-free. Server-only, single-threaded usage.
+    private readonly Vec3d reusableTip = new Vec3d();
+    private readonly Vec3d reusableB1 = new Vec3d();
+    private readonly Vec3d reusableB2 = new Vec3d();
+    private readonly Vec3d reusableEval = new Vec3d();
 
     // VS's EntityShapeRenderer adds (shape.rotateY + 90)*π/180 to Pos.Yaw
     // before composing the model matrix. Our segment shape has no top-level
@@ -201,11 +207,11 @@ public class TentacleSegmentChain
         if (!spawned || segmentEntities == null) return;
 
         reusableAnchor.Set(anchorX, anchorY, anchorZ);
-        Vec3d tip = tipEntity.Pos.XYZ;
-        SplineHelper.ComputeTentacleControlPoints(reusableAnchor, tip, archHeightFactor, out Vec3d b1, out Vec3d b2);
+        reusableTip.Set(tipEntity.Pos.X, tipEntity.Pos.Y, tipEntity.Pos.Z);
+        SplineHelper.ComputeTentacleControlPoints(reusableAnchor, reusableTip, archHeightFactor, reusableB1, reusableB2);
 
         EnsureArcArrays();
-        double splineLength = SampleSpline(reusableAnchor, b1, b2, tip);
+        double splineLength = SampleSpline(reusableAnchor, reusableB1, reusableB2, reusableTip);
 
         int N = segmentEntities.Length;
         EnsurePositionBuffer(N);
@@ -232,8 +238,8 @@ public class TentacleSegmentChain
             {
                 double arcFromBase = splineLength - distFromTip;
                 double t = GetTValueAtArcLength(arcFromBase);
-                Vec3d p = SplineHelper.EvalCubicBezier(reusableAnchor, b1, b2, tip, t);
-                segmentPositions[i].Set(p.X, p.Y, p.Z);
+                // Eval directly into segmentPositions[i] — zero alloc.
+                SplineHelper.EvalCubicBezierInto(reusableAnchor, reusableB1, reusableB2, reusableTip, t, segmentPositions[i]);
                 segmentEmerged[i] = true;
             }
         }
@@ -297,7 +303,7 @@ public class TentacleSegmentChain
             }
             else
             {
-                nx = tip.X; ny = tip.Y; nz = tip.Z;
+                nx = reusableTip.X; ny = reusableTip.Y; nz = reusableTip.Z;
             }
 
             double tx = nx - sp_e.X;
@@ -394,8 +400,9 @@ public class TentacleSegmentChain
         for (int i = 1; i <= ArcSamples; i++)
         {
             double s = (double)i / ArcSamples;
-            Vec3d p = SplineHelper.EvalCubicBezier(a, b1, b2, tip, s);
-            sampledPos[i].Set(p.X, p.Y, p.Z);
+            // Eval directly into the sample buffer — zero alloc per call.
+            // Saves ~24 Vec3d allocs per chain per tick (×8 tentacles).
+            SplineHelper.EvalCubicBezierInto(a, b1, b2, tip, s, sampledPos[i]);
             cumulativeArc[i] = cumulativeArc[i - 1] + sampledPos[i].DistanceTo(sampledPos[i - 1]);
         }
         return cumulativeArc[ArcSamples];

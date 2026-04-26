@@ -17,19 +17,28 @@ namespace UnderwaterHorrors;
 /// </summary>
 public static class TentacleHeadAlignment
 {
+    // Reusable scratch buffers — server-side only, single-threaded usage.
+    // Avoid allocating three Vec3d objects per AlignToTangent call (one
+    // per active tentacle per tick).
+    private static readonly Vec3d _scratchAnchor = new Vec3d();
+    private static readonly Vec3d _scratchTip = new Vec3d();
+    private static readonly Vec3d _scratchB1 = new Vec3d();
+    private static readonly Vec3d _scratchB2 = new Vec3d();
+
     /// <summary>
     /// Aligns the head's trunk with the spline's tangent at the tip.
     /// The tangent at t=1 is proportional to (tip - b2) of the cubic Bezier.
     /// </summary>
-    public static void AlignToTangent(Entity tipEntity, Vec3d bodyAnchor, float archHeightFactor)
+    public static void AlignToTangent(Entity tipEntity, double anchorX, double anchorY, double anchorZ, float archHeightFactor)
     {
-        Vec3d tip = tipEntity.Pos.XYZ;
-        SplineHelper.ComputeTentacleControlPoints(bodyAnchor, tip, archHeightFactor, out Vec3d _, out Vec3d b2);
+        _scratchAnchor.Set(anchorX, anchorY, anchorZ);
+        _scratchTip.Set(tipEntity.Pos.X, tipEntity.Pos.Y, tipEntity.Pos.Z);
+        SplineHelper.ComputeTentacleControlPoints(_scratchAnchor, _scratchTip, archHeightFactor, _scratchB1, _scratchB2);
 
         AlignAlongDirection(tipEntity,
-            tip.X - b2.X,
-            tip.Y - b2.Y,
-            tip.Z - b2.Z);
+            _scratchTip.X - _scratchB2.X,
+            _scratchTip.Y - _scratchB2.Y,
+            _scratchTip.Z - _scratchB2.Z);
     }
 
     /// <summary>

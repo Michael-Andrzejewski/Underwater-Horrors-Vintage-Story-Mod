@@ -42,6 +42,14 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     private double wanderX, wanderY, wanderZ;
     private float wanderIdleDuration;
 
+    // Floor-scan hysteresis. FindSeaFloorYBelow scans up to 80 blocks
+    // downward — calling it every tick per ground tentacle is wasted
+    // work when the entity barely moved. Cache the last (X, Z) we
+    // scanned at and the floor Y it returned; only rescan when the XZ
+    // drifts ≥1 block. NaN sentinel forces the first call to populate.
+    private double cachedFloorX = double.NaN, cachedFloorZ;
+    private int cachedFloorY;
+
     // Randomized rise speed for this specific tentacle
     private float riseSpeed;
 
@@ -63,6 +71,9 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
 
     public override void OnGameTick(float deltaTime)
     {
+        // Vanilla gate: skip when no client within SimulationRange.
+        // See EntityBehaviorTentacle.OnGameTick for rationale.
+        if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
         if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
@@ -182,8 +193,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     private void UpdateHeadFacing()
     {
         GetBodyAnchor(out double anchorX, out double anchorY, out double anchorZ);
-        var anchor = new Vec3d(anchorX, anchorY, anchorZ);
-        TentacleHeadAlignment.AlignToTangent(entity, anchor, config.TentacleArchHeightFactor);
+        TentacleHeadAlignment.AlignToTangent(entity, anchorX, anchorY, anchorZ, config.TentacleArchHeightFactor);
     }
 
     private void GetBodyAnchor(out double x, out double y, out double z)
@@ -323,7 +333,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         double frac = Math.Min(1.0, step / horizDist);
         double newX = entity.Pos.X + dx * frac;
         double newZ = entity.Pos.Z + dz * frac;
-        double targetY = FindSeaFloorYBelow(newX, entity.Pos.Y + 4, newZ, entity.Pos.Dimension);
+        double targetY = GetCachedFloorY(newX, entity.Pos.Y + 4, newZ);
         double newY = SmoothYStep(entity.Pos.Y, targetY);
 
         entity.TeleportToDouble(newX, newY, newZ);
@@ -335,7 +345,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         // Sit on the local sea floor with a tiny vertical bob so the tip
         // looks alive while it picks its next target.
         double bob = Math.Sin(stateTimer * 0.7) * 0.25;
-        double targetY = FindSeaFloorYBelow(entity.Pos.X, entity.Pos.Y + 4, entity.Pos.Z, entity.Pos.Dimension) + bob;
+        double targetY = GetCachedFloorY(entity.Pos.X, entity.Pos.Y + 4, entity.Pos.Z) + bob;
         double newY = SmoothYStep(entity.Pos.Y, targetY);
         entity.TeleportToDouble(entity.Pos.X, newY, entity.Pos.Z);
         ClearMotion();
@@ -345,6 +355,26 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
             PickWanderTarget();
             TransitionTo(AmbientTentacleState.Wandering);
         }
+    }
+
+    /// <summary>
+    /// Returns the sea floor Y under (x, z), reusing the previously-scanned
+    /// value if (x, z) is within 1 block of the last scan position. Avoids
+    /// up-to-80-block-deep block lookups every tick when the entity barely
+    /// moved (the common case during wandering — step is ≤0.05 b/tick).
+    /// </summary>
+    private double GetCachedFloorY(double x, double fromY, double z)
+    {
+        if (!double.IsNaN(cachedFloorX)
+            && Math.Abs(x - cachedFloorX) < 1.0
+            && Math.Abs(z - cachedFloorZ) < 1.0)
+        {
+            return cachedFloorY;
+        }
+        cachedFloorX = x;
+        cachedFloorZ = z;
+        cachedFloorY = FindSeaFloorYBelow(x, fromY, z, entity.Pos.Dimension);
+        return cachedFloorY;
     }
 
     /// <summary>
