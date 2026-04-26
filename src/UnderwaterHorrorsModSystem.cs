@@ -16,6 +16,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private ICoreServerAPI sapi;
     private ICoreClientAPI capi;
     private SpectralRenderer spectralRenderer;
+    private BioluminescentGlowRenderer biolumGlowRenderer;
+    private BiolumTextureRenderer biolumTexRenderer;
     private bool glowActive;
 
     // playerUID -> entityId of assigned creature
@@ -75,6 +77,30 @@ public class UnderwaterHorrorsModSystem : ModSystem
         spectralRenderer = new SpectralRenderer(capi);
         capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
 
+        // Bioluminescent glow renderer — registered at FOUR stages so the
+        // /uh biolum testmode <n> command can binary-search which stage
+        // (OIT vs AfterOIT vs AfterPostProcessing vs AfterFinalComposition)
+        // actually produces visible glow at night underwater. The renderer
+        // itself gates on its `Mode` field and only draws at the stage
+        // that matches the active mode.
+        biolumGlowRenderer = new BioluminescentGlowRenderer(capi);
+        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.OIT,                    "underwaterhorrors-biolum-oit");
+        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterOIT,               "underwaterhorrors-biolum-aoit");
+        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterPostProcessing,    "underwaterhorrors-biolum-app");
+        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterFinalComposition,  "underwaterhorrors-biolum-afc");
+        // Compile on initial shader load AND on /reload shaders so live
+        // shader edits work without a full restart. Returning true tells
+        // the engine the reload succeeded.
+        capi.Event.ReloadShader += () => biolumGlowRenderer.Initialize();
+
+        // Texture-based emissive renderer: re-renders the actual segment_mid
+        // 3D mesh with a custom additive shader so the glow appears ON the
+        // orange dashes themselves rather than as a separate billboard. Modes
+        // 30-34 in the test menu use this renderer.
+        biolumTexRenderer = new BiolumTextureRenderer(capi);
+        capi.Event.RegisterRenderer(biolumTexRenderer, EnumRenderStage.AfterFinalComposition, "underwaterhorrors-biolumtex");
+        capi.Event.ReloadShader += () => biolumTexRenderer.Initialize();
+
         api.Network.GetChannel("underwaterhorrors")
             .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived);
     }
@@ -89,6 +115,24 @@ public class UnderwaterHorrorsModSystem : ModSystem
         else if (msg.Toggle == "spectral")
         {
             spectralRenderer.Active = msg.Active;
+        }
+        else if (msg.Toggle == "biolum_mode")
+        {
+            // Modes 30..39 drive the texture-mesh renderer; everything else
+            // drives the billboard renderer. Setting the unused renderer's
+            // Mode to 0 disables it cleanly.
+            int v = msg.Value;
+            if (v >= 30)
+            {
+                biolumGlowRenderer.Mode = 0;
+                biolumTexRenderer.Mode  = v - 29; // 30 -> 1, 31 -> 2, ..., 34 -> 5
+            }
+            else
+            {
+                biolumTexRenderer.Mode  = 0;
+                biolumGlowRenderer.Mode = v;
+            }
+            capi.Logger.Notification($"[underwaterhorrors] biolum mode set to {v} (billboard={biolumGlowRenderer.Mode}, tex={biolumTexRenderer.Mode})");
         }
     }
 
@@ -161,7 +205,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
             channel.SendPacket(new DebugToggleMessage { Toggle = "spectral", Active = true }, player);
         }
 
-        // Bioluminescence is now fully server-side (light entities), no client sync needed
+        // Push the active glow test mode so the renderer comes up in the
+        // right state right away (no need to re-issue /uh biolum testmode
+        // after every join). Sent regardless of value — 0 disables.
+        channel.SendPacket(
+            new DebugToggleMessage { Toggle = "biolum_mode", Active = Config.BiolumTestMode != 0, Value = Config.BiolumTestMode },
+            player);
     }
 
     private void RegisterCommands(ICoreServerAPI api)
@@ -239,6 +288,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
                         "base", "mid", "taper", "snapper", "examp"
                     }))
                     .HandleWith(OnCmdKrakenShow)
+                .EndSubCommand()
+            .EndSubCommand()
+            .BeginSubCommand("biolumtest")
+                .WithDescription("Bioluminescent glow shader tester (10 variants)")
+                .BeginSubCommand("mode")
+                    .WithDescription("Set the active glow renderer mode (0=off, 1=sanity, 2-10=variants). Run with no arg to print catalog.")
+                    .WithArgs(api.ChatCommands.Parsers.OptionalInt("n"))
+                    .HandleWith(OnCmdBiolumTestMode)
+                .EndSubCommand()
+                .BeginSubCommand("spawn")
+                    .WithDescription("Spawn 5 static kraken mid-segments in a line in front of you for visual testing")
+                    .HandleWith(OnCmdBiolumTestSpawn)
+                .EndSubCommand()
+                .BeginSubCommand("clear")
+                    .WithDescription("Kill all static-flagged kraken segments and claws spawned for testing")
+                    .HandleWith(OnCmdBiolumTestClear)
                 .EndSubCommand()
             .EndSubCommand();
     }
@@ -544,6 +609,122 @@ public class UnderwaterHorrorsModSystem : ModSystem
         sapi.World.SpawnEntity(ent);
 
         return TextCommandResult.Success($"Spawned {code} (static) at ({sx:F1}, {sy:F1}, {sz:F1}) — clean up with /uh killall");
+    }
+
+    // ---- Bioluminescent glow shader test commands ----
+
+    private static readonly string[] BiolumModeDescriptions = new[]
+    {
+        "0   OFF                      - no glow rendered (clean baseline)",
+        "1   SANITY                   - line crosses, no shader (proves renderer is firing)",
+        "--- Billboard rounds 1+2 (kept for fallback comparison) ---------",
+        "2   AfterOIT additive        - original cyan halo",
+        "7   AfterFinalComposite      - additive cyan after UI composite (round 1 favorite)",
+        "20  trunk-aligned billboard  - mode 7 + alignment + tiny diffusion",
+        "--- TEXTURE-ON-MESH (renders the actual segment_mid 3D model) ---",
+        "30  no depth attenuation     - uniform cyan glow over orange dashes, top to bottom",
+        "31  weak depth attenuation   - slight top-to-bottom dimming",
+        "32  medium depth attenuation - clear top-to-bottom contrast",
+        "33  strong depth attenuation - deep parts much dimmer (visible only near surface)",
+        "34  custom (mode 31 default) - same as 31 but reserved for future tweaks",
+    };
+
+    private TextCommandResult OnCmdBiolumTestMode(TextCommandCallingArgs args)
+    {
+        int? n = args.Parsers[0].GetValue() as int?;
+        if (n == null)
+        {
+            string lines = string.Join("\n  ", BiolumModeDescriptions);
+            return TextCommandResult.Success(
+                $"Current biolum test mode: {Config.BiolumTestMode}\nModes:\n  {lines}");
+        }
+
+        int mode = n.Value;
+        // Allow 0-20 (billboard modes) and 30-34 (texture-mesh modes).
+        if (mode < 0 || mode > 34 || (mode > 20 && mode < 30))
+            return TextCommandResult.Error("Mode must be 0..20 (billboard) or 30..34 (texture-mesh)");
+
+        Config.BiolumTestMode = mode;
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        sapi.Network.GetChannel("underwaterhorrors")
+            .BroadcastPacket(new DebugToggleMessage { Toggle = "biolum_mode", Active = mode != 0, Value = mode });
+
+        // Find the description line that starts with this mode number.
+        string prefix = mode + " ";
+        string desc = "(set)";
+        foreach (string line in BiolumModeDescriptions)
+        {
+            if (line.StartsWith(prefix) || line.StartsWith(mode + "  "))
+            {
+                desc = line;
+                break;
+            }
+        }
+        return TextCommandResult.Success($"Biolum test mode -> {desc}");
+    }
+
+    private TextCommandResult OnCmdBiolumTestSpawn(TextCommandCallingArgs args)
+    {
+        IServerPlayer caller = args.Caller.Player as IServerPlayer;
+        if (caller?.Entity == null) return TextCommandResult.Error("Must be called by a player");
+
+        AssetLocation asset = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
+        EntityProperties props = sapi.World.GetEntityType(asset);
+        if (props == null) return TextCommandResult.Error("Entity type krakententsegment_mid not registered");
+
+        // Spawn 5 segments in a horizontal line in front of the player at
+        // eye level, 2 blocks apart (so the soft-falloff billboards have
+        // visible gaps between them — easier to see overlap behavior than
+        // a single tightly-packed kraken chain).
+        float yaw = caller.Entity.Pos.Yaw;
+        double sinYaw = Math.Sin(yaw);
+        double cosYaw = Math.Cos(yaw);
+        double startX = caller.Entity.Pos.X + sinYaw * 4.0;
+        double startZ = caller.Entity.Pos.Z + cosYaw * 4.0;
+        double startY = caller.Entity.Pos.Y;
+
+        // Perpendicular axis (lateral) so the line is broadside to the player
+        double rightX = Math.Cos(yaw);
+        double rightZ = -Math.Sin(yaw);
+
+        int spawned = 0;
+        for (int i = -2; i <= 2; i++)
+        {
+            double sx = startX + rightX * (i * 2.0);
+            double sz = startZ + rightZ * (i * 2.0);
+            double sy = startY;
+
+            Entity ent = sapi.World.ClassRegistry.CreateEntity(props);
+            ent.Pos.SetPos(sx, sy, sz);
+            ent.Pos.Dimension = caller.Entity.Pos.Dimension;
+            ent.Pos.SetFrom(ent.Pos);
+            ent.WatchedAttributes.SetBool("underwaterhorrors:static", true);
+            sapi.World.SpawnEntity(ent);
+            spawned++;
+        }
+
+        return TextCommandResult.Success(
+            $"Spawned {spawned} static mid-segments. Run /uh biolumtest mode <n> to switch shader variants. " +
+            $"Clean up with /uh biolumtest clear.");
+    }
+
+    private TextCommandResult OnCmdBiolumTestClear(TextCommandCallingArgs args)
+    {
+        int killed = 0;
+        var toKill = new List<Entity>();
+        foreach (Entity entity in sapi.World.LoadedEntities.Values)
+        {
+            if (entity == null) continue;
+            if (entity.Code?.Domain != "underwaterhorrors") continue;
+            if (!entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) continue;
+            toKill.Add(entity);
+        }
+        foreach (Entity e in toKill)
+        {
+            e.Die(EnumDespawnReason.Expire);
+            killed++;
+        }
+        return TextCommandResult.Success($"Removed {killed} static test entities");
     }
 
     private TextCommandResult OnCmdSerpentAnim(TextCommandCallingArgs args)

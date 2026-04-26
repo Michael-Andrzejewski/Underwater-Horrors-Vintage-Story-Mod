@@ -251,4 +251,12 @@ public class UnderwaterHorrorsConfig
     public int BiolumGlowMax { get; set; } = 200;
     public int BiolumBodyGlowMin { get; set; } = 16;
     public int BiolumBodyGlowMax { get; set; } = 128;
+
+    // Bioluminescent glow renderer test mode. 0 disables the renderer.
+    // 1..N selects a different render-stage / blend-mode / shader variant
+    // for testing which combination actually shows up through deep water
+    // at night. See BioluminescentGlowRenderer for mode descriptions and
+    // change with /uh biolum testmode <n>. Persisted only so the active
+    // test survives a server restart.
+    public int BiolumTestMode { get; set; } = 0;
 }
