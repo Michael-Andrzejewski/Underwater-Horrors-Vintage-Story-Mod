@@ -19,10 +19,11 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     // See EntityBehaviorTentacle / TentacleSegmentChain for the math.
     private const int SegmentCount = 96;
     private const double SegmentVisualHeight = 0.84;
+    private const double TipMidClawVisualHeight = 0.84;
 
     private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
-    private static readonly AssetLocation SegmentOuterAsset = new AssetLocation("underwaterhorrors", "krakententsegment_outer");
+    private static readonly AssetLocation TipMidClawAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid_claw");
 
     private AmbientTentacleState state = AmbientTentacleState.Rising;
     private float stateTimer;
@@ -100,7 +101,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     {
         if (chain != null) return;
         chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
-            SegmentInnerAsset, SegmentMidAsset, SegmentOuterAsset);
+            SegmentInnerAsset, SegmentMidAsset, TipMidClawAsset, TipMidClawVisualHeight);
     }
 
     private void UpdateChainPositions()

@@ -31,6 +31,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     // tall; entity client.size is 1.5; 16 voxels per block: 9 * 1.5 / 16 = 0.84.
     private const double SegmentVisualHeight = 0.84;
 
+    // The tip uses krakententsegment_mid_claw — a copy of segment_mid with the
+    // claw cubes baked in as additional top-level shape elements (so the claw
+    // is rigidly locked to the trunk in the SAME shape; they rotate together
+    // automatically and can't drift apart). Its trunk height is the same as
+    // a regular mid (9 voxels = 0.84 blocks), so spacing matches the rest
+    // of the chain. The claw decorations extend above the trunk top — that's
+    // intentional, the AI-controlled krakententacle entity at the actual
+    // spline tip is now invisible (krakententinvisible shape) so only the
+    // chain renders the claw.
+    private const double TipMidClawVisualHeight = 0.84;
+
     private TentacleState state = TentacleState.Idle;
     private float stateTimer;
     private bool speedDebuffApplied;
@@ -67,12 +78,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private long cachedBodyId;
     private Entity cachedBody;
 
-    // Cached AssetLocations. SegmentOuterAsset is used as the visible tip
-    // of the chain (closest to the krakententacle entity, which itself
-    // renders as the claw — see krakententacle.json).
+    // Cached AssetLocations. The tip uses krakententsegment_mid_claw — the
+    // mid shape with claw geometry baked in — so the claw can't drift away
+    // from the trunk (same rendered mesh).
     private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
-    private static readonly AssetLocation SegmentOuterAsset = new AssetLocation("underwaterhorrors", "krakententsegment_outer");
+    private static readonly AssetLocation TipMidClawAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid_claw");
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
     private static readonly AssetLocation BiolightAsset = new AssetLocation("underwaterhorrors", "biolight");
 
@@ -234,7 +245,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         if (chain != null) return;
         chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
-            SegmentInnerAsset, SegmentMidAsset, SegmentOuterAsset);
+            SegmentInnerAsset, SegmentMidAsset, TipMidClawAsset, TipMidClawVisualHeight);
     }
 
     private void UpdateChainPositions()

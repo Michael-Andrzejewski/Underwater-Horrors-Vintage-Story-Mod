@@ -24,6 +24,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // entityId -> seconds target player has been on land
     private Dictionary<long, float> landTimers = new();
 
+    // Session-only flag: when false, OnSpawnCheck returns immediately
+    // (commands like /uh spawn still work — only NATURAL spawn checks
+    // are gated). Resets to true on server restart.
+    private bool naturalSpawningEnabled = true;
+
     // Reusable BlockPos to avoid per-call allocation in hot paths
     private readonly BlockPos reusableBlockPos = new BlockPos(0, 0, 0, 0);
 
@@ -174,6 +179,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                 .HandleWith(OnCmdDebug)
             .EndSubCommand()
+            .BeginSubCommand("natural")
+                .WithDescription("Enable or disable natural creature spawning for this session (resets on server restart)")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                .HandleWith(OnCmdNatural)
+            .EndSubCommand()
             .BeginSubCommand("spawn")
                 .WithDescription("Force spawn a creature on the calling player")
                 .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "deepserpent", "serpent3", "kraken" }))
@@ -257,6 +267,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         // Toggles
         msg += nl + "-- Toggles --" + nl;
         msg += $"  Debug logging: {(Config.DebugLogging ? "on" : "off")}" + nl;
+        msg += $"  Natural spawning: {(naturalSpawningEnabled ? "on" : "off")}" + nl;
         msg += $"  Glow debug: {(Config.GlowDebugActive ? "on" : "off")}" + nl;
         msg += $"  Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}" + nl;
         msg += $"  Bioluminescence: {(Config.BiolumActive ? "on" : "off")}" + nl;
@@ -347,6 +358,21 @@ public class UnderwaterHorrorsModSystem : ModSystem
         Config.DebugLogging = val == "on" || val == "true" || val == "1";
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         return TextCommandResult.Success($"Debug logging: {(Config.DebugLogging ? "on" : "off")}");
+    }
+
+    private TextCommandResult OnCmdNatural(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            naturalSpawningEnabled = !naturalSpawningEnabled;
+        }
+        else
+        {
+            naturalSpawningEnabled = val == "on" || val == "true" || val == "1";
+        }
+        return TextCommandResult.Success(
+            $"Natural spawning: {(naturalSpawningEnabled ? "on" : "off")} (session-only, resets on server restart)");
     }
 
     private TextCommandResult OnCmdSpawn(TextCommandCallingArgs args)
@@ -600,6 +626,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void OnSpawnCheck(float dt)
     {
+        if (!naturalSpawningEnabled) return;
         if (sapi?.World?.AllOnlinePlayers == null) return;
 
         foreach (IServerPlayer player in sapi.World.AllOnlinePlayers)
