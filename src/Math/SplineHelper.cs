@@ -26,21 +26,32 @@ public static class SplineHelper
         double dx = tip.X - anchor.X;
         double dy = tip.Y - anchor.Y;
         double dz = tip.Z - anchor.Z;
-        double totalDist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        // Arch height scales with HORIZONTAL distance only. When the
+        // tentacle is rising straight up (dx=dz=0), horizDist=0 so the
+        // arch height collapses to zero and the four control points
+        // collapse onto the line between anchor and tip — the Bezier
+        // degenerates to a straight vertical segment with no overshoot.
+        // The previous formula scaled by total 3D distance, so a 50-block
+        // straight rise gave archHeight=20 with b2 placed 6+ blocks ABOVE
+        // the tip. The Bezier then overshot the tip and curled back down,
+        // packing the topmost segments at non-monotonic Y on the same XZ
+        // axis. That's the "broken" cluster of mid segments near the
+        // claw the user was seeing.
+        double horizDist = Math.Sqrt(dx * dx + dz * dz);
+        double archHeight = horizDist * archHeightFactor;
 
-        double archHeight = totalDist * archHeightFactor;
-
-        // B1: rises from anchor, 1/3 along toward tip horizontally, with arch height added
+        // Both control points sit on the linear interpolation between
+        // anchor and tip, lifted by archHeight (b1) / half archHeight (b2)
+        // so the curve bows upward without overshooting either endpoint.
         b1 = new Vec3d(
             anchor.X + dx * 0.33,
-            anchor.Y + archHeight,
+            anchor.Y + dy * 0.33 + archHeight,
             anchor.Z + dz * 0.33
         );
 
-        // B2: near tip, 2/3 along, slightly above tip approaching from above
         b2 = new Vec3d(
             anchor.X + dx * 0.67,
-            tip.Y + archHeight * 0.3,
+            anchor.Y + dy * 0.67 + archHeight * 0.5,
             anchor.Z + dz * 0.67
         );
     }

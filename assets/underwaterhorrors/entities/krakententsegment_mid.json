@@ -2,8 +2,8 @@
     "code": "krakententsegment_mid",
     "class": "EntityAgent",
     "habitat": "Underwater",
-    "hitboxSize": { "x": 0.5, "y": 1.0 },
-    "deadHitboxSize": { "x": 0.25, "y": 0.25 },
+    "hitboxSize": { "x": 0.01, "y": 0.01 },
+    "deadHitboxSize": { "x": 0.01, "y": 0.01 },
     "eyeHeight": 0.25,
     "weight": 1,
     "canClimb": false,
@@ -21,8 +21,7 @@
     },
     "server": {
         "behaviors": [
-            { "code": "health", "currenthealth": 1, "maxhealth": 1 },
-            { "code": "deaddecay", "decayHours": 0.01 }
+            { "code": "health", "currenthealth": 9999, "maxhealth": 9999 }
         ],
         "spawnConditions": {
             "runtime": {
