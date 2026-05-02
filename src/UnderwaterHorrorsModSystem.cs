@@ -704,7 +704,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         return TextCommandResult.Success(
-            $"Spawned {spawned} static mid-segments. Run /uh biolumtest mode <n> to switch shader variants. " +
+            $"Spawned {spawned} static mid-segments. Run /uh biolumtest mode &lt;n&gt; to switch shader variants. " +
             $"Clean up with /uh biolumtest clear.");
     }
 
@@ -731,7 +731,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     {
         string animName = args.Parsers[0].GetValue() as string;
         if (string.IsNullOrEmpty(animName))
-            return TextCommandResult.Error("Usage: /uh serpent anim <idle|idle2|walk|walk1|pose|off>");
+            return TextCommandResult.Error("Usage: /uh serpent anim &lt;idle|idle2|walk|walk1|pose|off&gt;");
 
         IServerPlayer caller = args.Caller.Player as IServerPlayer;
         if (caller?.Entity == null)
