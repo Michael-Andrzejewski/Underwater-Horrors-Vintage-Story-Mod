@@ -323,6 +323,33 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         boatPhaseDuration = 0f;
     }
 
+    private float boatBoredomTimer;
+    private float boatBoredomTarget = -1f;
+
+    /// <summary>
+    /// Tracks how long the serpent has been circling a boat and returns true once it
+    /// reaches a random give-up time in [BoatBoredomMinSeconds, BoatBoredomMaxSeconds],
+    /// rolled once when circling begins. Call each tick while the player is mounted.
+    /// </summary>
+    protected bool UpdateBoatBoredom(float deltaTime)
+    {
+        if (boatBoredomTarget < 0f)
+            boatBoredomTarget = RandRange(config.BoatBoredomMinSeconds, config.BoatBoredomMaxSeconds);
+
+        boatBoredomTimer += deltaTime;
+        return boatBoredomTimer >= boatBoredomTarget;
+    }
+
+    /// <summary>How long the serpent has circled the current boat (for logging).</summary>
+    protected float BoatBoredomElapsed => boatBoredomTimer;
+
+    /// <summary>Resets the boredom timer so the next mount rolls a fresh give-up time.</summary>
+    protected void ResetBoatBoredom()
+    {
+        boatBoredomTimer = 0f;
+        boatBoredomTarget = -1f;
+    }
+
     private float RandRange(float min, float max)
     {
         if (max <= min) return min;

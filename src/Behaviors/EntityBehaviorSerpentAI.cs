@@ -99,11 +99,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     private bool spawnRecorded;
 
     // ── Boat boredom ──────────────────────────────────────────────────
-    // After BoatBoredomGraceSeconds mounted, periodically roll to give
-    // up and retreat.  The ModSystem spawn loop can then spawn a
-    // fresh creature to replace this one.
-    private float mountedCircleTimer;
-    private float mountedCheckTimer;
+    // After a random circling time (see UpdateBoatBoredom in the base) the
+    // serpent gives up and retreats. The ModSystem spawn loop can then spawn
+    // a fresh creature to replace this one.
     // Set when a retreat was triggered by boat boredom.  Prevents the
     // OnRetreating "resume stalking if player dismounts" shortcut, so
     // briefly dismounting can't cancel the retreat — the serpent fully
@@ -259,29 +257,19 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             if (targetPlayer?.Entity?.MountedOn != null)
             {
                 UpdateBoatPhase(deltaTime);
-                mountedCircleTimer += deltaTime;
-                if (mountedCircleTimer >= config.BoatBoredomGraceSeconds)
+                if (UpdateBoatBoredom(deltaTime))
                 {
-                    mountedCheckTimer += deltaTime;
-                    if (mountedCheckTimer >= 30f)
-                    {
-                        mountedCheckTimer = 0;
-                        if (entity.World.Rand.NextDouble() < config.BoatBoredomRetreatRollChance)
-                        {
-                            if (config.DebugLogging)
-                                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                                    $"Serpent bored after {mountedCircleTimer:F0}s mounted, retreating");
-                            committedRetreat = true;
-                            TransitionTo(SerpentState.Retreating);
-                        }
-                    }
+                    if (config.DebugLogging)
+                        UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                            $"Serpent bored after {BoatBoredomElapsed:F0}s mounted, retreating");
+                    committedRetreat = true;
+                    TransitionTo(SerpentState.Retreating);
                 }
             }
             else
             {
-                mountedCircleTimer = 0;
-                mountedCheckTimer = 0;
                 ResetBoatPhase();
+                ResetBoatBoredom();
             }
         }
 

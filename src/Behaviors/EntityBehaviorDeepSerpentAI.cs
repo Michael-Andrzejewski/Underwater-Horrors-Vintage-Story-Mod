@@ -81,8 +81,6 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     private bool spawnRecorded;
 
     // ── Boat boredom ──────────────────────────────────────────────────
-    private float mountedCircleTimer;
-    private float mountedCheckTimer;
     private bool committedRetreat;
 
     // ── Proximity-based aggro ─────────────────────────────────────────
@@ -225,29 +223,19 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             if (targetPlayer?.Entity?.MountedOn != null)
             {
                 UpdateBoatPhase(deltaTime);
-                mountedCircleTimer += deltaTime;
-                if (mountedCircleTimer >= config.BoatBoredomGraceSeconds)
+                if (UpdateBoatBoredom(deltaTime))
                 {
-                    mountedCheckTimer += deltaTime;
-                    if (mountedCheckTimer >= 30f)
-                    {
-                        mountedCheckTimer = 0;
-                        if (entity.World.Rand.NextDouble() < config.BoatBoredomRetreatRollChance)
-                        {
-                            if (config.DebugLogging)
-                                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                                    $"DeepSerpent bored after {mountedCircleTimer:F0}s mounted, retreating");
-                            committedRetreat = true;
-                            TransitionTo(SerpentState.Retreating);
-                        }
-                    }
+                    if (config.DebugLogging)
+                        UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                            $"DeepSerpent bored after {BoatBoredomElapsed:F0}s mounted, retreating");
+                    committedRetreat = true;
+                    TransitionTo(SerpentState.Retreating);
                 }
             }
             else
             {
-                mountedCircleTimer = 0;
-                mountedCheckTimer = 0;
                 ResetBoatPhase();
+                ResetBoatBoredom();
             }
         }
 

@@ -86,11 +86,12 @@ public class UnderwaterHorrorsConfig
     public float SerpentSurfacePeekChance { get; set; } = 0.4f;
     public float DeepSerpentSurfacePeekChance { get; set; } = 0.1f;
 
-    // Boat boredom: player mounted for this long → roll for retreat
-    // every 30 s.  Existing behavior restored so a single creature
-    // doesn't circle forever; new spawns can still occur to replace it.
-    public float BoatBoredomGraceSeconds { get; set; } = 120f;
-    public float BoatBoredomRetreatRollChance { get; set; } = 0.5f;
+    // Boat boredom: while the player stays in a boat, the serpent circles for
+    // a random time in this range, then gives up and retreats so a single
+    // creature doesn't haunt forever (a new one can spawn later). The time is
+    // rolled once when the serpent starts circling the boat.
+    public float BoatBoredomMinSeconds { get; set; } = 90f;
+    public float BoatBoredomMaxSeconds { get; set; } = 240f;
 
     // Boat surface/submerge oscillation: while the player is in a boat, the
     // serpent surfaces and circles for a random SurfaceDuration, then sinks
@@ -304,7 +305,7 @@ public class UnderwaterHorrorsConfig
     public float MonsterSoundBelow2Volume { get; set; } = 1.0f;
     public float MonsterSoundNearbyVolume { get; set; } = 1.0f;
     public float MonsterSoundDiveVolume { get; set; } = 1.0f;
-    public float MonsterSoundBiteVolume { get; set; } = 1.0f;
+    public float MonsterSoundBiteVolume { get; set; } = 0.75f;
     // The surface screech is the dramatic moment. It plays as a non-positional
     // 2D sound (so it is clearly audible, not directional) for players within
     // MonsterSoundScreechRange. Volume is full at the creature and drops with
