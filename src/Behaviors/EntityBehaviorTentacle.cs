@@ -102,6 +102,10 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private double surfaceX, surfaceY, surfaceZ;
     private bool surfacePointPicked;
 
+    // Static flag is set once at spawn (e.g. by /uh kraken show) and
+    // never changes. Cache to avoid per-tick WatchedAttributes lookup.
+    private bool isStatic;
+
     // Offsets for 4 claws: +X, -X, +Z, -Z (1 block out from player)
     private static readonly double[][] ClawOffsets = new double[][]
     {
@@ -113,6 +117,15 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     public EntityBehaviorTentacle(Entity entity) : base(entity) { }
 
+    public override void Initialize(EntityProperties properties, JsonObject attributes)
+    {
+        // CRITICAL: must forward to OceanCreature.Initialize, which sets
+        // up the shared `config` field. Skipping base call leaves config
+        // null and ClampHeight crashes on the first tick.
+        base.Initialize(properties, attributes);
+        isStatic = entity.WatchedAttributes.GetBool("underwaterhorrors:static", false);
+    }
+
     public override void OnGameTick(float deltaTime)
     {
         // Vanilla gate: skip the entire AI tick when the entity is Inactive
@@ -123,7 +136,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
-        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
+        if (isStatic) return;
 
         ResolveTarget();
         ClampHeight();

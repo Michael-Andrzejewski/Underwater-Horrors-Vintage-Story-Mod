@@ -38,7 +38,14 @@ public class BiolumTextureRenderer : IRenderer
 
     public int Mode = 0;
     public double RenderOrder => 0.55;
-    public int RenderRange => 256;
+    // Match VS's typical SimulationRange (~128 blocks). Beyond that the
+    // chain segment entities aren't simulated, so re-rendering their
+    // mesh would just burn CPU/GPU on stale positions. Was 256.
+    public int RenderRange => 128;
+
+    // Hoisted from OnRenderFrame to avoid allocating a fresh 16-float
+    // array every frame. Only one render thread, so no thread-safety concern.
+    private readonly float[] modelMat = new float[16];
 
     public BiolumTextureRenderer(ICoreClientAPI capi)
     {
@@ -191,7 +198,6 @@ public class BiolumTextureRenderer : IRenderer
         shaderProg.BindTexture2D("entityTex", atlasTextureId, 0);
 
         var cameraPos = capi.World.Player.Entity.CameraPos;
-        float[] modelMat = new float[16];
 
         foreach (Entity entity in capi.World.LoadedEntities.Values)
         {

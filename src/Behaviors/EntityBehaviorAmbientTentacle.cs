@@ -67,7 +67,20 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     private bool krakenDeathHandled;
     private float krakenDeathTimer;
 
+    // Static flag is set once at spawn and never changes; cache it to
+    // avoid a per-tick WatchedAttributes dictionary lookup.
+    private bool isStatic;
+
     public EntityBehaviorAmbientTentacle(Entity entity) : base(entity) { }
+
+    public override void Initialize(EntityProperties properties, Vintagestory.API.Datastructures.JsonObject attributes)
+    {
+        // CRITICAL: must forward to OceanCreature.Initialize, which sets
+        // up the shared `config` field. Skipping base call leaves config
+        // null and ClampHeight crashes on the first tick.
+        base.Initialize(properties, attributes);
+        isStatic = entity.WatchedAttributes.GetBool("underwaterhorrors:static", false);
+    }
 
     public override void OnGameTick(float deltaTime)
     {
@@ -76,7 +89,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
-        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
+        if (isStatic) return;
 
         ClampHeight();
 
@@ -277,9 +290,11 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         double dx = surfaceX - entity.Pos.X;
         double dy = surfaceY - entity.Pos.Y;
         double dz = surfaceZ - entity.Pos.Z;
-        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        // Squared-distance comparison avoids a sqrt every tick. The
+        // threshold (was dist < 2.0) becomes distSq < 4.0.
+        double distSq = dx * dx + dy * dy + dz * dz;
 
-        if (dist < 2.0)
+        if (distSq < 4.0)
         {
             TransitionTo(AmbientTentacleState.Orbiting);
             return;
@@ -365,9 +380,15 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     /// </summary>
     private double GetCachedFloorY(double x, double fromY, double z)
     {
+        // 3-block hysteresis: ground tentacles drift ~0.05b/tick, so a
+        // 3-block tolerance lets the cache survive ~60 ticks (2 sec) of
+        // typical motion before triggering another FindSeaFloorYBelow
+        // scan (which walks up to ~80 blocks down checking GetBlock).
+        // Sea floor doesn't change visibly within 3 blocks, so this is
+        // free.
         if (!double.IsNaN(cachedFloorX)
-            && Math.Abs(x - cachedFloorX) < 1.0
-            && Math.Abs(z - cachedFloorZ) < 1.0)
+            && Math.Abs(x - cachedFloorX) < 3.0
+            && Math.Abs(z - cachedFloorZ) < 3.0)
         {
             return cachedFloorY;
         }

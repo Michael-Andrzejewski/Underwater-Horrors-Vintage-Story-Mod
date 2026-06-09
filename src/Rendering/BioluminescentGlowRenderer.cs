@@ -54,7 +54,16 @@ public class BioluminescentGlowRenderer : IRenderer
     public int Mode = 0;
 
     public double RenderOrder => 0.55;
-    public int RenderRange => 256;
+    // Match VS's typical SimulationRange (~128 blocks). Beyond that the
+    // segment entities aren't simulated, so rendering them would just
+    // burn CPU/GPU on stale data. Was 256 historically.
+    public int RenderRange => 128;
+
+    // Cached result of "are any kraken segments tagged bioluminescent?".
+    // Refreshed every ~1 second. Avoids a full LoadedEntities scan every
+    // frame just to decide whether to enter the production render path.
+    private bool cachedBiolumPresent = false;
+    private float biolumCheckTimer = 999f; // force first-frame check
 
     // Segment-mid model extends 0.84b along the trunk axis from
     // entity.Pos. Center of the visible texture sits at half that.
@@ -112,23 +121,32 @@ public class BioluminescentGlowRenderer : IRenderer
     {
         timeAccum += deltaTime;
 
-        // Three rendering paths share this renderer:
-        //   1. Test mode (Mode != 0) - renders for ALL kraken segments
-        //      at the test mode's stage. Used by /uh biolumtest.
+        // The renderer is registered at AfterOIT only (single-stage). All
+        // test modes also run at AfterOIT now. Bail immediately if we're
+        // not at our stage - cheap function-call early-out before we
+        // touch the entity list.
+        if (stage != EnumRenderStage.AfterOIT) return;
+
+        // Two rendering paths share this stage:
+        //   1. Test mode (Mode != 0) - renders for ALL kraken segments.
+        //      Used by /uh biolumtest.
         //   2. Production - renders mode-10-style pulse for entities
-        //      tagged WatchedAttributes["underwaterhorrors:bioluminescent"].
-        //      Always at AfterOIT (mode 10's stage). Used for the night
-        //      kraken variant.
-        //   3. Nothing - early-out cheap.
+        //      flagged WatchedAttributes["underwaterhorrors:bioluminescent"].
+        //      Used for the night-spawned kraken variant.
         bool testActive = Mode != 0;
-        bool productionActive = !testActive && AnyBioluminescentEntityLoaded();
+
+        // Production-path gate: refresh the "any biolum entity loaded?"
+        // cache about once a second. Was a per-frame scan of the entire
+        // LoadedEntities map; now amortized.
+        biolumCheckTimer += deltaTime;
+        if (!testActive && biolumCheckTimer >= 1.0f)
+        {
+            biolumCheckTimer = 0f;
+            cachedBiolumPresent = AnyBioluminescentEntityLoaded();
+        }
+        bool productionActive = !testActive && cachedBiolumPresent;
 
         if (!testActive && !productionActive) return;
-
-        EnumRenderStage activeStage = testActive
-            ? GetStageForMode(Mode)
-            : EnumRenderStage.AfterOIT;
-        if (stage != activeStage) return;
 
         diagFrameCounter++;
         bool logThisFrame = (diagFrameCounter % 120) == 0;
@@ -224,19 +242,14 @@ public class BioluminescentGlowRenderer : IRenderer
         capi.Render.RenderLine(diagOriginPos, ox, oy, oz - halfSize, ox, oy, oz + halfSize, color);
     }
 
+    // Single-stage registration in UnderwaterHorrorsModSystem means the
+    // renderer always fires at AfterOIT. Test modes that historically
+    // ran at OIT/AfterPostProcessing/AfterFinalComposition (modes 6, 7,
+    // 8 and 11+) now visually behave like their AfterOIT cousins. This
+    // is intentional - we settled on texture-mesh modes (BiolumTextureRenderer)
+    // for production and don't need the per-stage A/B testing capability.
     private static EnumRenderStage GetStageForMode(int mode)
-    {
-        // Modes 11-20 all run at AfterFinalComposition - the user picked
-        // mode 7 as the visual baseline and 11+ are refinements of it.
-        if (mode >= 11) return EnumRenderStage.AfterFinalComposition;
-        return mode switch
-        {
-            6  => EnumRenderStage.AfterPostProcessing,
-            7  => EnumRenderStage.AfterFinalComposition,
-            8  => EnumRenderStage.OIT,
-            _  => EnumRenderStage.AfterOIT,
-        };
-    }
+        => EnumRenderStage.AfterOIT;
 
     /// <summary>
     /// Per-mode rendering parameters. Centralized in one place so the

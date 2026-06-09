@@ -17,6 +17,11 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     private bool waitingToRespawnTentacle;
     private UnderwaterHorrorsConfig config;
 
+    // Static flag is set once at spawn (by /uh kraken show or similar)
+    // and never flips, so caching the WatchedAttributes lookup avoids
+    // a per-tick dictionary read.
+    private bool isStatic;
+
     // All ambient tentacles ever spawned (risers + ground). When the
     // attack tentacle dies and the promote timer fires, one of these
     // (whichever's still alive) is selected, killed, and replaced by
@@ -33,6 +38,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
         config = UnderwaterHorrorsModSystem.Config;
+        isStatic = entity.WatchedAttributes.GetBool("underwaterhorrors:static", false);
     }
 
     public override void OnGameTick(float deltaTime)
@@ -42,7 +48,7 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         if (entity.State != EnumEntityState.Active) return;
         if (!entity.Alive) return;
         if (entity.Api.Side != EnumAppSide.Server) return;
-        if (entity.WatchedAttributes.GetBool("underwaterhorrors:static", false)) return;
+        if (isStatic) return;
 
         // Stay stationary
         entity.Pos.Motion.X = 0;
