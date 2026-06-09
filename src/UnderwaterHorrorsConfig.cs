@@ -18,6 +18,16 @@ public class UnderwaterHorrorsConfig
     public float SpawnCheckIntervalSeconds { get; set; } = 5f;
     public int MinSaltwaterDepth { get; set; } = 50;
     public float SpawnChancePerCheck { get; set; } = 0.1f;
+    // Global soft cap on living serpents/krakens. Once this many are alive in
+    // the world, normal per-player spawning stops; instead at most ONE rare
+    // extra spawn is rolled per spawn check across the whole server (see
+    // OverCapSpawnChance). This keeps a second serpent very rare even with
+    // many players in the ocean or in boats, rather than one per player.
+    public int MaxLivingCreatures { get; set; } = 1;
+    // Single global per-check chance to spawn an extra creature while already
+    // at MaxLivingCreatures. One roll per check regardless of player count, so
+    // the rate does not scale up on busy servers. Very low on purpose.
+    public float OverCapSpawnChance { get; set; } = 0.002f;
     // Probability that a hostile spawn is a serpent vs a kraken.
     // Only applies when KrakenNaturalSpawnEnabled is true; otherwise
     // every natural hostile is a serpent regardless of this weight.

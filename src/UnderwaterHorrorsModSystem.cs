@@ -1117,10 +1117,38 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return config;
     }
 
+    // Codes of the "primary" creatures that count toward the living cap
+    // (their tentacles and bonus entities don't count).
+    private static readonly HashSet<string> PrimaryCreatureCodes = new()
+    {
+        "seaserpent", "seaserpent2", "seaserpent3", "krakenbody"
+    };
+
+    /// <summary>Counts living serpents/krakens currently loaded in the world.</summary>
+    private int CountLivingPrimaryCreatures()
+    {
+        int count = 0;
+        foreach (Entity e in sapi.World.LoadedEntities.Values)
+        {
+            if (e == null || !e.Alive) continue;
+            string path = e.Code?.Path;
+            if (path != null && PrimaryCreatureCodes.Contains(path)) count++;
+        }
+        return count;
+    }
+
     private void OnSpawnCheck(float dt)
     {
         if (!naturalSpawningEnabled) return;
         if (sapi?.World?.AllOnlinePlayers == null) return;
+
+        // Global guard: count living serpents/krakens once per check. Once at
+        // the cap, only a single rare extra spawn may roll this whole check
+        // (independent of how many players are online), so a second serpent
+        // stays very rare even with a crowded ocean.
+        int livingCreatures = CountLivingPrimaryCreatures();
+        bool overCap = livingCreatures >= Config.MaxLivingCreatures;
+        bool extraRolledThisCheck = false;
 
         foreach (IServerPlayer player in sapi.World.AllOnlinePlayers)
         {
@@ -1177,16 +1205,37 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // dice above, so they bypass this gate.
             if (!spawnAsExtra)
             {
-                double roll = sapi.World.Rand.NextDouble();
-                if (roll > Config.SpawnChancePerCheck)
+                if (overCap)
                 {
-                    if (Config.DebugLogging)
-                        DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
-                    continue;
-                }
+                    // Already at the living-creature cap. Allow at most one
+                    // rare extra-spawn attempt per check, server-wide, so the
+                    // chance does not scale with player count.
+                    if (extraRolledThisCheck) continue;
+                    extraRolledThisCheck = true;
 
-                if (Config.DebugLogging)
-                    DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
+                    double r = sapi.World.Rand.NextDouble();
+                    if (r > Config.OverCapSpawnChance)
+                    {
+                        if (Config.DebugLogging)
+                            DebugLog(sapi, $"Over-cap extra-spawn roll {r:F4} missed (need <= {Config.OverCapSpawnChance:F4}); {livingCreatures} creature(s) already present");
+                        continue;
+                    }
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"Over-cap extra-spawn roll {r:F4} succeeded; spawning a rare additional creature ({livingCreatures} already present)");
+                }
+                else
+                {
+                    double roll = sapi.World.Rand.NextDouble();
+                    if (roll > Config.SpawnChancePerCheck)
+                    {
+                        if (Config.DebugLogging)
+                            DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
+                        continue;
+                    }
+
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
+                }
             }
 
             // Decide creature type. Natural spawning forces serpent unless
@@ -1207,11 +1256,20 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 creature = SpawnKraken(player);
             }
 
-            if (creature != null && !spawnAsExtra)
+            if (creature != null)
             {
-                // Only track the primary creature.  Extras manage their
-                // own lifecycle via the AI state machine.
-                activeCreatures[player.PlayerUID] = creature.EntityId;
+                // A newly spawned creature counts toward the cap immediately,
+                // so later players in this same check see the updated count and
+                // don't also spawn (prevents a one-per-player burst in a crowd).
+                livingCreatures++;
+                if (livingCreatures >= Config.MaxLivingCreatures) overCap = true;
+
+                if (!spawnAsExtra)
+                {
+                    // Only track the primary creature.  Extras manage their
+                    // own lifecycle via the AI state machine.
+                    activeCreatures[player.PlayerUID] = creature.EntityId;
+                }
             }
         }
     }
