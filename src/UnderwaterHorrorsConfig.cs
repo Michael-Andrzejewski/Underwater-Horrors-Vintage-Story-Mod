@@ -19,8 +19,18 @@ public class UnderwaterHorrorsConfig
     public int MinSaltwaterDepth { get; set; } = 50;
     public float SpawnChancePerCheck { get; set; } = 0.1f;
     // Probability that a hostile spawn is a serpent vs a kraken.
+    // Only applies when KrakenNaturalSpawnEnabled is true; otherwise
+    // every natural hostile is a serpent regardless of this weight.
     // 0.75 -> 75% serpent / 25% kraken.
     public float SerpentSpawnWeight { get; set; } = 0.75f;
+
+    // Master switch for kraken in NATURAL spawn checks. /uh spawn kraken
+    // always works; this just gates the random per-player spawn roll
+    // from picking a kraken. Default off because kraken loads ~108
+    // segment entities that tick + broadcast at 30 Hz, which causes
+    // noticeable frame drops on lower-spec clients with many mods.
+    // Flip to true in the config to re-enable.
+    public bool KrakenNaturalSpawnEnabled { get; set; } = false;
 
     // Day/night threshold for kraken bioluminescence. Krakens spawning
     // during [DayKrakenStartHour, DayKrakenEndHour) on the VS calendar
@@ -71,6 +81,15 @@ public class UnderwaterHorrorsConfig
     // doesn't circle forever; new spawns can still occur to replace it.
     public float BoatBoredomGraceSeconds { get; set; } = 120f;
     public float BoatBoredomRetreatRollChance { get; set; } = 0.5f;
+
+    // Boat surface/submerge oscillation: while the player is in a boat, the
+    // serpent surfaces and circles for a random SurfaceDuration, then sinks
+    // below the water for a random SubmergeDuration, looping. (This is the
+    // up/down cycle; the boat boredom above is the separate eventual give-up.)
+    public float BoatSurfaceDurationMin { get; set; } = 5f;
+    public float BoatSurfaceDurationMax { get; set; } = 15f;
+    public float BoatSubmergeDurationMin { get; set; } = 15f;
+    public float BoatSubmergeDurationMax { get; set; } = 75f;
 
     // Chance per spawn check that a SECOND creature spawns even if the
     // player already has one tracked.  Untracked — the second creature
@@ -261,11 +280,42 @@ public class UnderwaterHorrorsConfig
     public int BiolumBodyGlowMin { get; set; } = 16;
     public int BiolumBodyGlowMax { get; set; } = 128;
 
-    // Bioluminescent glow renderer test mode. 0 disables the renderer.
-    // 1..N selects a different render-stage / blend-mode / shader variant
-    // for testing which combination actually shows up through deep water
-    // at night. See BioluminescentGlowRenderer for mode descriptions and
-    // change with /uh biolum testmode <n>. Persisted only so the active
-    // test survives a server restart.
-    public int BiolumTestMode { get; set; } = 0;
+    // Sea monster sounds. The serpent plays ambient dread sounds while it
+    // stalks, plus action stingers when it surfaces, dives, and bites.
+    // Only one sound plays at a time per player; a bite overrides whatever
+    // is playing.
+    public bool MonsterSoundsEnabled { get; set; } = true;
+    // Global volume applied to every monster sound. Each individual sound below
+    // has its own multiplier on top of this, so you can balance them.
+    public float MonsterSoundVolume { get; set; } = 1.0f;
+    // Per-sound volume multipliers (multiplied with MonsterSoundVolume). 1.0 = no
+    // change. The screech has its own multiplier further down.
+    public float MonsterSoundBelow1Volume { get; set; } = 1.0f;
+    public float MonsterSoundBelow2Volume { get; set; } = 1.0f;
+    public float MonsterSoundNearbyVolume { get; set; } = 1.0f;
+    public float MonsterSoundDiveVolume { get; set; } = 1.0f;
+    public float MonsterSoundBiteVolume { get; set; } = 1.0f;
+    // The surface screech is the dramatic moment. It plays as a non-positional
+    // 2D sound (so it is clearly audible, not directional) for players within
+    // MonsterSoundScreechRange. Volume is full at the creature and drops with
+    // distance down to MonsterSoundScreechMinVolumeFactor of full at the edge.
+    public float MonsterSoundScreechVolume { get; set; } = 1.5f;
+    public float MonsterSoundScreechRange { get; set; } = 25f;
+    public float MonsterSoundScreechMinVolumeFactor { get; set; } = 0.5f;
+    // Audible range (blocks) for the positional monster sounds. Players
+    // within this range of the creature receive and hear them.
+    public float MonsterSoundRange { get; set; } = 48f;
+    // Distance (blocks) below sea level within which the monster counts as
+    // "at the surface" for the nearby surface sound and the screech.
+    public float MonsterSoundSurfaceThreshold { get; set; } = 2.5f;
+    // The "nearby at surface" sound needs the monster within this range.
+    public float MonsterSoundNearbyRange { get; set; } = 10f;
+    // The two "below" ambient sounds will not play when the monster is
+    // closer than this (the nearby sound covers close range instead).
+    public float MonsterSoundBelowMinRange { get; set; } = 5f;
+    // Random gap (seconds) between ambient dread sounds, so they play
+    // occasionally rather than constantly. After each ambient sound the
+    // creature waits a random time in this range before the next one.
+    public float MonsterSoundAmbientGapMin { get; set; } = 14f;
+    public float MonsterSoundAmbientGapMax { get; set; } = 34f;
 }

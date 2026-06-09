@@ -227,6 +227,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         ResolveTarget();
         ClampHeight();
 
+        UpdateAmbientSound(deltaTime);
+
         // Pick a surfacing spot once we have a target
         if (!surfacePointPicked && targetPlayer?.Entity != null)
         {
@@ -256,6 +258,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         {
             if (targetPlayer?.Entity?.MountedOn != null)
             {
+                UpdateBoatPhase(deltaTime);
                 mountedCircleTimer += deltaTime;
                 if (mountedCircleTimer >= config.BoatBoredomGraceSeconds)
                 {
@@ -278,6 +281,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             {
                 mountedCircleTimer = 0;
                 mountedCheckTimer = 0;
+                ResetBoatPhase();
             }
         }
 
@@ -489,6 +493,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             case SerpentState.Surfacing:
                 bool onBoat = targetPlayer?.Entity?.MountedOn != null;
                 PlayAnimation(onBoat ? AnimStandAndHiss : AnimHiss);
+                TriggerScreech();
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                         $"Serpent surfacing: {(onBoat ? "standing hiss (boat)" : "hiss")}");
@@ -515,6 +520,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
             case SerpentState.Retreating:
                 PlayAnimation(AnimSwim);
+                PlayDive();
                 break;
         }
 
@@ -695,7 +701,11 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         double pY = targetPlayer.Entity.Pos.Y;
         double pZ = targetPlayer.Entity.Pos.Z;
         int waterY = FindWaterSurfaceYBelow(pX, pY, pZ, targetPlayer.Entity.Pos.Dimension);
-        float depthBelowSurface = (playerMounted || currentStepAtSurface)
+        // While mounted, oscillate: surface during the surface phase, dive
+        // during the submerged phase. While not mounted, surface only on a
+        // surface-peek step.
+        bool wantSurface = playerMounted ? !BoatSubmergedPhase : currentStepAtSurface;
+        float depthBelowSurface = wantSurface
             ? config.SerpentSurfaceSubmergeDepth
             : config.SerpentNormalSubmergeDepth;
         double targetY = waterY - depthBelowSurface;
@@ -832,6 +842,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 strikeDamageDealt = false;
                 attackFromRight = !attackFromRight;
                 ForcePlayAnimation(attackFromRight ? AnimWindupRight : AnimWindupLeft);
+                // Bite sound starts the moment it commits to the strike (windup),
+                // leading the actual hit. Overrides whatever was playing.
+                PlayBite();
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                         $"Serpent: winding up ({(attackFromRight ? "right" : "left")}), " +

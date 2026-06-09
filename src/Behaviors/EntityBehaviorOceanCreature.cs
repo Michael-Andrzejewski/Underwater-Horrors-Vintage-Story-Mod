@@ -179,5 +179,155 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    //  Sea monster sounds (shared by the regular and deep serpent)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // Countdown (seconds) until the next ambient sound is allowed. Negative
+    // means "not yet seeded" so the first gap is randomized on the first tick.
+    private float ambientCooldown = -1f;
+    // Set true after the first surface screech so it only plays once.
+    private bool hasScreeched;
+
+    /// <summary>
+    /// Drives the creature's sea monster sounds each tick. Plays a one-time
+    /// screech the first time it breaches near the stalked player, then ambient
+    /// dread sounds spaced by a random gap. Sounds are positional (anyone nearby
+    /// hears them) and the director's per-creature channel rule prevents overlap.
+    /// </summary>
+    protected void UpdateAmbientSound(float deltaTime)
+    {
+        var mod = UnderwaterHorrorsModSystem.ServerInstance;
+        var cfg = UnderwaterHorrorsModSystem.Config;
+        if (mod == null || cfg == null || !cfg.MonsterSoundsEnabled) return;
+        if (targetPlayer?.Entity == null) return;
+
+        double dx = entity.Pos.X - targetPlayer.Entity.Pos.X;
+        double dy = entity.Pos.Y - targetPlayer.Entity.Pos.Y;
+        double dz = entity.Pos.Z - targetPlayer.Entity.Pos.Z;
+        double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+        bool atSurface = entity.Pos.Y >= entity.World.SeaLevel - cfg.MonsterSoundSurfaceThreshold;
+
+        // Ambient dread on a random gap so it plays occasionally, not constantly.
+        if (ambientCooldown < 0f) ambientCooldown = NextAmbientGap(cfg);
+        ambientCooldown -= deltaTime;
+        if (ambientCooldown > 0f) return;
+        ambientCooldown = NextAmbientGap(cfg);
+
+        if (dist <= cfg.MonsterSoundNearbyRange && atSurface)
+        {
+            mod.PlayMonsterSound(entity, UnderwaterHorrorsModSystem.SndNearbySurface,
+                UnderwaterHorrorsModSystem.DurNearbySurface, volumeMul: cfg.MonsterSoundNearbyVolume);
+        }
+        else if (dist > cfg.MonsterSoundBelowMinRange)
+        {
+            bool one = entity.World.Rand.NextDouble() < 0.5;
+            mod.PlayMonsterSound(entity,
+                one ? UnderwaterHorrorsModSystem.SndAmbientBelow1 : UnderwaterHorrorsModSystem.SndAmbientBelow2,
+                one ? UnderwaterHorrorsModSystem.DurAmbientBelow1 : UnderwaterHorrorsModSystem.DurAmbientBelow2,
+                volumeMul: one ? cfg.MonsterSoundBelow1Volume : cfg.MonsterSoundBelow2Volume);
+        }
+        // Within MonsterSoundBelowMinRange but below the surface: stay silent.
+    }
+
+    private float NextAmbientGap(UnderwaterHorrorsConfig cfg)
+    {
+        float min = cfg.MonsterSoundAmbientGapMin;
+        float max = Math.Max(min, cfg.MonsterSoundAmbientGapMax);
+        return min + (float)(entity.World.Rand.NextDouble() * (max - min));
+    }
+
+    /// <summary>
+    /// Plays the surface screech once per lifetime, called from the Surfacing state so it
+    /// syncs with the hiss animation. 2D and loud so it is clearly audible.
+    /// </summary>
+    protected void TriggerScreech()
+    {
+        if (hasScreeched) return;
+        hasScreeched = true;
+        UnderwaterHorrorsModSystem.ServerInstance?.PlayScreech(entity);
+    }
+
+    /// <summary>Plays the dive sound as the creature retreats below the surface.</summary>
+    protected void PlayDive()
+    {
+        var cfg = UnderwaterHorrorsModSystem.Config;
+        UnderwaterHorrorsModSystem.ServerInstance?.PlayMonsterSound(
+            entity, UnderwaterHorrorsModSystem.SndDive,
+            UnderwaterHorrorsModSystem.DurDive,
+            volumeMul: cfg?.MonsterSoundDiveVolume ?? 1f);
+    }
+
+    /// <summary>Plays the bite sound, overriding whatever this creature was playing.</summary>
+    protected void PlayBite()
+    {
+        var cfg = UnderwaterHorrorsModSystem.Config;
+        UnderwaterHorrorsModSystem.ServerInstance?.PlayMonsterSound(
+            entity, UnderwaterHorrorsModSystem.SndBite,
+            UnderwaterHorrorsModSystem.DurBite, bite: true,
+            volumeMul: cfg?.MonsterSoundBiteVolume ?? 1f);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Boat surface/submerge oscillation (shared by both serpents)
+    // ═══════════════════════════════════════════════════════════════════
+
+    private bool boatSubmergedPhase;
+    private float boatPhaseTimer;
+    private float boatPhaseDuration;
+
+    /// <summary>
+    /// True while the current boat phase is the submerged (below water) one.
+    /// The serpents' depth logic reads this to dive instead of staying surfaced.
+    /// </summary>
+    protected bool BoatSubmergedPhase => boatSubmergedPhase;
+
+    /// <summary>
+    /// Advances the boat surface/submerge cycle. Call each tick while the
+    /// player is mounted and the creature is circling. Starts on the surface
+    /// phase, then alternates using the configured random durations.
+    /// </summary>
+    protected void UpdateBoatPhase(float deltaTime)
+    {
+        // First mounted tick: begin on the surface phase.
+        if (boatPhaseDuration <= 0f)
+        {
+            boatSubmergedPhase = false;
+            boatPhaseTimer = 0f;
+            boatPhaseDuration = RandRange(config.BoatSurfaceDurationMin, config.BoatSurfaceDurationMax);
+            return;
+        }
+
+        boatPhaseTimer += deltaTime;
+        if (boatPhaseTimer < boatPhaseDuration) return;
+
+        boatPhaseTimer = 0f;
+        boatSubmergedPhase = !boatSubmergedPhase;
+        boatPhaseDuration = boatSubmergedPhase
+            ? RandRange(config.BoatSubmergeDurationMin, config.BoatSubmergeDurationMax)
+            : RandRange(config.BoatSurfaceDurationMin, config.BoatSurfaceDurationMax);
+
+        if (config.DebugLogging)
+        {
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Serpent (boat): {(boatSubmergedPhase ? "submerging" : "surfacing")} for {boatPhaseDuration:F0}s");
+        }
+    }
+
+    /// <summary>Resets the boat cycle so the next mount starts fresh on the surface.</summary>
+    protected void ResetBoatPhase()
+    {
+        boatSubmergedPhase = false;
+        boatPhaseTimer = 0f;
+        boatPhaseDuration = 0f;
+    }
+
+    private float RandRange(float min, float max)
+    {
+        if (max <= min) return min;
+        return min + (float)(entity.World.Rand.NextDouble() * (max - min));
+    }
+
     public override string PropertyName() => "underwaterhorrors:oceancreature";
 }

@@ -20,6 +20,19 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private BiolumTextureRenderer biolumTexRenderer;
     private bool glowActive;
 
+    // Server-side instance so entity behaviors (e.g. the serpent AI) can
+    // request monster sounds for a player. Set in StartServerSide.
+    public static UnderwaterHorrorsModSystem ServerInstance;
+
+    // entityId -> real-time seconds (ElapsedMilliseconds/1000) until that
+    // creature's single sound channel is free again. Enforces "one at a time"
+    // per creature (the monster has a single voice).
+    private readonly Dictionary<long, double> soundChannelBusyUntil = new();
+
+    // Client: one managed sound slot per creature entity id, so a bite can
+    // cut off whatever that creature was currently playing.
+    private readonly Dictionary<long, ILoadedSound> monsterSounds = new();
+
     // playerUID -> entityId of assigned creature
     private Dictionary<string, long> activeCreatures = new();
 
@@ -30,6 +43,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // (commands like /uh spawn still work — only NATURAL spawn checks
     // are gated). Resets to true on server restart.
     private bool naturalSpawningEnabled = true;
+
+    // Session-only test mode for the bioluminescent glow renderer.
+    // 0 = production behavior (only night-spawned krakens glow).
+    // Non-zero values are debug overrides documented in /uh biolumtest mode.
+    // Intentionally NOT persisted to config: a previously-set test mode
+    // would silently override production behavior across server restarts,
+    // which produced "day kraken still glowing" reports.
+    private int activeBiolumTestMode = 0;
 
     // Reusable BlockPos to avoid per-call allocation in hot paths
     private readonly BlockPos reusableBlockPos = new BlockPos(0, 0, 0, 0);
@@ -66,7 +87,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntity("DeepSerpentEntity", typeof(DeepSerpentEntity));
 
         api.Network.RegisterChannel("underwaterhorrors")
-            .RegisterMessageType(typeof(DebugToggleMessage));
+            .RegisterMessageType(typeof(DebugToggleMessage))
+            .RegisterMessageType(typeof(MonsterSoundMessage));
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -77,17 +99,17 @@ public class UnderwaterHorrorsModSystem : ModSystem
         spectralRenderer = new SpectralRenderer(capi);
         capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
 
-        // Bioluminescent glow renderer — registered at FOUR stages so the
-        // /uh biolum testmode <n> command can binary-search which stage
-        // (OIT vs AfterOIT vs AfterPostProcessing vs AfterFinalComposition)
-        // actually produces visible glow at night underwater. The renderer
-        // itself gates on its `Mode` field and only draws at the stage
-        // that matches the active mode.
+        // Bioluminescent glow renderer — registered at AfterOIT only.
+        // Production rendering (mode 10 pulse for night-spawned krakens)
+        // runs at this stage; the multi-stage testing capability for
+        // modes 6/7/8 was useful during shader R&D but is no longer
+        // worth 4× the per-frame overhead now that we've settled on
+        // texture-mesh modes (BiolumTextureRenderer at AfterFinalComposition)
+        // for production. Test modes 6/7/8 now run at AfterOIT too,
+        // which means they look like the AfterOIT variants - acceptable
+        // since their actual stage-comparison purpose is no longer needed.
         biolumGlowRenderer = new BioluminescentGlowRenderer(capi);
-        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.OIT,                    "underwaterhorrors-biolum-oit");
-        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterOIT,               "underwaterhorrors-biolum-aoit");
-        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterPostProcessing,    "underwaterhorrors-biolum-app");
-        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterFinalComposition,  "underwaterhorrors-biolum-afc");
+        capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-biolum");
         // Compile on initial shader load AND on /reload shaders so live
         // shader edits work without a full restart. Returning true tells
         // the engine the reload succeeded.
@@ -102,7 +124,213 @@ public class UnderwaterHorrorsModSystem : ModSystem
         capi.Event.ReloadShader += () => biolumTexRenderer.Initialize();
 
         api.Network.GetChannel("underwaterhorrors")
-            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived);
+            .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived)
+            .SetMessageHandler<MonsterSoundMessage>(OnMonsterSoundReceived);
+    }
+
+    // ── Client: play monster sounds positionally, one slot per creature ──
+    private void OnMonsterSoundReceived(MonsterSoundMessage msg)
+    {
+        if (capi?.World == null || string.IsNullOrEmpty(msg?.Sound)) return;
+        long id = msg.EntityId;
+
+        if (msg.Stop)
+        {
+            StopMonsterSound(id);
+            return;
+        }
+
+        // VS appends ".ogg" itself, so the path is referenced without it.
+        var loc = new AssetLocation("underwaterhorrors", msg.Sound);
+        var pos = new Vec3f((float)msg.X, (float)msg.Y, (float)msg.Z);
+
+        if (msg.TwoD)
+        {
+            // Non-positional 2D playback at the server-computed volume. Always
+            // overrides this creature's current sound (dramatic screech).
+            StopMonsterSound(id);
+            ILoadedSound flat = capi.World.LoadSound(new SoundParams
+            {
+                Location = loc,
+                ShouldLoop = false,
+                Position = new Vec3f(0f, 0f, 0f),
+                RelativePosition = true,    // relative to listener = 2D, centered
+                DisposeOnFinish = false,
+                Volume = msg.Volume,
+                ReferenceDistance = 100f,   // no positional falloff (volume is pre-computed)
+                Range = 100f,
+                SoundType = EnumSoundType.Sound
+            });
+            if (flat != null) { monsterSounds[id] = flat; flat.Start(); }
+            return;
+        }
+
+        if (msg.Bite)
+        {
+            // Bite overrides everything: cut this creature's current sound and
+            // play the bite from its position.
+            StopMonsterSound(id);
+            ILoadedSound bite = LoadPositional(loc, pos, msg.Volume, msg.RefDistance);
+            if (bite != null) { monsterSounds[id] = bite; bite.Start(); }
+            return;
+        }
+
+        // Non-bite: client-side safety net for the single-channel rule. The
+        // server already gates this, but if this creature's sound is still
+        // playing, skip.
+        if (monsterSounds.TryGetValue(id, out var cur) && cur != null && cur.IsPlaying) return;
+
+        StopMonsterSound(id);
+        ILoadedSound snd = LoadPositional(loc, pos, msg.Volume, msg.RefDistance);
+        if (snd != null) { monsterSounds[id] = snd; snd.Start(); }
+    }
+
+    private ILoadedSound LoadPositional(AssetLocation loc, Vec3f pos, float volume, float refDistance)
+    {
+        return capi.World.LoadSound(new SoundParams
+        {
+            Location = loc,
+            ShouldLoop = false,
+            Position = pos,
+            RelativePosition = false,   // pos is in world coordinates
+            DisposeOnFinish = false,    // we manage disposal so bite can cut it
+            Volume = volume,
+            ReferenceDistance = refDistance > 0f ? refDistance : 8f, // full volume out to this, then falls off
+            Range = Config?.MonsterSoundRange ?? 48f,
+            SoundType = EnumSoundType.Entity
+        });
+    }
+
+    private void StopMonsterSound(long id)
+    {
+        if (monsterSounds.TryGetValue(id, out var s) && s != null)
+        {
+            if (s.IsPlaying) s.Stop();
+            s.Dispose();
+        }
+        monsterSounds.Remove(id);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Server-side monster sound director
+    // ═══════════════════════════════════════════════════════════════════
+
+    // Sound paths (domain relative, no extension) and their real-time
+    // durations in seconds, used to keep the single channel busy.
+    public const string SndAmbientBelow1 = "sounds/creature/ambient-below-1";
+    public const string SndAmbientBelow2 = "sounds/creature/ambient-below-2";
+    public const string SndNearbySurface = "sounds/creature/nearby-surface";
+    public const string SndSurfaceScreech = "sounds/creature/surface-screech";
+    public const string SndDive = "sounds/creature/dive";
+    public const string SndBite = "sounds/creature/bite";
+
+    public const float DurAmbientBelow1 = 10.70f;
+    public const float DurAmbientBelow2 = 3.31f;
+    public const float DurNearbySurface = 1.59f;
+    public const float DurSurfaceScreech = 2.53f;
+    public const float DurDive = 4.03f;
+    public const float DurBite = 2.09f;
+
+    /// <summary>
+    /// Requests a positional monster sound from a creature, heard by every
+    /// player within range. Enforces the single-channel rule per creature: a
+    /// non-bite sound is dropped if the creature's channel is still busy. A
+    /// bite always plays and resets the busy timer (overriding). Server only.
+    /// </summary>
+    public void PlayMonsterSound(Entity source, string soundPath, float durationSeconds, bool bite = false,
+        float volumeMul = 1f, float refDistance = 8f)
+    {
+        if (sapi == null || source == null || soundPath == null) return;
+        if (Config == null || !Config.MonsterSoundsEnabled) return;
+
+        double now = sapi.World.ElapsedMilliseconds / 1000.0;
+        long id = source.EntityId;
+
+        if (!bite)
+        {
+            if (soundChannelBusyUntil.TryGetValue(id, out double until) && now < until)
+            {
+                return; // this creature's voice is busy, only a bite interrupts
+            }
+        }
+
+        soundChannelBusyUntil[id] = now + durationSeconds;
+
+        var msg = new MonsterSoundMessage
+        {
+            Sound = soundPath,
+            Volume = Config.MonsterSoundVolume * volumeMul,
+            Bite = bite,
+            Stop = false,
+            EntityId = id,
+            X = source.Pos.X,
+            Y = source.Pos.Y + 0.5,   // lift toward the body/head
+            Z = source.Pos.Z,
+            RefDistance = refDistance
+        };
+
+        // Send only to players within audible range of the creature.
+        double rangeSq = (Config.MonsterSoundRange + 8.0) * (Config.MonsterSoundRange + 8.0);
+        var channel = sapi.Network.GetChannel("underwaterhorrors");
+        foreach (IPlayer p in sapi.World.AllOnlinePlayers)
+        {
+            if (p is IServerPlayer sp && sp.Entity != null)
+            {
+                double ddx = sp.Entity.Pos.X - source.Pos.X;
+                double ddy = sp.Entity.Pos.Y - source.Pos.Y;
+                double ddz = sp.Entity.Pos.Z - source.Pos.Z;
+                if (ddx * ddx + ddy * ddy + ddz * ddz <= rangeSq)
+                {
+                    channel.SendPacket(msg, sp);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Plays the dramatic surface screech as a 2D sound for every player within
+    /// MonsterSoundScreechRange, with volume manually falling off from full at
+    /// the creature to MonsterSoundScreechMinVolumeFactor of full at the edge.
+    /// Always overrides whatever that creature was playing. Server only.
+    /// </summary>
+    public void PlayScreech(Entity source)
+    {
+        if (sapi == null || source == null) return;
+        if (Config == null || !Config.MonsterSoundsEnabled) return;
+
+        long id = source.EntityId;
+        double now = sapi.World.ElapsedMilliseconds / 1000.0;
+        soundChannelBusyUntil[id] = now + DurSurfaceScreech;
+
+        float range = Math.Max(1f, Config.MonsterSoundScreechRange);
+        float baseVol = Config.MonsterSoundVolume * Config.MonsterSoundScreechVolume;
+        float minFactor = GameMath.Clamp(Config.MonsterSoundScreechMinVolumeFactor, 0f, 1f);
+        var channel = sapi.Network.GetChannel("underwaterhorrors");
+
+        foreach (IPlayer p in sapi.World.AllOnlinePlayers)
+        {
+            if (p is IServerPlayer sp && sp.Entity != null)
+            {
+                double dx = sp.Entity.Pos.X - source.Pos.X;
+                double dy = sp.Entity.Pos.Y - source.Pos.Y;
+                double dz = sp.Entity.Pos.Z - source.Pos.Z;
+                double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                if (dist > range) continue;
+
+                // Full volume at the creature, minFactor of full at the edge.
+                float t = (float)(dist / range);
+                float vol = baseVol * (1f - (1f - minFactor) * t);
+
+                channel.SendPacket(new MonsterSoundMessage
+                {
+                    Sound = SndSurfaceScreech,
+                    Volume = vol,
+                    TwoD = true,
+                    Stop = false,
+                    EntityId = id
+                }, sp);
+            }
+        }
     }
 
     private void OnDebugToggleReceived(DebugToggleMessage msg)
@@ -179,6 +407,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     {
         base.StartServerSide(api);
         sapi = api;
+        ServerInstance = this;
 
         Config = LoadConfig();
 
@@ -205,11 +434,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
             channel.SendPacket(new DebugToggleMessage { Toggle = "spectral", Active = true }, player);
         }
 
-        // Push the active glow test mode so the renderer comes up in the
-        // right state right away (no need to re-issue /uh biolum testmode
-        // after every join). Sent regardless of value — 0 disables.
+        // Push the active session-only test mode so a mid-game-joined
+        // player sees the same renderer state as the rest of the session.
+        // Sent regardless of value — 0 means "production-only behavior".
         channel.SendPacket(
-            new DebugToggleMessage { Toggle = "biolum_mode", Active = Config.BiolumTestMode != 0, Value = Config.BiolumTestMode },
+            new DebugToggleMessage { Toggle = "biolum_mode", Active = activeBiolumTestMode != 0, Value = activeBiolumTestMode },
             player);
     }
 
@@ -305,7 +534,89 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     .WithDescription("Kill all static-flagged kraken segments and claws spawned for testing")
                     .HandleWith(OnCmdBiolumTestClear)
                 .EndSubCommand()
+            .EndSubCommand()
+            .BeginSubCommand("sound")
+                .WithDescription("Sea monster sound settings")
+                .BeginSubCommand("on")
+                    .WithDescription("Enable sea monster sounds")
+                    .HandleWith(OnCmdSoundOn)
+                .EndSubCommand()
+                .BeginSubCommand("off")
+                    .WithDescription("Disable sea monster sounds")
+                    .HandleWith(OnCmdSoundOff)
+                .EndSubCommand()
+                .BeginSubCommand("volume")
+                    .WithDescription("Get or set monster sound volume (0.0 to 2.0)")
+                    .WithArgs(api.ChatCommands.Parsers.OptionalFloat("volume"))
+                    .HandleWith(OnCmdSoundVolume)
+                .EndSubCommand()
+                .BeginSubCommand("test")
+                    .WithDescription("Play a sound at your position to audition it")
+                    .WithArgs(api.ChatCommands.Parsers.Word("name", new[] { "below1", "below2", "nearby", "screech", "dive", "bite" }))
+                    .HandleWith(OnCmdSoundTest)
+                .EndSubCommand()
             .EndSubCommand();
+    }
+
+    private TextCommandResult OnCmdSoundOn(TextCommandCallingArgs args)
+    {
+        Config.MonsterSoundsEnabled = true;
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success("Sea monster sounds ENABLED");
+    }
+
+    private TextCommandResult OnCmdSoundOff(TextCommandCallingArgs args)
+    {
+        Config.MonsterSoundsEnabled = false;
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success("Sea monster sounds DISABLED");
+    }
+
+    private TextCommandResult OnCmdSoundVolume(TextCommandCallingArgs args)
+    {
+        float? v = args.Parsers[0].GetValue() as float?;
+        if (v == null)
+            return TextCommandResult.Success($"Monster sound volume: {Config.MonsterSoundVolume:F2}");
+        Config.MonsterSoundVolume = GameMath.Clamp(v.Value, 0f, 2f);
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success($"Monster sound volume set to {Config.MonsterSoundVolume:F2}");
+    }
+
+    private TextCommandResult OnCmdSoundTest(TextCommandCallingArgs args)
+    {
+        if (!Config.MonsterSoundsEnabled)
+            return TextCommandResult.Error("Monster sounds are off. Enable with /uh sound on first.");
+
+        var caller = args.Caller.Player as IServerPlayer;
+        if (caller?.Entity == null)
+            return TextCommandResult.Error("Must be called by a player.");
+
+        string name = args.Parsers[0].GetValue() as string;
+        (string path, float dur) = name switch
+        {
+            "below1"  => (SndAmbientBelow1, DurAmbientBelow1),
+            "below2"  => (SndAmbientBelow2, DurAmbientBelow2),
+            "nearby"  => (SndNearbySurface, DurNearbySurface),
+            "screech" => (SndSurfaceScreech, DurSurfaceScreech),
+            "dive"    => (SndDive, DurDive),
+            "bite"    => (SndBite, DurBite),
+            _         => ((string)null, 0f)
+        };
+        if (path == null) return TextCommandResult.Error("Unknown sound name.");
+
+        if (name == "screech")
+        {
+            // Auditions exactly like the in-game screech: 2D, at your position
+            // (distance 0, so full volume).
+            PlayScreech(caller.Entity);
+        }
+        else
+        {
+            // Play from the caller's position. bite:true forces it to override any
+            // sound currently playing on that channel, so repeated tests are snappy.
+            PlayMonsterSound(caller.Entity, path, dur, bite: true);
+        }
+        return TextCommandResult.Success($"Playing '{name}' at your position.");
     }
 
     private TextCommandResult OnCmdStatus(TextCommandCallingArgs args)
@@ -636,7 +947,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             string lines = string.Join("\n  ", BiolumModeDescriptions);
             return TextCommandResult.Success(
-                $"Current biolum test mode: {Config.BiolumTestMode}\nModes:\n  {lines}");
+                $"Current biolum test mode: {activeBiolumTestMode} (session-only, resets on server restart)\nModes:\n  {lines}");
         }
 
         int mode = n.Value;
@@ -644,12 +955,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
         if (mode < 0 || mode > 34 || (mode > 20 && mode < 30))
             return TextCommandResult.Error("Mode must be 0..20 (billboard) or 30..34 (texture-mesh)");
 
-        Config.BiolumTestMode = mode;
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        // Session-only - intentionally NOT persisted to config so a
+        // forgotten test setting can't override production day/night
+        // glow behavior across restarts.
+        activeBiolumTestMode = mode;
         sapi.Network.GetChannel("underwaterhorrors")
             .BroadcastPacket(new DebugToggleMessage { Toggle = "biolum_mode", Active = mode != 0, Value = mode });
 
-        // Find the description line that starts with this mode number.
         string prefix = mode + " ";
         string desc = "(set)";
         foreach (string line in BiolumModeDescriptions)
@@ -660,7 +972,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 break;
             }
         }
-        return TextCommandResult.Success($"Biolum test mode -> {desc}");
+        return TextCommandResult.Success($"Biolum test mode -> {desc} (session-only)");
     }
 
     private TextCommandResult OnCmdBiolumTestSpawn(TextCommandCallingArgs args)
@@ -877,9 +1189,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
             }
 
-            // Decide creature type. SerpentSpawnWeight=0.75 means 75% of
-            // the time we spawn a serpent, 25% a kraken.
-            bool spawnSerpent = sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
+            // Decide creature type. Natural spawning forces serpent unless
+            // KrakenNaturalSpawnEnabled flips it on - kraken loads ~108
+            // segment entities and is laggy on lower-spec clients. The
+            // /uh spawn kraken command bypasses this check, so testing
+            // and direct spawns still work either way.
+            bool spawnSerpent = !Config.KrakenNaturalSpawnEnabled
+                || sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
 
             Entity creature;
             if (spawnSerpent)

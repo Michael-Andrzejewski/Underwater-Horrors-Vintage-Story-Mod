@@ -198,6 +198,8 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         ResolveTarget();
         ClampHeight();
 
+        UpdateAmbientSound(deltaTime);
+
         if (!surfacePointPicked && targetPlayer?.Entity != null)
         {
             PickSurfacePoint();
@@ -222,6 +224,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         {
             if (targetPlayer?.Entity?.MountedOn != null)
             {
+                UpdateBoatPhase(deltaTime);
                 mountedCircleTimer += deltaTime;
                 if (mountedCircleTimer >= config.BoatBoredomGraceSeconds)
                 {
@@ -244,6 +247,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             {
                 mountedCircleTimer = 0;
                 mountedCheckTimer = 0;
+                ResetBoatPhase();
             }
         }
 
@@ -423,6 +427,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             case SerpentState.Surfacing:
                 bool onBoat = targetPlayer?.Entity?.MountedOn != null;
                 PlayAnimation(onBoat ? AnimStandAndHiss : AnimHiss);
+                TriggerScreech();
                 break;
             case SerpentState.Stalking:
                 PlayAnimation(AnimSlowSwim);
@@ -441,6 +446,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
                 break;
             case SerpentState.Retreating:
                 PlayAnimation(AnimFastSwim);
+                PlayDive();
                 break;
         }
 
@@ -614,7 +620,9 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         //   2. Surface-peek step (rare roll) — briefly shows itself.
         double targetY;
         double vMax, vSlew;
-        if (playerMounted || currentStepAtSurface)
+        // While mounted, oscillate surface/submerge; otherwise surface only on a peek step.
+        bool wantSurface = playerMounted ? !BoatSubmergedPhase : currentStepAtSurface;
+        if (wantSurface)
         {
             double pX = targetPlayer.Entity.Pos.X;
             double pY = targetPlayer.Entity.Pos.Y;
@@ -738,6 +746,8 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
                 strikeDamageDealt = false;
                 attackFromRight = !attackFromRight;
                 ForcePlayAnimation(attackFromRight ? AnimWindupRight : AnimWindupLeft);
+                // Bite sound starts on commit (windup), leading the hit.
+                PlayBite();
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                         $"DeepSerpent: winding up ({(attackFromRight ? "right" : "left")}), " +
