@@ -972,7 +972,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 break;
             }
         }
-        return TextCommandResult.Success($"Biolum test mode -> {desc} (session-only)");
+        return TextCommandResult.Success($"Biolum test mode -&gt; {desc} (session-only)");
     }
 
     private TextCommandResult OnCmdBiolumTestSpawn(TextCommandCallingArgs args)
@@ -1217,7 +1217,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     if (r > Config.OverCapSpawnChance)
                     {
                         if (Config.DebugLogging)
-                            DebugLog(sapi, $"Over-cap extra-spawn roll {r:F4} missed (need <= {Config.OverCapSpawnChance:F4}); {livingCreatures} creature(s) already present");
+                            DebugLog(sapi, $"Over-cap extra-spawn roll {r:F4} missed (need &lt;= {Config.OverCapSpawnChance:F4}); {livingCreatures} creature(s) already present");
                         continue;
                     }
                     if (Config.DebugLogging)
@@ -1606,7 +1606,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (distSq > maxDist * maxDist)
             {
                 if (Config.DebugLogging)
-                    DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): too far from {player.PlayerName} ({Math.Sqrt(distSq):F0} > {maxDist} blocks)");
+                    DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): too far from {player.PlayerName} ({Math.Sqrt(distSq):F0} &gt; {maxDist} blocks)");
                 creature.Die(EnumDespawnReason.Expire);
                 despawnRemoveList.Add(playerUid);
                 continue;
