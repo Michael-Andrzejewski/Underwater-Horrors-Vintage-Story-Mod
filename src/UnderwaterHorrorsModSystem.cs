@@ -105,10 +105,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
         capi = api;
 
         // Gate sound playback on world readiness (see clientWorldReady). The
-        // sound engine is only safe to use after LevelFinalize fires; reset on
-        // leaving so a reconnect in the same process can't carry a stale flag.
-        capi.Event.LevelFinalize += () => clientWorldReady = true;
-        capi.Event.LeaveWorld += () => clientWorldReady = false;
+        // sound engine is only safe to use after LevelFinalize fires; on leave
+        // we reset the flag AND flush any playing sounds. Named handlers (not
+        // lambdas) so Dispose can unsubscribe them.
+        capi.Event.LevelFinalize += OnLevelFinalize;
+        capi.Event.LeaveWorld += OnLeaveWorld;
 
         spectralRenderer = new SpectralRenderer(capi);
         capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
@@ -125,9 +126,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         biolumGlowRenderer = new BioluminescentGlowRenderer(capi);
         capi.Event.RegisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-biolum");
         // Compile on initial shader load AND on /reload shaders so live
-        // shader edits work without a full restart. Returning true tells
-        // the engine the reload succeeded.
-        capi.Event.ReloadShader += () => biolumGlowRenderer.Initialize();
+        // shader edits work without a full restart. OnReloadShader (subscribed
+        // below) reinitializes BOTH glow renderers and returns success.
+        capi.Event.ReloadShader += OnReloadShader;
 
         // Texture-based emissive renderer: re-renders the actual segment_mid
         // 3D mesh with a custom additive shader so the glow appears ON the
@@ -135,11 +136,84 @@ public class UnderwaterHorrorsModSystem : ModSystem
         // 30-34 in the test menu use this renderer.
         biolumTexRenderer = new BiolumTextureRenderer(capi);
         capi.Event.RegisterRenderer(biolumTexRenderer, EnumRenderStage.AfterFinalComposition, "underwaterhorrors-biolumtex");
-        capi.Event.ReloadShader += () => biolumTexRenderer.Initialize();
+        // (its Initialize() is also driven by OnReloadShader, subscribed above)
 
         api.Network.GetChannel("underwaterhorrors")
             .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived)
             .SetMessageHandler<MonsterSoundMessage>(OnMonsterSoundReceived);
+    }
+
+    private void OnLevelFinalize()
+    {
+        clientWorldReady = true;
+    }
+
+    private void OnLeaveWorld()
+    {
+        clientWorldReady = false;
+        // Stop and dispose any sounds still playing; on world leave the server
+        // sends no per-creature Stop, so without this the ILoadedSound handles
+        // (created with DisposeOnFinish=false) leak.
+        FlushClientSounds();
+    }
+
+    private bool OnReloadShader()
+    {
+        bool ok = true;
+        if (biolumGlowRenderer != null) ok = biolumGlowRenderer.Initialize() && ok;
+        if (biolumTexRenderer != null) ok = biolumTexRenderer.Initialize() && ok;
+        return ok;
+    }
+
+    // Stop + dispose every tracked client sound and clear the slot map.
+    private void FlushClientSounds()
+    {
+        foreach (var s in monsterSounds.Values)
+        {
+            if (s == null) continue;
+            if (s.IsPlaying) s.Stop();
+            s.Dispose();
+        }
+        monsterSounds.Clear();
+    }
+
+    public override void Dispose()
+    {
+        // Client teardown: unregister and dispose the renderers (they hold GPU
+        // mesh/shader handles and a capi reference), drop event subscriptions,
+        // and stop any sounds. Matters most in single-player, where leaving a
+        // world disposes this mod system while the process keeps running.
+        if (capi != null)
+        {
+            capi.Event.LevelFinalize -= OnLevelFinalize;
+            capi.Event.LeaveWorld -= OnLeaveWorld;
+            capi.Event.ReloadShader -= OnReloadShader;
+
+            if (spectralRenderer != null)
+                capi.Event.UnregisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT);
+            if (biolumGlowRenderer != null)
+                capi.Event.UnregisterRenderer(biolumGlowRenderer, EnumRenderStage.AfterOIT);
+            if (biolumTexRenderer != null)
+                capi.Event.UnregisterRenderer(biolumTexRenderer, EnumRenderStage.AfterFinalComposition);
+
+            biolumGlowRenderer?.Dispose();
+            biolumTexRenderer?.Dispose();
+            spectralRenderer?.Dispose();
+
+            FlushClientSounds();
+        }
+
+        // Server teardown: clear the static back-reference so it can't point at
+        // a disposed instance across a single-player world reload.
+        if (sapi != null)
+        {
+            soundChannelBusyUntil.Clear();
+            activeCreatures.Clear();
+            landTimers.Clear();
+            if (ServerInstance == this) ServerInstance = null;
+        }
+
+        base.Dispose();
     }
 
     // ── Client: play monster sounds positionally, one slot per creature ──
@@ -402,32 +476,46 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void OnDebugToggleReceived(DebugToggleMessage msg)
     {
-        if (msg.Toggle == "glow")
+        // Runs on the client main thread; an unhandled throw here can drop the
+        // client connection. A biolum_mode packet is pushed to every player on
+        // join (OnPlayerJoinSyncDebug), so guard against renderers not yet
+        // existing or any other unexpected state.
+        try
         {
-            glowActive = msg.Active;
-            ApplyGlow(msg.Active);
-        }
-        else if (msg.Toggle == "spectral")
-        {
-            spectralRenderer.Active = msg.Active;
-        }
-        else if (msg.Toggle == "biolum_mode")
-        {
-            // Modes 30..39 drive the texture-mesh renderer; everything else
-            // drives the billboard renderer. Setting the unused renderer's
-            // Mode to 0 disables it cleanly.
-            int v = msg.Value;
-            if (v >= 30)
+            if (msg == null) return;
+
+            if (msg.Toggle == "glow")
             {
-                biolumGlowRenderer.Mode = 0;
-                biolumTexRenderer.Mode  = v - 29; // 30 -> 1, 31 -> 2, ..., 34 -> 5
+                glowActive = msg.Active;
+                ApplyGlow(msg.Active);
             }
-            else
+            else if (msg.Toggle == "spectral")
             {
-                biolumTexRenderer.Mode  = 0;
-                biolumGlowRenderer.Mode = v;
+                if (spectralRenderer != null) spectralRenderer.Active = msg.Active;
             }
-            capi.Logger.Notification($"[underwaterhorrors] biolum mode set to {v} (billboard={biolumGlowRenderer.Mode}, tex={biolumTexRenderer.Mode})");
+            else if (msg.Toggle == "biolum_mode")
+            {
+                // Modes 30..39 drive the texture-mesh renderer; everything else
+                // drives the billboard renderer. Setting the unused renderer's
+                // Mode to 0 disables it cleanly.
+                if (biolumGlowRenderer == null || biolumTexRenderer == null) return;
+                int v = msg.Value;
+                if (v >= 30)
+                {
+                    biolumGlowRenderer.Mode = 0;
+                    biolumTexRenderer.Mode  = v - 29; // 30 -> 1, 31 -> 2, ..., 34 -> 5
+                }
+                else
+                {
+                    biolumTexRenderer.Mode  = 0;
+                    biolumGlowRenderer.Mode = v;
+                }
+                capi.Logger.Notification($"[underwaterhorrors] biolum mode set to {v} (billboard={biolumGlowRenderer.Mode}, tex={biolumTexRenderer.Mode})");
+            }
+        }
+        catch (Exception e)
+        {
+            capi?.Logger.Warning("[underwaterhorrors] OnDebugToggleReceived failed: {0}", e.Message);
         }
     }
 
