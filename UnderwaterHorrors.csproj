@@ -62,13 +62,29 @@
         Condition="Exists('$(APPDATA)\VintagestoryData\Cache\unpack')" />
     </ItemGroup>
 
-    <Delete Files="@(OldZipsBin)" />
-    <Delete Files="@(OldZipsDeploy)" />
-    <RemoveDir Directories="@(StaleUnpackCache)" />
+    <!--
+      Order matters. The game locks the unpack-cache DLL while running, so the
+      RemoveDir below can fail. If we did the destructive cleanup FIRST (as this
+      target used to), a failed RemoveDir aborted the whole target AFTER the
+      deployed zip had already been deleted, leaving no mod deployed at all.
 
+      Instead: (1) clean local bin zips (never locked) and build the new zip
+      first, so a good artifact always exists in bin\; (2) do the destructive
+      cleanup of deployed/cached files best-effort with ContinueOnError so a
+      running game can't abort the build; (3) deploy the freshly built zip last.
+    -->
+
+    <!-- 1. Clean old bin zips (bin is never locked) and build the new zip -->
+    <Delete Files="@(OldZipsBin)" />
     <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" />
     <Copy SourceFiles="@(AssetFiles)" DestinationFiles="@(AssetFiles->'$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\%(Identity)')" />
     <ZipDirectory SourceDirectory="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" DestinationFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" Overwrite="true" />
+
+    <!-- 2. Best-effort cleanup of deployed/cached artifacts (may be locked) -->
+    <Delete Files="@(OldZipsDeploy)" ContinueOnError="true" />
+    <RemoveDir Directories="@(StaleUnpackCache)" ContinueOnError="true" />
+
+    <!-- 3. Deploy the freshly built zip last -->
     <Copy SourceFiles="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" DestinationFolder="$(APPDATA)\VintagestoryData\Mods\" />
     <Message Importance="high" Text="Deployed $(ZipName) to $(APPDATA)\VintagestoryData\Mods\" />
   </Target>
