@@ -47,6 +47,10 @@ public class SpectralRenderer : IRenderer
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
         if (!Active) return;
+        // World can be torn down while this debug renderer is still registered
+        // (it is only unregistered on mod dispose), e.g. just after leaving a
+        // world with the toggle still on.
+        if (capi.World == null) return;
 
         var entities = capi.World.LoadedEntities;
         if (entities == null || entities.Count == 0) return;

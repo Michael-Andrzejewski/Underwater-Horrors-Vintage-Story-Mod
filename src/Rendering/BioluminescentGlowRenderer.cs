@@ -127,6 +127,15 @@ public class BioluminescentGlowRenderer : IRenderer
         // touch the entity list.
         if (stage != EnumRenderStage.AfterOIT) return;
 
+        // The world/player can be absent while still on the connecting screen,
+        // or right after leaving a world (this renderer keeps running until it
+        // is disposed). Every draw path below dereferences
+        // capi.World.Player.Entity (CameraPos / Pos), so bail now to avoid a
+        // null-ref crash out of the render loop. The production path turns on
+        // automatically near a night-spawned kraken, so this is reachable
+        // without any debug command.
+        if (capi.World?.Player?.Entity == null) return;
+
         // Two rendering paths share this stage:
         //   1. Test mode (Mode != 0) - renders for ALL kraken segments.
         //      Used by /uh biolumtest.

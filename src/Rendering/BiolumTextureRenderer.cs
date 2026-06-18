@@ -158,6 +158,10 @@ public class BiolumTextureRenderer : IRenderer
         if (Mode == 0) return;
         if (stage != EnumRenderStage.AfterFinalComposition) return;
 
+        // Guard against the connecting/leaving window: the draw loop below
+        // dereferences capi.World.Player.Entity.CameraPos.
+        if (capi.World?.Player?.Entity == null) return;
+
         if (Mode != lastReportedMode)
         {
             lastReportedMode = Mode;
