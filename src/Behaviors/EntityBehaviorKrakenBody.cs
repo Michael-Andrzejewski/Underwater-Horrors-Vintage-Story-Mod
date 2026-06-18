@@ -317,5 +317,44 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         }
     }
 
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        // When the body is genuinely removed (killed, expired, or distance-
+        // despawned) proactively despawn its tentacles. Each tentacle only
+        // self-cleans while it is Active (a client within simulation range);
+        // a body that expires far from any player would otherwise orphan its
+        // tentacle chains (~96 entities each) until they happen to unload.
+        // On a plain chunk Unload or a Disconnect (world unloading) we do
+        // nothing, so the tentacles unload/save with their own chunks and
+        // reload normally instead of being permanently deleted.
+        if (entity.Api.Side == EnumAppSide.Server
+            && despawn != null
+            && despawn.Reason != EnumDespawnReason.Unload
+            && despawn.Reason != EnumDespawnReason.Disconnect)
+        {
+            DespawnAllTentacles();
+        }
+
+        base.OnEntityDespawn(despawn);
+    }
+
+    // Kill the attack tentacle and every tracked ambient tentacle. Each
+    // tentacle head's own despawn handler tears down its segment chain, so
+    // this cascades to the full kraken.
+    private void DespawnAllTentacles()
+    {
+        if (attackTentacleId != 0)
+        {
+            entity.World.GetEntityById(attackTentacleId)?.Die(EnumDespawnReason.Expire);
+            attackTentacleId = 0;
+            cachedAttackTentacle = null;
+        }
+        foreach (long id in ambientTentacleIds)
+        {
+            entity.World.GetEntityById(id)?.Die(EnumDespawnReason.Expire);
+        }
+        ambientTentacleIds.Clear();
+    }
+
     public override string PropertyName() => "underwaterhorrors:krakenbody";
 }
