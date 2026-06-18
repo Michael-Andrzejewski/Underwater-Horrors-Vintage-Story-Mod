@@ -33,6 +33,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // cut off whatever that creature was currently playing.
     private readonly Dictionary<long, ILoadedSound> monsterSounds = new();
 
+    // Client: true once the world has fully finished loading (LevelFinalize).
+    // Until then the sound engine has no soundconfig.json loaded, and any
+    // LoadSound call throws and crashes the client. The server can broadcast
+    // monster-sound packets while a joining player is still on the "Connecting"
+    // screen (a serpent near their spawn point), so we MUST drop those packets
+    // until the client is ready. This was a hard join crash near a creature.
+    private bool clientWorldReady;
+
     // playerUID -> entityId of assigned creature
     private Dictionary<string, long> activeCreatures = new();
 
@@ -96,6 +104,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
         base.StartClientSide(api);
         capi = api;
 
+        // Gate sound playback on world readiness (see clientWorldReady). The
+        // sound engine is only safe to use after LevelFinalize fires; reset on
+        // leaving so a reconnect in the same process can't carry a stale flag.
+        capi.Event.LevelFinalize += () => clientWorldReady = true;
+        capi.Event.LeaveWorld += () => clientWorldReady = false;
+
         spectralRenderer = new SpectralRenderer(capi);
         capi.Event.RegisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT, "underwaterhorrors-spectral");
 
@@ -140,6 +154,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
             return;
         }
 
+        // Drop play requests that arrive before the world finishes loading.
+        // Calling LoadSound now throws "soundconfig.json not loaded" and crashes
+        // the client (e.g. a creature near a joining player's spawn point). A
+        // Stop above is still honored — it never touches the sound engine.
+        if (!clientWorldReady) return;
+
         // VS appends ".ogg" itself, so the path is referenced without it.
         var loc = new AssetLocation("underwaterhorrors", msg.Sound);
         var pos = new Vec3f((float)msg.X, (float)msg.Y, (float)msg.Z);
@@ -149,18 +169,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // Non-positional 2D playback at the server-computed volume. Always
             // overrides this creature's current sound (dramatic screech).
             StopMonsterSound(id);
-            ILoadedSound flat = capi.World.LoadSound(new SoundParams
-            {
-                Location = loc,
-                ShouldLoop = false,
-                Position = new Vec3f(0f, 0f, 0f),
-                RelativePosition = true,    // relative to listener = 2D, centered
-                DisposeOnFinish = false,
-                Volume = msg.Volume,
-                ReferenceDistance = 100f,   // no positional falloff (volume is pre-computed)
-                Range = 100f,
-                SoundType = EnumSoundType.Sound
-            });
+            ILoadedSound flat = LoadFlat2D(loc, msg.Volume);
             if (flat != null) { monsterSounds[id] = flat; flat.Start(); }
             return;
         }
@@ -187,18 +196,55 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private ILoadedSound LoadPositional(AssetLocation loc, Vec3f pos, float volume, float refDistance)
     {
-        return capi.World.LoadSound(new SoundParams
+        try
         {
-            Location = loc,
-            ShouldLoop = false,
-            Position = pos,
-            RelativePosition = false,   // pos is in world coordinates
-            DisposeOnFinish = false,    // we manage disposal so bite can cut it
-            Volume = volume,
-            ReferenceDistance = refDistance > 0f ? refDistance : 8f, // full volume out to this, then falls off
-            Range = Config?.MonsterSoundRange ?? 48f,
-            SoundType = EnumSoundType.Entity
-        });
+            return capi.World.LoadSound(new SoundParams
+            {
+                Location = loc,
+                ShouldLoop = false,
+                Position = pos,
+                RelativePosition = false,   // pos is in world coordinates
+                DisposeOnFinish = false,    // we manage disposal so bite can cut it
+                Volume = volume,
+                ReferenceDistance = refDistance > 0f ? refDistance : 8f, // full volume out to this, then falls off
+                Range = Config?.MonsterSoundRange ?? 48f,
+                SoundType = EnumSoundType.Entity
+            });
+        }
+        catch (Exception e)
+        {
+            // Belt-and-suspenders: a sound-load failure must never crash a
+            // player. The clientWorldReady gate already blocks the common case;
+            // this also covers a missing/renamed asset or any other engine state.
+            capi.Logger.Warning("[underwaterhorrors] Could not load monster sound {0}: {1}", loc, e.Message);
+            return null;
+        }
+    }
+
+    // 2D (non-positional) playback at a pre-computed volume, with the same
+    // crash-proof guard as LoadPositional.
+    private ILoadedSound LoadFlat2D(AssetLocation loc, float volume)
+    {
+        try
+        {
+            return capi.World.LoadSound(new SoundParams
+            {
+                Location = loc,
+                ShouldLoop = false,
+                Position = new Vec3f(0f, 0f, 0f),
+                RelativePosition = true,    // relative to listener = 2D, centered
+                DisposeOnFinish = false,
+                Volume = volume,
+                ReferenceDistance = 100f,   // no positional falloff (volume is pre-computed)
+                Range = 100f,
+                SoundType = EnumSoundType.Sound
+            });
+        }
+        catch (Exception e)
+        {
+            capi.Logger.Warning("[underwaterhorrors] Could not load 2D monster sound {0}: {1}", loc, e.Message);
+            return null;
+        }
     }
 
     private void StopMonsterSound(long id)
