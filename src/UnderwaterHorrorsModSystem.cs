@@ -145,19 +145,25 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // ── Client: play monster sounds positionally, one slot per creature ──
     private void OnMonsterSoundReceived(MonsterSoundMessage msg)
     {
-        if (capi?.World == null || string.IsNullOrEmpty(msg?.Sound)) return;
+        if (capi?.World == null || msg == null) return;
         long id = msg.EntityId;
 
+        // A Stop carries no Sound, so it must be handled BEFORE the empty-path
+        // guard below — otherwise it gets silently dropped (it did, historically,
+        // making despawn cleanup impossible). Stop never touches the sound
+        // engine, so it is also safe before the world-ready gate.
         if (msg.Stop)
         {
             StopMonsterSound(id);
             return;
         }
 
+        // Everything past here plays a sound, which needs a valid path.
+        if (string.IsNullOrEmpty(msg.Sound)) return;
+
         // Drop play requests that arrive before the world finishes loading.
         // Calling LoadSound now throws "soundconfig.json not loaded" and crashes
-        // the client (e.g. a creature near a joining player's spawn point). A
-        // Stop above is still honored — it never touches the sound engine.
+        // the client (e.g. a creature near a joining player's spawn point).
         if (!clientWorldReady) return;
 
         // VS appends ".ogg" itself, so the path is referenced without it.
@@ -377,6 +383,21 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 }, sp);
             }
         }
+    }
+
+    /// <summary>
+    /// Called when a sound-emitting creature despawns or dies. Broadcasts a Stop
+    /// for its sound channel so any in-progress audio (a screech, an ambient
+    /// groan) cuts out instead of finishing at the now-empty water and lingering,
+    /// and frees the server-side channel-busy entry so that dictionary stays
+    /// bounded over a long-running server. Server only.
+    /// </summary>
+    public void OnCreatureGone(long entityId)
+    {
+        if (sapi == null) return;
+        soundChannelBusyUntil.Remove(entityId);
+        sapi.Network.GetChannel("underwaterhorrors")
+            .BroadcastPacket(new MonsterSoundMessage { Stop = true, EntityId = entityId });
     }
 
     private void OnDebugToggleReceived(DebugToggleMessage msg)

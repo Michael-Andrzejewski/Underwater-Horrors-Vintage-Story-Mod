@@ -27,6 +27,15 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
         TargetingHelper.ClearCache(entity.EntityId);
+
+        // Cut any sound this creature was playing and free its server-side
+        // sound bookkeeping, so a serpent killed mid-screech doesn't leave the
+        // sound hanging in empty water and the channel dictionary stays bounded.
+        if (entity.Api.Side == EnumAppSide.Server)
+        {
+            UnderwaterHorrorsModSystem.ServerInstance?.OnCreatureGone(entity.EntityId);
+        }
+
         base.OnEntityDespawn(despawn);
     }
 
