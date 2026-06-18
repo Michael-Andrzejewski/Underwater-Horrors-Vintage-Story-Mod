@@ -1,3 +1,5 @@
+using System;
+
 namespace UnderwaterHorrors;
 
 public class UnderwaterHorrorsConfig
@@ -329,4 +331,43 @@ public class UnderwaterHorrorsConfig
     // creature waits a random time in this range before the next one.
     public float MonsterSoundAmbientGapMin { get; set; } = 14f;
     public float MonsterSoundAmbientGapMax { get; set; } = 34f;
+
+    /// <summary>
+    /// Clamp fields that are used as divisors, radii, or probabilities so a
+    /// hand-edited config can't produce divide-by-zero / NaN motion (which
+    /// teleports a creature to an invalid position and locks it up) or a
+    /// nonsensical spawn rate. Called once right after the config is loaded.
+    /// Only safety floors/ceilings are applied here; normal tuning is untouched.
+    /// </summary>
+    public void Validate()
+    {
+        // Orbit radii are divisors in the serpents' orbit-speed math.
+        SerpentOrbitRadius = Math.Max(0.5f, SerpentOrbitRadius);
+        DeepSerpentOrbitRadius = Math.Max(0.5f, DeepSerpentOrbitRadius);
+
+        // Spiral-step durations are divisors in the radius-transition lerp.
+        SerpentSpiralStepDurationMin = Math.Max(0.1f, SerpentSpiralStepDurationMin);
+        SerpentSpiralStepDurationMax = Math.Max(SerpentSpiralStepDurationMin, SerpentSpiralStepDurationMax);
+        DeepSerpentSpiralStepDurationMin = Math.Max(0.1f, DeepSerpentSpiralStepDurationMin);
+        DeepSerpentSpiralStepDurationMax = Math.Max(DeepSerpentSpiralStepDurationMin, DeepSerpentSpiralStepDurationMax);
+
+        // Tentacle counts feed an angular step of 2*pi/count; never negative.
+        if (KrakenAmbientTentacleCount < 0) KrakenAmbientTentacleCount = 0;
+        if (KrakenGroundTentacleCount < 0) KrakenGroundTentacleCount = 0;
+
+        // Probabilities compared against a 0..1 roll. Out-of-range values make
+        // a roll always or never succeed.
+        SpawnChancePerCheck = Math.Clamp(SpawnChancePerCheck, 0f, 1f);
+        OverCapSpawnChance = Math.Clamp(OverCapSpawnChance, 0f, 1f);
+        SecondCreatureSpawnChance = Math.Clamp(SecondCreatureSpawnChance, 0f, 1f);
+        SerpentSpawnWeight = Math.Clamp(SerpentSpawnWeight, 0f, 1f);
+        DeepSerpentSpawnWeight = Math.Clamp(DeepSerpentSpawnWeight, 0f, 1f);
+
+        // Negative drag speed would push the player away / invert the grab.
+        TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);
+
+        // MaxLivingCreatures of 0 would make the over-cap path the only way to
+        // ever spawn; at least 1 keeps normal spawning meaningful.
+        if (MaxLivingCreatures < 1) MaxLivingCreatures = 1;
+    }
 }

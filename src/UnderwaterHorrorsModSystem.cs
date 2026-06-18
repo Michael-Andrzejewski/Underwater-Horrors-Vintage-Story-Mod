@@ -874,7 +874,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             return TextCommandResult.Success($"Current spawn chance: {Config.SpawnChancePerCheck:F3}");
         }
-        Config.SpawnChancePerCheck = chance.Value;
+        Config.SpawnChancePerCheck = GameMath.Clamp(chance.Value, 0f, 1f);
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         return TextCommandResult.Success($"Spawn chance set to {Config.SpawnChancePerCheck:F3}");
     }
@@ -943,7 +943,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             return TextCommandResult.Success($"Current drag speed: {Config.TentacleDragSpeed:F3}");
         }
-        Config.TentacleDragSpeed = speed.Value;
+        Config.TentacleDragSpeed = GameMath.Clamp(speed.Value, 0f, 10f);
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         return TextCommandResult.Success($"Drag speed set to {Config.TentacleDragSpeed:F3}");
     }
@@ -1269,6 +1269,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
             config.DebugLoggingResetApplied = true;
             sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
         }
+
+        // Clamp divisor/radius/probability fields so a hand-edited config can't
+        // crash the AI with NaN motion or a broken spawn rate.
+        config.Validate();
         return config;
     }
 
