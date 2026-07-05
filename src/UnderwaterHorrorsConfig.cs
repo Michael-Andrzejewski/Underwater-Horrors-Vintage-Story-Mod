@@ -123,6 +123,20 @@ public class UnderwaterHorrorsConfig
     public float SerpentTurnSpeedDegPerSec { get; set; } = 45f;
     public float SerpentAttackTurnSpeedDegPerSec { get; set; } = 120f;
 
+    // Flee-after-damage: every hit rolls (damage x chance-per-damage)
+    // to make the serpent break off, swim away, and resume circling at
+    // its wide initial orbit. 0.10 means 1 damage = 10% flee chance and
+    // 5 damage = 50%, so real weapons drive it off far more reliably
+    // than fists. The rust (aggressive surface) serpent uses the Rust
+    // value, which is halved so it presses the attack harder.
+    public float SerpentFleeChancePerDamage { get; set; } = 0.10f;
+    public float RustSerpentFleeChancePerDamage { get; set; } = 0.05f;
+    // After a successful flee roll, proximity aggro and stalk-timeout
+    // attacks are suppressed for this many seconds so the serpent
+    // actually leaves instead of instantly re-aggroing off the player
+    // being inside head range.
+    public float SerpentFleeAggroSuppressSeconds { get; set; } = 12f;
+
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
 
@@ -370,6 +384,9 @@ public class UnderwaterHorrorsConfig
         SecondCreatureSpawnChance = Math.Clamp(SecondCreatureSpawnChance, 0f, 1f);
         SerpentSpawnWeight = Math.Clamp(SerpentSpawnWeight, 0f, 1f);
         DeepSerpentSpawnWeight = Math.Clamp(DeepSerpentSpawnWeight, 0f, 1f);
+        SerpentFleeChancePerDamage = Math.Clamp(SerpentFleeChancePerDamage, 0f, 1f);
+        RustSerpentFleeChancePerDamage = Math.Clamp(RustSerpentFleeChancePerDamage, 0f, 1f);
+        SerpentFleeAggroSuppressSeconds = Math.Max(0f, SerpentFleeAggroSuppressSeconds);
 
         // Negative drag speed would push the player away / invert the grab.
         TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);

@@ -87,6 +87,11 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     private float proximityBodyDwellTimer;
     private float proximityBodyDwellThreshold;
 
+    // ── Flee after damage ─────────────────────────────────────────────
+    // While > 0, proximity aggro is suppressed so a fresh flee widens
+    // the distance instead of instantly re-aggroing at close range.
+    private float fleeAggroSuppressTimer;
+
     /// <summary>
     /// True while the serpent is in any attack phase (charging, winding
     /// up, or striking).  Exposed so HorizontalLockRenderer can read it
@@ -240,6 +245,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         }
 
         stateTimer += deltaTime;
+        if (fleeAggroSuppressTimer > 0) fleeAggroSuppressTimer -= deltaTime;
 
         switch (state)
         {
@@ -641,8 +647,9 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             vSlew,
             deltaTime);
 
-        // Proximity aggro disabled when mounted.
-        if (!playerMounted)
+        // Proximity aggro disabled when mounted, and right after a flee
+        // so the serpent commits to leaving.
+        if (!playerMounted && fleeAggroSuppressTimer <= 0)
         {
             double headDistNow = HeadDistToPlayer();
             if (headDistNow < config.SerpentProximityHeadTriggerRange)
@@ -793,6 +800,40 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
                 TransitionTo(SerpentState.Stalking);
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Flee after damage — every hit rolls damage x chance-per-damage
+    //  to break off and resume circling at the wide initial orbit.
+    // ═══════════════════════════════════════════════════════════════════
+    public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
+    {
+        base.OnEntityReceiveDamage(damageSource, ref damage);
+
+        if (entity.Api.Side != EnumAppSide.Server) return;
+        if (!entity.Alive) return;
+        if (damage <= 0f || damageSource?.Type == EnumDamageType.Heal) return;
+        if (state != SerpentState.Surfacing &&
+            state != SerpentState.Stalking &&
+            state != SerpentState.Attacking) return;
+
+        double chance = damage * config.SerpentFleeChancePerDamage;
+        double roll = entity.World.Rand.NextDouble();
+        if (roll >= chance) return;
+
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"DeepSerpent fleeing after {damage:F1} damage (roll {roll:F2} vs {chance:F2})");
+
+        // Overrides windup/strike/charge: TransitionTo clears all attack
+        // flags, then the spiral is reset to its wide initial radius so
+        // the serpent swims out and resumes circling at a distance.
+        TransitionTo(SerpentState.Stalking);
+        useSpiralApproach = true;
+        SetupSpiralApproach(true);
+        fleeAggroSuppressTimer = config.SerpentFleeAggroSuppressSeconds;
+        attackCooldownTimer = Math.Max(attackCooldownTimer, config.SerpentAttackCooldown);
+        PlayDive();
     }
 
     // ═══════════════════════════════════════════════════════════════════
