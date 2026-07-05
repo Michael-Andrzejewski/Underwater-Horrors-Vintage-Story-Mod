@@ -17,6 +17,7 @@ public class SpectralRenderer : IRenderer
     private static readonly Dictionary<string, int> EntityColors = new()
     {
         { "seaserpent",            ColorUtil.ToRgba(255, 255, 50, 50) },    // Red
+        { "serpenthitbox",         ColorUtil.ToRgba(255, 255, 160, 0) },    // Orange
         { "krakenbody",            ColorUtil.ToRgba(255, 50, 255, 50) },    // Green
         { "krakententacle",        ColorUtil.ToRgba(255, 50, 255, 255) },   // Cyan
         { "krakenambienttentacle", ColorUtil.ToRgba(255, 80, 80, 255) },    // Blue
@@ -25,6 +26,19 @@ public class SpectralRenderer : IRenderer
         { "krakententsegment_mid",   ColorUtil.ToRgba(255, 200, 50, 255) },   // Magenta-ish
         { "krakententsegment_outer", ColorUtil.ToRgba(255, 150, 50, 255) },   // Magenta-ish
     };
+
+    // Perf guards: each wireframe box is 12 individual RenderLine draw
+    // calls, and a kraken fields hundreds of chain segments plus one
+    // biolight per segment. Drawing them all tanked the frame rate the
+    // moment spectral was toggled near a kraken. Biolights are pure
+    // light emitters and are never drawn; chain segments are drawn as a
+    // stable 1-in-8 sample (enough to trace the tentacle's path); and
+    // anything beyond MaxDrawDist blocks from the player is skipped.
+    private const double MaxDrawDist = 120.0;
+    private const double MaxDrawDistSq = MaxDrawDist * MaxDrawDist;
+
+    private static bool IsChainSegment(string code) =>
+        code.StartsWith("krakententsegment") && code != "krakententsegment_mid_claw";
 
     // Bright yellow for the serpent's head marker
     private static readonly int HeadColor = ColorUtil.ToRgba(255, 255, 255, 0);
@@ -55,6 +69,8 @@ public class SpectralRenderer : IRenderer
         var entities = capi.World.LoadedEntities;
         if (entities == null || entities.Count == 0) return;
 
+        var playerPos = capi.World.Player?.Entity?.Pos;
+
         capi.Render.GLDisableDepthTest();
 
         foreach (Entity entity in entities.Values)
@@ -63,6 +79,20 @@ public class SpectralRenderer : IRenderer
             if (entity.Code?.Domain != "underwaterhorrors") continue;
 
             string code = entity.Code.Path;
+            if (code == "biolight") continue;
+
+            // Stable 1-in-8 sample of chain segments (keyed on the
+            // entity id so the same segments stay visible, no flicker).
+            if (IsChainSegment(code) && (entity.EntityId & 7) != 0) continue;
+
+            if (playerPos != null)
+            {
+                double dx = entity.Pos.X - playerPos.X;
+                double dy = entity.Pos.Y - playerPos.Y;
+                double dz = entity.Pos.Z - playerPos.Z;
+                if (dx * dx + dy * dy + dz * dz > MaxDrawDistSq) continue;
+            }
+
             if (!EntityColors.TryGetValue(code, out int color))
                 color = FallbackColor;
 
