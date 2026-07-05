@@ -1,6 +1,7 @@
 using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
 
@@ -15,11 +16,15 @@ namespace UnderwaterHorrors;
 ///    only fires OnEntityDeath for EnumDespawnReason.Death),
 ///  - force-stops all animations on whichever side it runs so the body
 ///    goes limp instead of looping,
-///  - slowly barrel-rolls the corpse belly-up. The server writes
-///    Pos.Roll (== ServerPos in 1.22) and the client's
-///    interpolateposition behavior lerps it, so the turn renders
-///    smoothly. Pitch eases back to level at the same time. Sinking is
-///    left entirely to physics, which already pulls the corpse down.
+///  - barrel-rolls the corpse belly-up around its LONG BODY AXIS. No
+///    EntityPos field maps to that axis: in EntityShapeRenderer's
+///    matrix, Pos.Roll is applied around the model-local Z axis (a
+///    nose-over-tail somersault for a body that lies along local X)
+///    and Pos.Pitch around the world X axis. The renderer's public
+///    xangle field is the innermost rotation, around model-local X —
+///    exactly the body axis — so each client drives it 0 → π locally.
+///    (xangle is otherwise only written by the waterBobbing wobble,
+///    which serpents don't enable; it is forced off anyway.)
 /// </summary>
 public class EntityBehaviorSerpentDeath : EntityBehavior
 {
@@ -30,6 +35,9 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
     private const float TargetRoll = (float)Math.PI;
 
     private bool animsStopped;
+
+    // Client-side barrel roll angle written to the renderer.
+    private float clientRoll;
 
     public EntityBehaviorSerpentDeath(Entity entity) : base(entity) { }
 
@@ -48,7 +56,15 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
         {
             // Covers the (edge) case of a corpse behavior instance being
             // reused after a revive-by-command.
-            animsStopped = false;
+            if (animsStopped)
+            {
+                animsStopped = false;
+                clientRoll = 0f;
+                if (entity.Properties?.Client?.Renderer is EntityShapeRenderer esr)
+                {
+                    esr.xangle = 0f;
+                }
+            }
             return;
         }
 
@@ -61,15 +77,29 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
             entity.AnimManager?.StopAllAnimations();
         }
 
-        if (entity.Api.Side != EnumAppSide.Server) return;
         if (!entity.WatchedAttributes.GetBool(DiedForRealAttr)) return;
 
-        var pos = entity.Pos;
-        if (pos.Roll < TargetRoll)
+        if (entity.Api.Side == EnumAppSide.Client)
         {
-            pos.Roll = Math.Min(TargetRoll, pos.Roll + RollRateRadPerSec * deltaTime);
+            // Body-axis barrel roll, computed locally on every client.
+            if (entity.Properties?.Client?.Renderer is EntityShapeRenderer renderer)
+            {
+                renderer.waterBobbing = false;   // sole other writer of xangle
+                clientRoll = Math.Min(TargetRoll, clientRoll + RollRateRadPerSec * deltaTime);
+                renderer.xangle = clientRoll;
+                renderer.yangle = 0f;
+                renderer.zangle = 0f;
+            }
+            return;
         }
+
+        var pos = entity.Pos;
+
+        // Level the body: a kill mid-attack can leave aim pitch behind,
+        // and older saves may carry a nonzero Roll from the previous
+        // (somersaulting) death animation.
         pos.Pitch += (0f - pos.Pitch) * Math.Min(1f, deltaTime * 2f);
+        pos.Roll += (0f - pos.Roll) * Math.Min(1f, deltaTime * 2f);
         pos.HeadPitch = 0f;
     }
 
