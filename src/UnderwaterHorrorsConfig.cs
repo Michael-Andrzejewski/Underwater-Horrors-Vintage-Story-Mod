@@ -136,6 +136,13 @@ public class UnderwaterHorrorsConfig
     // actually leaves instead of instantly re-aggroing off the player
     // being inside head range.
     public float SerpentFleeAggroSuppressSeconds { get; set; } = 12f;
+    // Provoke-on-hit: when a hit neither kills nor triggers a flee and
+    // the serpent is NOT already attacking (circling, stalking, or
+    // showing off at the surface), it rolls this chance to turn on its
+    // attacker immediately. This also overrides the post-flee aggro
+    // suppression, so chasing a fleeing serpent and hitting it again
+    // can provoke a counterattack, which can then flee again.
+    public float SerpentProvokeChance { get; set; } = 0.5f;
 
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
@@ -391,6 +398,7 @@ public class UnderwaterHorrorsConfig
         SerpentFleeChancePerDamage = Math.Clamp(SerpentFleeChancePerDamage, 0f, 1f);
         RustSerpentFleeChancePerDamage = Math.Clamp(RustSerpentFleeChancePerDamage, 0f, 1f);
         SerpentFleeAggroSuppressSeconds = Math.Max(0f, SerpentFleeAggroSuppressSeconds);
+        SerpentProvokeChance = Math.Clamp(SerpentProvokeChance, 0f, 1f);
 
         // Negative drag speed would push the player away / invert the grab.
         TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);

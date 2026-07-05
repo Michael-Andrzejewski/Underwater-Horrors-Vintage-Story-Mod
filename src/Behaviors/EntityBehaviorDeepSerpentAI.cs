@@ -803,8 +803,12 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Flee after damage — every hit rolls damage x chance-per-damage
-    //  to break off and resume circling at the wide initial orbit.
+    //  Damage response — flee or provoke.
+    //  Every hit first rolls damage x chance-per-damage to break off and
+    //  resume circling at the wide initial orbit. If that misses and the
+    //  serpent is not already attacking, it rolls the provoke chance to
+    //  turn on its attacker instead, so chasing and hitting a circling
+    //  (or freshly fled) serpent can trigger a counterattack.
     // ═══════════════════════════════════════════════════════════════════
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
     {
@@ -819,21 +823,35 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
 
         double chance = damage * config.SerpentFleeChancePerDamage;
         double roll = entity.World.Rand.NextDouble();
-        if (roll >= chance) return;
+        if (roll < chance)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"DeepSerpent fleeing after {damage:F1} damage (roll {roll:F2} vs {chance:F2})");
 
-        if (config.DebugLogging)
-            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                $"DeepSerpent fleeing after {damage:F1} damage (roll {roll:F2} vs {chance:F2})");
+            // Overrides windup/strike/charge: TransitionTo clears all attack
+            // flags, then the spiral is reset to its wide initial radius so
+            // the serpent swims out and resumes circling at a distance.
+            TransitionTo(SerpentState.Stalking);
+            useSpiralApproach = true;
+            SetupSpiralApproach(true);
+            fleeAggroSuppressTimer = config.SerpentFleeAggroSuppressSeconds;
+            attackCooldownTimer = Math.Max(attackCooldownTimer, config.SerpentAttackCooldown);
+            PlayDive();
+            return;
+        }
 
-        // Overrides windup/strike/charge: TransitionTo clears all attack
-        // flags, then the spiral is reset to its wide initial radius so
-        // the serpent swims out and resumes circling at a distance.
-        TransitionTo(SerpentState.Stalking);
-        useSpiralApproach = true;
-        SetupSpiralApproach(true);
-        fleeAggroSuppressTimer = config.SerpentFleeAggroSuppressSeconds;
-        attackCooldownTimer = Math.Max(attackCooldownTimer, config.SerpentAttackCooldown);
-        PlayDive();
+        // Provoke: a hit that didn't drive it off can enrage it instead.
+        // Clearing the suppress timer lets a post-flee serpent re-engage.
+        if (state != SerpentState.Attacking &&
+            entity.World.Rand.NextDouble() < config.SerpentProvokeChance)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"DeepSerpent provoked by {damage:F1} damage, attacking");
+            fleeAggroSuppressTimer = 0;
+            TransitionTo(SerpentState.Attacking);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
