@@ -274,7 +274,8 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     // its own momentum and doesn't lag behind the tangent direction.
     private void UpdateHeadFacing()
     {
-        if ((state == TentacleState.Reaching || state == TentacleState.Dragging) && targetPlayer?.Entity != null)
+        if ((state == TentacleState.Reaching || state == TentacleState.Dragging)
+            && targetPlayer?.Entity != null && !TargetIsPassiveObserver)
         {
             TentacleHeadAlignment.AlignToward(entity,
                 targetPlayer.Entity.Pos.X,
@@ -728,15 +729,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         }
     }
 
-    private void OnLingering(float deltaTime)
+    /// <summary>
+    /// Gentle drift around the picked surface point. Used while
+    /// Lingering, and while Reaching when the target is a creative
+    /// observer (the tentacle sways in place instead of chasing).
+    /// </summary>
+    private void DriftAroundSurfacePoint()
     {
-        if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
-        {
-            TransitionTo(TentacleState.Sinking);
-            return;
-        }
-
-        // Gentle drift around the surface point
         double bobX = surfaceX + Math.Sin(stateTimer * 0.5) * 2.0;
         double bobZ = surfaceZ + Math.Cos(stateTimer * 0.5) * 2.0;
         double bobY = surfaceY + Math.Sin(stateTimer * 0.7) * 1.0;
@@ -748,6 +747,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         entity.Pos.Motion.X = dx * 0.05;
         entity.Pos.Motion.Y = dy * 0.05;
         entity.Pos.Motion.Z = dz * 0.05;
+    }
+
+    private void OnLingering(float deltaTime)
+    {
+        if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
+        {
+            TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        DriftAroundSurfacePoint();
 
         if (stateTimer >= config.TentacleLingerDuration)
         {
@@ -773,6 +783,15 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
         {
             TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        // Creative observer: sway near the surface point instead of
+        // chasing; never reaches grab range. Checked live, so switching
+        // out of creative resumes the chase from wherever it drifted.
+        if (TargetIsPassiveObserver)
+        {
+            DriftAroundSurfacePoint();
             return;
         }
 
@@ -869,6 +888,19 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive)
         {
             TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        // Target switched to creative/spectator mid-drag (or the toggle
+        // was just enabled): release the grip. TransitionTo restores the
+        // speed debuff and despawns the claws; Reaching then sees the
+        // passive target and just sways.
+        if (TargetIsPassiveObserver)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"Tentacle: {targetPlayer.PlayerName} is a creative observer, releasing grip");
+            TransitionTo(TentacleState.Reaching);
             return;
         }
 

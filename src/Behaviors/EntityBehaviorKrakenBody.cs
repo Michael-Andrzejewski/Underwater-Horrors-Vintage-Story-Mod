@@ -296,6 +296,15 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             if (player.Entity == null || !player.Entity.Alive) continue;
             if (player.Entity.MountedOn != null) continue;
 
+            // Observer mode: creative/spectator players swim through the
+            // body unharmed. Checked per player, not per target, since
+            // contact damage hits anyone nearby.
+            if (config.IgnoreCreativePlayers)
+            {
+                EnumGameMode mode = player.WorldData.CurrentGameMode;
+                if (mode == EnumGameMode.Creative || mode == EnumGameMode.Spectator) continue;
+            }
+
             // Use squared distance to avoid sqrt when out of range
             double dx = entity.Pos.X - player.Entity.Pos.X;
             double dy = entity.Pos.Y - player.Entity.Pos.Y;

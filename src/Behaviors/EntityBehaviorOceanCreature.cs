@@ -48,17 +48,18 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     }
 
     /// <summary>
-    /// True when SerpentIgnoreCreativePlayers is enabled and the target
-    /// player is in creative or spectator mode. The serpent AIs treat
-    /// such a player as something to swim around, never something to
-    /// attack. Checked live each time so switching game mode mid-stalk
-    /// (or toggling the config) takes effect immediately.
+    /// True when IgnoreCreativePlayers is enabled and the target player
+    /// is in creative or spectator mode. The serpent AIs and the kraken
+    /// attack tentacle treat such a player as something to swim around,
+    /// never something to attack. Checked live each time so switching
+    /// game mode mid-stalk (or toggling the config) takes effect
+    /// immediately.
     /// </summary>
     protected bool TargetIsPassiveObserver
     {
         get
         {
-            if (config == null || !config.SerpentIgnoreCreativePlayers) return false;
+            if (config == null || !config.IgnoreCreativePlayers) return false;
             EnumGameMode? mode = targetPlayer?.WorldData?.CurrentGameMode;
             return mode == EnumGameMode.Creative || mode == EnumGameMode.Spectator;
         }
