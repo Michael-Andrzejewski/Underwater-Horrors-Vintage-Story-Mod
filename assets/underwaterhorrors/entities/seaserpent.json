@@ -19,7 +19,8 @@
         "size": 1.0,
         "sizeForCulling": 15,
         "behaviors": [
-            { "code": "interpolateposition" }
+            { "code": "interpolateposition" },
+            { "code": "underwaterhorrors:serpentdeath" }
         ]
     },
     "server": {
@@ -27,6 +28,7 @@
             { "code": "health", "currenthealth": 80, "maxhealth": 80 },
             { "code": "deaddecay", "decayHours": 0.25 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
+            { "code": "underwaterhorrors:serpentdeath" },
             { "code": "underwaterhorrors:oceancreature" },
             { "code": "underwaterhorrors:serpentai" },
             {
