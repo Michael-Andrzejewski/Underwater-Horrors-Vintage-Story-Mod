@@ -23,14 +23,7 @@
         "behaviors": [
             { "code": "health", "currenthealth": 30, "maxhealth": 30 },
             { "code": "deaddecay", "decayHours": 0.01 }
-        ],
-        "spawnConditions": {
-            "runtime": {
-                "group": "hostile",
-                "chance": 0,
-                "maxQuantity": 0
-            }
-        }
+        ]
     },
     "sounds": {}
 }

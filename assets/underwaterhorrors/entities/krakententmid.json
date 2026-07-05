@@ -1,6 +1,6 @@
 {
     "code": "krakententmid",
-    "class": "EntityAgent",
+    "class": "EntityKrakenPart",
     "habitat": "Underwater",
     "hitboxSize": { "x": 1.0, "y": 1.5 },
     "deadHitboxSize": { "x": 0.5, "y": 0.5 },
@@ -23,14 +23,7 @@
         "behaviors": [
             { "code": "health", "currenthealth": 1, "maxhealth": 1 },
             { "code": "deaddecay", "decayHours": 0.01 }
-        ],
-        "spawnConditions": {
-            "runtime": {
-                "group": "hostile",
-                "chance": 0,
-                "maxQuantity": 0
-            }
-        }
+        ]
     },
     "sounds": {}
 }

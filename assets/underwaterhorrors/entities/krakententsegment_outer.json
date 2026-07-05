@@ -1,6 +1,6 @@
 {
     "code": "krakententsegment_outer",
-    "class": "EntityAgent",
+    "class": "EntityKrakenPart",
     "habitat": "Underwater",
     "hitboxSize": { "x": 0.1, "y": 0.1 },
     "deadHitboxSize": { "x": 0.1, "y": 0.1 },
@@ -22,14 +22,7 @@
     "server": {
         "behaviors": [
             { "code": "health", "currenthealth": 9999, "maxhealth": 9999 }
-        ],
-        "spawnConditions": {
-            "runtime": {
-                "group": "hostile",
-                "chance": 0,
-                "maxQuantity": 0
-            }
-        }
+        ]
     },
     "sounds": {}
 }

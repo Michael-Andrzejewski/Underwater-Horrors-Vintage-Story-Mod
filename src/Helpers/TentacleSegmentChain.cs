@@ -157,6 +157,13 @@ public class TentacleSegmentChain
             {
                 seg.WatchedAttributes.SetBool("underwaterhorrors:bioluminescent", true);
             }
+            // The tip claw segment is the tentacle's only hittable piece:
+            // it carries a damagerelay behavior that forwards hits to the
+            // tentacle head entity (which holds the actual health).
+            if (i == segmentCount - 1 && props == tipProps)
+            {
+                seg.WatchedAttributes.SetLong(EntityBehaviorDamageRelay.TargetAttr, tipEntity.EntityId);
+            }
             tipEntity.World.SpawnEntity(seg);
             segmentIds[i] = seg.EntityId;
             segmentEntities[i] = seg;

@@ -1,6 +1,6 @@
 {
     "code": "krakententacle",
-    "class": "EntityAgent",
+    "class": "EntityKrakenPart",
     "habitat": "Underwater",
     "hitboxSize": { "x": 2.5, "y": 4.0 },
     "deadHitboxSize": { "x": 1.0, "y": 0.5 },
@@ -25,14 +25,7 @@
             { "code": "deaddecay", "decayHours": 0.0083 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:tentacle" }
-        ],
-        "spawnConditions": {
-            "runtime": {
-                "group": "hostile",
-                "chance": 0,
-                "maxQuantity": 0
-            }
-        }
+        ]
     },
     "sounds": {}
 }

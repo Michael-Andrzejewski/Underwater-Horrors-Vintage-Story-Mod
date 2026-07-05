@@ -31,14 +31,7 @@
                 "airDragFactor": 0,
                 "gravityFactor": 0
             }
-        ],
-        "spawnConditions": {
-            "runtime": {
-                "group": "neutral",
-                "chance": 0,
-                "maxQuantity": 0
-            }
-        }
+        ]
     },
     "sounds": {}
 }
