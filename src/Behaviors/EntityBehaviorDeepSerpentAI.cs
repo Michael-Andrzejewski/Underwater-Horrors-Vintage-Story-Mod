@@ -303,7 +303,12 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             {
                 float turnRate = faceTarget ? 8f : 5f;
                 float diff = GameMath.AngleRadDistance(smoothedYaw, targetYaw);
-                smoothedYaw += diff * Math.Min(1f, deltaTime * turnRate);
+                float step = diff * Math.Min(1f, deltaTime * turnRate);
+                // Cap angular speed — see EntityBehaviorSerpentAI.UpdateFacing.
+                float maxStep = (faceTarget
+                    ? config.SerpentAttackTurnSpeedDegPerSec
+                    : config.SerpentTurnSpeedDegPerSec) * GameMath.DEG2RAD * deltaTime;
+                smoothedYaw += GameMath.Clamp(step, -maxStep, maxStep);
             }
 
             entity.Pos.Yaw = smoothedYaw;

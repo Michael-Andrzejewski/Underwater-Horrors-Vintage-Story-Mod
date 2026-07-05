@@ -348,7 +348,16 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 // Faster turn rate when facing target (attack charge)
                 float turnRate = faceTarget ? 8f : 5f;
                 float diff = GameMath.AngleRadDistance(smoothedYaw, targetYaw);
-                smoothedYaw += diff * Math.Min(1f, deltaTime * turnRate);
+                float step = diff * Math.Min(1f, deltaTime * turnRate);
+                // Hard cap on angular speed. The exponential approach
+                // above alone turns a 180-degree heading flip into a
+                // whip-fast spin (diff * rate can exceed 900 deg/s);
+                // capping the per-tick step makes big turns sweep at a
+                // constant, snake-like rate instead.
+                float maxStep = (faceTarget
+                    ? config.SerpentAttackTurnSpeedDegPerSec
+                    : config.SerpentTurnSpeedDegPerSec) * GameMath.DEG2RAD * deltaTime;
+                smoothedYaw += GameMath.Clamp(step, -maxStep, maxStep);
             }
 
             entity.Pos.Yaw = smoothedYaw;

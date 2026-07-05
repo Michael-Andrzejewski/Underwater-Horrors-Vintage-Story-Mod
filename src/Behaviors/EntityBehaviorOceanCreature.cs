@@ -151,8 +151,19 @@ public class EntityBehaviorOceanCreature : EntityBehavior
 
         const double gain = 0.4;
 
-        double mx = Math.Clamp(dx * gain, -horizSpeed, horizSpeed);
-        double mz = Math.Clamp(dz * gain, -horizSpeed, horizSpeed);
+        // Clamp the horizontal motion VECTOR, not each axis separately.
+        // Per-axis clamping locks far-away targets onto 45-degree
+        // diagonals (both axes saturated) and snaps 90 degrees whenever
+        // one axis desaturates — the visible "right angle" turns.
+        double mx = dx * gain;
+        double mz = dz * gain;
+        double horizLen = Math.Sqrt(mx * mx + mz * mz);
+        if (horizLen > horizSpeed)
+        {
+            double horizScale = horizSpeed / horizLen;
+            mx *= horizScale;
+            mz *= horizScale;
+        }
 
         double myTarget = Math.Clamp(dy * gain, -maxVerticalSpeed, maxVerticalSpeed);
         double maxDelta = verticalSlewPerSec * Math.Max(0.001, deltaTime);

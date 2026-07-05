@@ -115,6 +115,14 @@ public class UnderwaterHorrorsConfig
     public float SerpentMaxVerticalSpeed { get; set; } = 0.012f;
     public float SerpentVerticalSlewPerSec { get; set; } = 0.04f;
 
+    // Maximum turning speed (degrees per second) for both serpent
+    // variants. Caps how fast the body heading can sweep, so target
+    // jumps (spiral steps, state changes) produce a wide smooth arc
+    // instead of a snap turn. The attack value applies while the
+    // serpent is charging a player and needs to track them.
+    public float SerpentTurnSpeedDegPerSec { get; set; } = 45f;
+    public float SerpentAttackTurnSpeedDegPerSec { get; set; } = 120f;
+
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
 
@@ -365,6 +373,10 @@ public class UnderwaterHorrorsConfig
 
         // Negative drag speed would push the player away / invert the grab.
         TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);
+
+        // Zero or negative turn speed would freeze the serpent's heading.
+        SerpentTurnSpeedDegPerSec = Math.Max(5f, SerpentTurnSpeedDegPerSec);
+        SerpentAttackTurnSpeedDegPerSec = Math.Max(5f, SerpentAttackTurnSpeedDegPerSec);
 
         // MaxLivingCreatures of 0 would make the over-cap path the only way to
         // ever spawn; at least 1 keeps normal spawning meaningful.
