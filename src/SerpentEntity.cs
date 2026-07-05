@@ -45,9 +45,11 @@ public class SerpentEntity : EntityAgent
 }
 
 /// <summary>
-/// Deep serpent variant.  Inherits the render/activity overrides above
-/// AND additionally disables VS's motion-driven body rotation hacks
-/// that fire inside EntityShapeRenderer:
+/// Used by all serpent variants (the rust serpent adopted it too after
+/// playtesting showed the motion hacks made it flop up and down).
+/// Inherits the render/activity overrides above AND additionally
+/// disables VS's motion-driven body rotation hacks that fire inside
+/// EntityShapeRenderer:
 ///
 /// - CanStepPitch: VS measures (Pos.Y - prevY) every frame and injects
 ///   up to ±0.3 rad of Z-axis rotation (roll) into the model matrix.
@@ -59,10 +61,6 @@ public class SerpentEntity : EntityAgent
 /// - CanSwivel / CanSwivelNow: VS injects up to ±0.4 rad of X-axis
 ///   rotation based on motion-direction changes (leaning into turns).
 ///   Visible as head/tail flipping up during heading adjustments.
-///
-/// The regular serpent keeps these enabled — its AI writes pitch
-/// intentionally for surfacing/hiss/attack poses, and the step-pitch
-/// feels natural for a surface swimmer.
 /// </summary>
 public class DeepSerpentEntity : SerpentEntity
 {

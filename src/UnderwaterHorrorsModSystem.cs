@@ -1276,6 +1276,17 @@ public class UnderwaterHorrorsModSystem : ModSystem
             sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
         }
 
+        // One-shot migration: the rust serpent was rebalanced to be a rare
+        // (10%) but tough (200 HP) encounter. Configs written by older
+        // versions carry the old 0.75 deep-serpent weight; raise it once,
+        // then leave any later user tuning alone.
+        if (!config.RustSerpentTuningApplied)
+        {
+            config.RustSerpentTuningApplied = true;
+            if (config.DeepSerpentSpawnWeight < 0.9f) config.DeepSerpentSpawnWeight = 0.9f;
+            sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
+        }
+
         // Clamp divisor/radius/probability fields so a hand-edited config can't
         // crash the AI with NaN motion or a broken spawn rate.
         config.Validate();

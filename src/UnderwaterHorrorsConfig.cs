@@ -174,7 +174,11 @@ public class UnderwaterHorrorsConfig
     public float SerpentSpiralReductionMax { get; set; } = 15f;
 
     // Deep serpent variant (stays deep, orbits in huge arcs, rises only to strike)
-    public float DeepSerpentSpawnWeight { get; set; } = 0.75f;      // 75% deep, 25% regular when a serpent is picked
+    public float DeepSerpentSpawnWeight { get; set; } = 0.9f;       // 90% deep, 10% rust (aggressive surface) serpent
+    // One-shot migration flag: configs written before the rust serpent
+    // rebalance carry the old 0.75 weight; the first load raises it to
+    // 0.9 and sets this flag, after which user tuning is left alone.
+    public bool RustSerpentTuningApplied { get; set; } = false;
     public float DeepSerpentStalkDepthMin { get; set; } = 10f;      // 10 blocks below surface
     public float DeepSerpentStalkDepthMax { get; set; } = 30f;      // 30 blocks below surface
     public float DeepSerpentOrbitRadius { get; set; } = 15f;        // final approach radius

@@ -1,6 +1,6 @@
 {
     "code": "seaserpent",
-    "class": "SerpentEntity",
+    "class": "DeepSerpentEntity",
     "habitat": "Sea",
     "hitboxSize": { "x": 2.0, "y": 1.5 },
     "deadHitboxSize": { "x": 2.0, "y": 1.0 },
@@ -25,7 +25,7 @@
     },
     "server": {
         "behaviors": [
-            { "code": "health", "currenthealth": 80, "maxhealth": 80 },
+            { "code": "health", "currenthealth": 200, "maxhealth": 200 },
             { "code": "deaddecay", "hoursToDecay": 12 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:serpentdeath" },

@@ -87,6 +87,13 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // charge so the head points at the player, not along the orbit tangent.
     private bool faceTarget;
 
+    /// <summary>
+    /// True while charging, winding up, or striking.  Outside these
+    /// phases the body is hard-locked level (ForceHorizontal), matching
+    /// the deep serpent.
+    /// </summary>
+    public bool IsInAttackPhase => faceTarget || isWindingUp || isStriking;
+
     // ── Spiral approach fields ─────────────────────────────────────────
     private bool useSpiralApproach;
     private float orbitRadiusStart;
@@ -219,6 +226,15 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             return;
         }
 
+        // HORIZONTAL LOCK — same treatment as the deep serpent: the long
+        // body stays level except while an attack needs the mouth aimed
+        // at the player. Kills the up/down flopping that motion-derived
+        // pitch caused on the rust serpent.
+        if (!IsInAttackPhase)
+        {
+            EntityBehaviorDeepSerpentAI.ForceHorizontal(entity.Pos);
+        }
+
         // Record spawn position on first tick
         if (!spawnRecorded)
         {
@@ -319,7 +335,6 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     {
         double mx = entity.Pos.Motion.X;
         double mz = entity.Pos.Motion.Z;
-        double my = entity.Pos.Motion.Y;
         double horizSpeedSq = mx * mx + mz * mz;
 
         // Yaw — skip update when locked (during windup/strike)
@@ -370,51 +385,22 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             entity.Pos.Yaw = smoothedYaw;
         }
 
-        // Pitch
-        //   Normal stalk: clamped to ~10° so the body stays near-
-        //     horizontal and the Sea-habitat step-pitch hack doesn't
-        //     amplify small motion-derived tilts into visible wobble.
-        //   Attack phases: unclamped up to ~60° so the head can aim
-        //     directly at the player even when the player is above or
-        //     below the serpent.  When faceTarget is true, we point the
-        //     pitch directly at the player's eye line.
-        bool inAttack = faceTarget || isWindingUp || isStriking;
-        float maxPitchRad = inAttack ? 1.0f : 0.17f;  // ~57° during attack
-        double horizSpeed = Math.Sqrt(horizSpeedSq);
-        float targetPitch = 0f;
-
-        if (!lockFacing)
+        // Pitch:
+        //   Outside attack phases the body is hard-locked level by
+        //     ForceHorizontal at the top of the tick (same as the deep
+        //     serpent), so no motion-derived pitch is computed here.
+        //   Attack phases: aim directly at the player, up to ~57°, so
+        //     the mouth can strike a target above or below the serpent.
+        if (IsInAttackPhase && targetPlayer?.Entity != null && !lockFacing)
         {
-            if (inAttack && targetPlayer?.Entity != null)
-            {
-                // Aim pitch directly at the player (mouth-to-target).
-                double tdx = targetPlayer.Entity.Pos.X - entity.Pos.X;
-                double tdy = targetPlayer.Entity.Pos.Y - entity.Pos.Y;
-                double tdz = targetPlayer.Entity.Pos.Z - entity.Pos.Z;
-                double horizToTarget = Math.Sqrt(tdx * tdx + tdz * tdz);
-                targetPitch = -(float)Math.Atan2(tdy, Math.Max(horizToTarget, 0.001));
-                targetPitch = GameMath.Clamp(targetPitch, -maxPitchRad, maxPitchRad);
-            }
-            else if (horizSpeed > 0.001 || Math.Abs(my) > 0.001)
-            {
-                targetPitch = -(float)Math.Atan2(my, Math.Max(horizSpeed, 0.001));
-                targetPitch = GameMath.Clamp(targetPitch, -maxPitchRad, maxPitchRad);
-            }
-        }
-
-        // Faster interpolation during attack so the head snaps to
-        // the player in time for the strike.
-        float pitchLerpRate = inAttack ? 6f : 2f;
-        entity.Pos.Pitch += (targetPitch - entity.Pos.Pitch) *
-            Math.Min(1f, deltaTime * pitchLerpRate);
-
-        // Sink boost is useful for the regular serpent pitching down
-        // to dive, but skip during attack so we don't fight the
-        // aimed-at-player pitch.
-        if (!inAttack && entity.Pos.Pitch > 0.02f)
-        {
-            float sinkBoost = entity.Pos.Pitch * 3f;
-            entity.Pos.Motion.Y -= sinkBoost * deltaTime;
+            double tdx = targetPlayer.Entity.Pos.X - entity.Pos.X;
+            double tdy = targetPlayer.Entity.Pos.Y - entity.Pos.Y;
+            double tdz = targetPlayer.Entity.Pos.Z - entity.Pos.Z;
+            double horizToTarget = Math.Sqrt(tdx * tdx + tdz * tdz);
+            float targetPitch = -(float)Math.Atan2(tdy, Math.Max(horizToTarget, 0.001));
+            targetPitch = GameMath.Clamp(targetPitch, -1.0f, 1.0f);
+            entity.Pos.Pitch += (targetPitch - entity.Pos.Pitch) *
+                Math.Min(1f, deltaTime * 6f);
         }
     }
 
