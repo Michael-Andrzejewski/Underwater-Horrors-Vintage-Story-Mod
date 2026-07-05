@@ -143,6 +143,10 @@ public class UnderwaterHorrorsConfig
     // suppression, so chasing a fleeing serpent and hitting it again
     // can provoke a counterattack, which can then flee again.
     public float SerpentProvokeChance { get; set; } = 0.5f;
+    // How long a provoked serpent stays enraged. While enraged it will
+    // not roll flee-from-damage and will not disengage after a strike,
+    // so it keeps pressing repeat attacks for at least this long.
+    public float SerpentEnrageSeconds { get; set; } = 10f;
 
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
@@ -399,6 +403,7 @@ public class UnderwaterHorrorsConfig
         RustSerpentFleeChancePerDamage = Math.Clamp(RustSerpentFleeChancePerDamage, 0f, 1f);
         SerpentFleeAggroSuppressSeconds = Math.Max(0f, SerpentFleeAggroSuppressSeconds);
         SerpentProvokeChance = Math.Clamp(SerpentProvokeChance, 0f, 1f);
+        SerpentEnrageSeconds = Math.Max(0f, SerpentEnrageSeconds);
 
         // Negative drag speed would push the player away / invert the grab.
         TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);

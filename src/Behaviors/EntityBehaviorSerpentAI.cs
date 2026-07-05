@@ -127,6 +127,11 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     // of instantly re-aggroing while the serpent is still close.
     private float fleeAggroSuppressTimer;
 
+    // ── Enrage after provoke ──────────────────────────────────────────
+    // While > 0, the serpent is committed: flee-from-damage rolls are
+    // skipped and a finished strike never rolls the re-stalk disengage.
+    private float enrageTimer;
+
     // ── Debug animation mode ───────────────────────────────────────────
     private string debugAnimName;
     private float debugAnimTimer;
@@ -297,6 +302,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
         stateTimer += deltaTime;
         if (fleeAggroSuppressTimer > 0) fleeAggroSuppressTimer -= deltaTime;
+        if (enrageTimer > 0) enrageTimer -= deltaTime;
 
         switch (state)
         {
@@ -895,7 +901,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 attackCooldownTimer = config.SerpentAttackCooldown;
                 PlayAnimation(AnimSlither);
 
-                if (entity.World.Rand.NextDouble() < config.SerpentReStalkChance)
+                // Enraged serpents never disengage after a strike.
+                if (enrageTimer <= 0 &&
+                    entity.World.Rand.NextDouble() < config.SerpentReStalkChance)
                 {
                     var rand = entity.World.Rand;
                     stalkDuration = config.SerpentStalkDurationMin +
@@ -918,7 +926,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     //  RustSerpentFleeChancePerDamage. If the flee roll misses and the
     //  serpent is not already attacking, it rolls the provoke chance to
     //  turn on its attacker instead, so chasing and hitting a circling
-    //  (or freshly fled) serpent can trigger a counterattack.
+    //  (or freshly fled) serpent can trigger a counterattack. A provoked
+    //  serpent stays enraged for SerpentEnrageSeconds: no flee rolls and
+    //  no post-strike disengage until the window expires.
     // ═══════════════════════════════════════════════════════════════════
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
     {
@@ -931,24 +941,28 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             state != SerpentState.Stalking &&
             state != SerpentState.Attacking) return;
 
-        double chance = damage * config.RustSerpentFleeChancePerDamage;
-        double roll = entity.World.Rand.NextDouble();
-        if (roll < chance)
+        // Enraged serpents are committed and skip the flee roll entirely.
+        if (enrageTimer <= 0)
         {
-            if (config.DebugLogging)
-                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                    $"Serpent fleeing after {damage:F1} damage (roll {roll:F2} vs {chance:F2})");
+            double chance = damage * config.RustSerpentFleeChancePerDamage;
+            double roll = entity.World.Rand.NextDouble();
+            if (roll < chance)
+            {
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        $"Serpent fleeing after {damage:F1} damage (roll {roll:F2} vs {chance:F2})");
 
-            // Overrides windup/strike/charge: TransitionTo clears all attack
-            // flags, then the spiral is reset to its wide initial radius so
-            // the serpent swims out and resumes circling at a distance.
-            TransitionTo(SerpentState.Stalking);
-            useSpiralApproach = true;
-            SetupSpiralApproach(true);
-            fleeAggroSuppressTimer = config.SerpentFleeAggroSuppressSeconds;
-            attackCooldownTimer = Math.Max(attackCooldownTimer, config.SerpentAttackCooldown);
-            PlayDive();
-            return;
+                // Overrides windup/strike/charge: TransitionTo clears all attack
+                // flags, then the spiral is reset to its wide initial radius so
+                // the serpent swims out and resumes circling at a distance.
+                TransitionTo(SerpentState.Stalking);
+                useSpiralApproach = true;
+                SetupSpiralApproach(true);
+                fleeAggroSuppressTimer = config.SerpentFleeAggroSuppressSeconds;
+                attackCooldownTimer = Math.Max(attackCooldownTimer, config.SerpentAttackCooldown);
+                PlayDive();
+                return;
+            }
         }
 
         // Provoke: a hit that didn't drive it off can enrage it instead.
@@ -958,8 +972,10 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         {
             if (config.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                    $"Serpent provoked by {damage:F1} damage, attacking");
+                    $"Serpent provoked by {damage:F1} damage, " +
+                    $"enraged for {config.SerpentEnrageSeconds:F0}s");
             fleeAggroSuppressTimer = 0;
+            enrageTimer = config.SerpentEnrageSeconds;
             TransitionTo(SerpentState.Attacking);
         }
     }
