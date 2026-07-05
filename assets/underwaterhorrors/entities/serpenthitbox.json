@@ -1,0 +1,30 @@
+{
+    "code": "serpenthitbox",
+    "class": "EntitySerpentHitProxy",
+    "habitat": "Sea",
+    "hitboxSize": { "x": 2.2, "y": 2.2 },
+    "deadHitboxSize": { "x": 0.1, "y": 0.1 },
+    "eyeHeight": 1.0,
+    "weight": 200,
+    "canClimb": false,
+    "knockbackResistance": 1.0,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "game:entity/lore/shiver/bellhead" },
+        "shape": { "base": "underwaterhorrors:entity/krakententinvisible" },
+        "glowLevel": 0,
+        "size": 1.0,
+        "behaviors": [
+            { "code": "interpolateposition" }
+        ]
+    },
+    "server": {
+        "behaviors": [
+            { "code": "underwaterhorrors:damagerelay" }
+        ]
+    },
+    "sounds": {}
+}

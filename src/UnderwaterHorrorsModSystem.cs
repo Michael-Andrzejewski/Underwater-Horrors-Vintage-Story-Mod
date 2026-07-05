@@ -89,10 +89,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentacle", typeof(EntityBehaviorTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:ambienttentacle", typeof(EntityBehaviorAmbientTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:damagerelay", typeof(EntityBehaviorDamageRelay));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:serpenthitproxies", typeof(EntityBehaviorSerpentHitProxies));
 
         api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
         api.RegisterEntity("SerpentEntity", typeof(SerpentEntity));
         api.RegisterEntity("DeepSerpentEntity", typeof(DeepSerpentEntity));
+        api.RegisterEntity("EntitySerpentHitProxy", typeof(EntitySerpentHitProxy));
+        api.RegisterEntity("EntityKrakenPart", typeof(EntityKrakenPart));
 
         api.Network.RegisterChannel("underwaterhorrors")
             .RegisterMessageType(typeof(DebugToggleMessage))

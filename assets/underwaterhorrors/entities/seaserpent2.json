@@ -28,7 +28,12 @@
             { "code": "deaddecay", "decayHours": 0.25 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:oceancreature" },
-            { "code": "underwaterhorrors:deepserpentai" }
+            { "code": "underwaterhorrors:deepserpentai" },
+            {
+                "code": "underwaterhorrors:serpenthitproxies",
+                "offsets": [ 12, 9.6, 7.2, 4.8, 2.4, 0, -2.4, -4.8, -7.2, -9.6, -12 ],
+                "spineHeight": 0.75
+            }
         ],
         "spawnConditions": {
             "runtime": {
