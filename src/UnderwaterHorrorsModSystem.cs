@@ -1287,6 +1287,17 @@ public class UnderwaterHorrorsModSystem : ModSystem
             sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
         }
 
+        // One-shot migration: natural kraken spawning used to be disabled
+        // by default (it predates the rare day/night chance split), so
+        // older configs carry false. Enable it once, then leave any later
+        // user choice alone.
+        if (!config.KrakenSpawnTuningApplied)
+        {
+            config.KrakenSpawnTuningApplied = true;
+            config.KrakenNaturalSpawnEnabled = true;
+            sapi.StoreModConfig(config, "UnderwaterHorrorsConfig.json");
+        }
+
         // Clamp divisor/radius/probability fields so a hand-edited config can't
         // crash the AI with NaN motion or a broken spawn rate.
         config.Validate();
@@ -1414,13 +1425,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 }
             }
 
-            // Decide creature type. Natural spawning forces serpent unless
-            // KrakenNaturalSpawnEnabled flips it on - kraken loads ~108
-            // segment entities and is laggy on lower-spec clients. The
-            // /uh spawn kraken command bypasses this check, so testing
-            // and direct spawns still work either way.
-            bool spawnSerpent = !Config.KrakenNaturalSpawnEnabled
-                || sapi.World.Rand.NextDouble() < Config.SerpentSpawnWeight;
+            // Decide creature type. Krakens are a rare share of hostile
+            // spawns: KrakenSpawnChanceDay (1 in 20 by default) during
+            // the DayKraken window, KrakenSpawnChanceNight (1 in 10) at
+            // night, when they also glow. This roll only replaces WHICH
+            // creature spawns, so serpent frequency is barely affected.
+            // The kraken is heavyweight (roughly 780 entities), so
+            // KrakenNaturalSpawnEnabled can turn this off entirely; the
+            // /uh spawn kraken command bypasses the gate either way.
+            bool spawnSerpent = true;
+            if (Config.KrakenNaturalSpawnEnabled)
+            {
+                double hourNow = sapi.World.Calendar.HourOfDay;
+                bool isDayNow = hourNow >= Config.DayKrakenStartHour && hourNow < Config.DayKrakenEndHour;
+                float krakenChance = isDayNow ? Config.KrakenSpawnChanceDay : Config.KrakenSpawnChanceNight;
+                spawnSerpent = sapi.World.Rand.NextDouble() >= krakenChance;
+            }
 
             Entity creature;
             if (spawnSerpent)

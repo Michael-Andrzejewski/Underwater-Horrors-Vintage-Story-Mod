@@ -30,19 +30,28 @@ public class UnderwaterHorrorsConfig
     // at MaxLivingCreatures. One roll per check regardless of player count, so
     // the rate does not scale up on busy servers. Very low on purpose.
     public float OverCapSpawnChance { get; set; } = 0.002f;
-    // Probability that a hostile spawn is a serpent vs a kraken.
-    // Only applies when KrakenNaturalSpawnEnabled is true; otherwise
-    // every natural hostile is a serpent regardless of this weight.
-    // 0.75 -> 75% serpent / 25% kraken.
-    public float SerpentSpawnWeight { get; set; } = 0.75f;
-
     // Master switch for kraken in NATURAL spawn checks. /uh spawn kraken
     // always works; this just gates the random per-player spawn roll
-    // from picking a kraken. Default off because kraken loads ~108
-    // segment entities that tick + broadcast at 30 Hz, which causes
-    // noticeable frame drops on lower-spec clients with many mods.
-    // Flip to true in the config to re-enable.
-    public bool KrakenNaturalSpawnEnabled { get; set; } = false;
+    // from picking a kraken. The kraken is a heavyweight encounter (one
+    // body plus 8 tentacles, each with a 96-segment chain, roughly 780
+    // entities) so it is kept rare via the day/night chances below and
+    // can be turned off entirely here if a server or client struggles
+    // near it.
+    public bool KrakenNaturalSpawnEnabled { get; set; } = true;
+    // One-shot migration flag: configs written before natural kraken
+    // spawning was enabled by default carry the old false value. The
+    // first load flips KrakenNaturalSpawnEnabled to true and sets this
+    // flag, after which user tuning is left alone.
+    public bool KrakenSpawnTuningApplied { get; set; } = false;
+    // Chance that a successful natural hostile spawn is a kraken
+    // instead of a serpent. Rolled once per spawn, so serpent frequency
+    // is barely affected: 0.05 means 1 in 20 hostile spawns is a kraken
+    // by day, 0.10 means 1 in 10 at night. "Night" reuses the same
+    // DayKrakenStartHour/DayKrakenEndHour window as the night glow, so
+    // the more common night krakens are the bioluminescent ones.
+    // (These replace the old SerpentSpawnWeight split.)
+    public float KrakenSpawnChanceDay { get; set; } = 0.05f;
+    public float KrakenSpawnChanceNight { get; set; } = 0.10f;
 
     // Day/night threshold for kraken bioluminescence. Krakens spawning
     // during [DayKrakenStartHour, DayKrakenEndHour) on the VS calendar
@@ -409,7 +418,8 @@ public class UnderwaterHorrorsConfig
         SpawnChancePerCheck = Math.Clamp(SpawnChancePerCheck, 0f, 1f);
         OverCapSpawnChance = Math.Clamp(OverCapSpawnChance, 0f, 1f);
         SecondCreatureSpawnChance = Math.Clamp(SecondCreatureSpawnChance, 0f, 1f);
-        SerpentSpawnWeight = Math.Clamp(SerpentSpawnWeight, 0f, 1f);
+        KrakenSpawnChanceDay = Math.Clamp(KrakenSpawnChanceDay, 0f, 1f);
+        KrakenSpawnChanceNight = Math.Clamp(KrakenSpawnChanceNight, 0f, 1f);
         DeepSerpentSpawnWeight = Math.Clamp(DeepSerpentSpawnWeight, 0f, 1f);
         SerpentFleeChancePerDamage = Math.Clamp(SerpentFleeChancePerDamage, 0f, 1f);
         RustSerpentFleeChancePerDamage = Math.Clamp(RustSerpentFleeChancePerDamage, 0f, 1f);
