@@ -41,8 +41,6 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
     // Set on the rust (aggressive surface) serpent via JSON attributes.
     private bool rustLoot;
 
-    private readonly BlockPos scanPos = new(0);
-
     public EntityBehaviorSerpentHarvest(Entity entity) : base(entity) { }
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
@@ -184,15 +182,15 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
 
     /// <summary>
     /// Scans down from fromY for the first solid block and returns the Y
-    /// of the space just above it (where a pile can rest). Returns -1 if
-    /// no floor is found within range.
+    /// of the space just above it (where a pile can rest, or a corpse can
+    /// come to rest). Returns -1 if no floor is found within range.
+    /// Shared with EntityBehaviorSerpentDeath's sink logic.
     /// </summary>
-    private int FindRestingYBelow(IBlockAccessor accessor, double x, double fromY, double z, int dimension)
+    internal static int FindRestingYBelow(IBlockAccessor accessor, double x, double fromY, double z, int dimension)
     {
         int startY = (int)fromY;
         int limit = Math.Max(0, startY - 80);
-        scanPos.Set((int)x, startY, (int)z);
-        scanPos.dimension = dimension;
+        BlockPos scanPos = new((int)x, startY, (int)z, dimension);
 
         for (int y = startY; y >= limit; y--)
         {
