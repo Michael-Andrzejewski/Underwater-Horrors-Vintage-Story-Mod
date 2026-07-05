@@ -1,5 +1,6 @@
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.MathTools;
 
 namespace UnderwaterHorrors;
 
@@ -28,6 +29,19 @@ public class SerpentEntity : EntityAgent
     // behavior ticks and simulation, which we don't want for a stalking
     // predator that spawns at long range.
     public override bool AlwaysActive => true;
+
+    // Right-click on the body itself (rather than a hit proxy) also
+    // routes to the harvest behavior when the serpent is dead.
+    public override void OnInteract(EntityAgent byEntity, ItemSlot slot, Vec3d hitPosition, EnumInteractMode mode)
+    {
+        if (mode == EnumInteractMode.Interact && Api.Side == EnumAppSide.Server)
+        {
+            var harvest = GetBehavior<EntityBehaviorSerpentHarvest>();
+            if (harvest != null && harvest.TryHarvest(byEntity, slot, Pos.XYZ)) return;
+        }
+
+        base.OnInteract(byEntity, slot, hitPosition, mode);
+    }
 }
 
 /// <summary>

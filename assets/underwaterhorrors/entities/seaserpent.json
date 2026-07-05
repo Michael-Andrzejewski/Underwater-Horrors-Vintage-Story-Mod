@@ -26,9 +26,10 @@
     "server": {
         "behaviors": [
             { "code": "health", "currenthealth": 80, "maxhealth": 80 },
-            { "code": "deaddecay", "decayHours": 0.25 },
+            { "code": "deaddecay", "hoursToDecay": 12 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:serpentdeath" },
+            { "code": "underwaterhorrors:serpentharvest", "rustLoot": true },
             { "code": "underwaterhorrors:oceancreature" },
             { "code": "underwaterhorrors:serpentai" },
             {

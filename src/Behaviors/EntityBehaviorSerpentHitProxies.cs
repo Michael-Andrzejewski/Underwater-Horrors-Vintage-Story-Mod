@@ -35,6 +35,10 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
     private float[] offsets = Array.Empty<float>();
     private float spineHeight = 0.75f;
 
+    /// <summary>Spine offsets in blocks (+ = head). Read by the harvest
+    /// behavior to place one bone pile per hitbox on the sea floor.</summary>
+    public float[] Offsets => offsets;
+
     private long[] proxyIds;
     private Entity[] proxies;
     private bool spawned;
@@ -57,8 +61,14 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
     public override void OnGameTick(float deltaTime)
     {
         if (entity.Api.Side != EnumAppSide.Server) return;
-        if (!entity.Alive) return;
         if (offsets.Length == 0) return;
+
+        // Keep tracking after death too: the proxies must follow the
+        // sinking, rolling corpse so any point on the body stays
+        // clickable for harvesting. Lost proxies are only respawned
+        // while alive, though; a corpse doesn't regrow hitboxes.
+        bool alive = entity.Alive;
+        if (!alive && !spawned) return;
 
         if (!spawned)
         {
@@ -68,7 +78,7 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         }
 
         respawnCheckTimer -= deltaTime;
-        bool maySpawn = respawnCheckTimer <= 0;
+        bool maySpawn = alive && respawnCheckTimer <= 0;
         if (maySpawn) respawnCheckTimer = RespawnCheckInterval;
 
         UpdateProxies(maySpawn);
@@ -147,11 +157,10 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         }
     }
 
-    public override void OnEntityDeath(DamageSource damageSourceForDeath)
-    {
-        base.OnEntityDeath(damageSourceForDeath);
-        if (entity.Api.Side == EnumAppSide.Server) KillProxies();
-    }
+    // NOTE: proxies deliberately survive OnEntityDeath now. They stop
+    // relaying damage (the relay checks target.Alive) but stay in place
+    // as harvest click-targets along the corpse. They are removed when
+    // the corpse itself despawns (harvested, decayed, or unloaded).
 
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {

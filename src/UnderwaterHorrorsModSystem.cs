@@ -92,6 +92,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:damagerelay", typeof(EntityBehaviorDamageRelay));
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpenthitproxies", typeof(EntityBehaviorSerpentHitProxies));
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpentdeath", typeof(EntityBehaviorSerpentDeath));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:serpentharvest", typeof(EntityBehaviorSerpentHarvest));
 
         api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
         api.RegisterEntity("SerpentEntity", typeof(SerpentEntity));
