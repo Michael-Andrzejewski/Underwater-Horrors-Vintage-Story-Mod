@@ -147,6 +147,16 @@ public class UnderwaterHorrorsConfig
     // not roll flee-from-damage and will not disengage after a strike,
     // so it keeps pressing repeat attacks for at least this long.
     public float SerpentEnrageSeconds { get; set; } = 10f;
+    // Observer mode for creative players: when true, serpents never
+    // attack a target player who is in creative or spectator mode. No
+    // spiral-complete strike, no proximity aggro, no stalk-timeout
+    // attack, no provoke-on-hit; a serpent already mid-attack breaks
+    // off. It just keeps cruising its orbits (surface peeks included)
+    // like harmless wildlife, and the usual despawn rules still apply
+    // when the player leaves the water. Off by default so switching an
+    // admin to creative mid-fight doesn't silently change behavior on
+    // servers that don't want this.
+    public bool SerpentIgnoreCreativePlayers { get; set; } = false;
 
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;

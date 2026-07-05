@@ -598,13 +598,27 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
                 orbitRadiusStart = orbitRadiusEnd;
                 if (orbitRadiusStart <= config.DeepSerpentOrbitRadius)
                 {
-                    if (config.DebugLogging)
-                        UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                            "DeepSerpent spiral complete, attacking");
-                    TransitionTo(SerpentState.Attacking);
-                    return;
+                    if (TargetIsPassiveObserver)
+                    {
+                        // Creative observer: no strike at the end of the
+                        // spiral. Swim back out and start a fresh wide
+                        // approach, so the serpent keeps cruising in and
+                        // out around the player indefinitely.
+                        SetupSpiralApproach(true);
+                    }
+                    else
+                    {
+                        if (config.DebugLogging)
+                            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                                "DeepSerpent spiral complete, attacking");
+                        TransitionTo(SerpentState.Attacking);
+                        return;
+                    }
                 }
-                SetNextSpiralStep();
+                else
+                {
+                    SetNextSpiralStep();
+                }
             }
         }
         else
@@ -654,9 +668,10 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             vSlew,
             deltaTime);
 
-        // Proximity aggro disabled when mounted, and right after a flee
-        // so the serpent commits to leaving.
-        if (!playerMounted && fleeAggroSuppressTimer <= 0)
+        // Proximity aggro disabled when mounted, right after a flee so
+        // the serpent commits to leaving, and for creative/spectator
+        // observers when the ignore toggle is on.
+        if (!playerMounted && fleeAggroSuppressTimer <= 0 && !TargetIsPassiveObserver)
         {
             double headDistNow = HeadDistToPlayer();
             if (headDistNow < config.SerpentProximityHeadTriggerRange)
@@ -702,6 +717,18 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     private void OnAttacking(float deltaTime)
     {
         if (targetPlayer?.Entity == null) return;
+
+        // Target is (or just became) a creative/spectator observer:
+        // break off cleanly, even mid-windup or mid-strike.
+        if (TargetIsPassiveObserver)
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                    $"DeepSerpent: {targetPlayer.PlayerName} is a creative observer, breaking off attack");
+            enrageTimer = 0;
+            TransitionTo(SerpentState.Stalking);
+            return;
+        }
 
         if (targetPlayer.Entity.MountedOn != null)
         {
@@ -866,7 +893,10 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
 
         // Provoke: a hit that didn't drive it off can enrage it instead.
         // Clearing the suppress timer lets a post-flee serpent re-engage.
+        // Creative/spectator observers can't provoke it while the ignore
+        // toggle is on.
         if (state != SerpentState.Attacking &&
+            !TargetIsPassiveObserver &&
             entity.World.Rand.NextDouble() < config.SerpentProvokeChance)
         {
             if (config.DebugLogging)
