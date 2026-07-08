@@ -6,6 +6,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
 
@@ -631,6 +632,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "deepserpent", "serpent3", "kraken" }))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
+            .BeginSubCommand("dungeon")
+                .WithDescription("Build a sunken serpent ruin on the sea floor below you (loot vessels, a chest, green glow lights, serpent spawners). Optional interior size 5 to 21.")
+                .WithArgs(api.ChatCommands.Parsers.OptionalInt("size"))
+                .HandleWith(OnCmdDungeon)
+            .EndSubCommand()
             .BeginSubCommand("dragspeed")
                 .WithDescription("Get or set tentacle drag speed")
                 .WithArgs(api.ChatCommands.Parsers.OptionalFloat("speed"))
@@ -943,6 +949,229 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         activeCreatures[caller.PlayerUID] = creature.EntityId;
         return TextCommandResult.Success($"Spawned {type} targeting {caller.PlayerName}");
+    }
+
+    // Neon-green creative light (lightHsv hue 22), which shines fully even
+    // underwater. Used to make the ruin glow from a distance.
+    private static readonly AssetLocation DungeonLightAsset = new("game", "creativelight-43");
+    private static readonly AssetLocation DungeonWallAsset = new("game", "stonebricks-granite");
+    private static readonly AssetLocation DungeonFloorAsset = new("game", "cobblestone-granite");
+    private static readonly AssetLocation DungeonSpawnerAsset = new("underwaterhorrors", "serpentspawner");
+    private static readonly AssetLocation DungeonChestAsset = new("game", "chest-north");
+    private static readonly string[] DungeonLootTypes = { "tool", "ore", "forage", "food", "farming" };
+
+    private TextCommandResult OnCmdDungeon(TextCommandCallingArgs args)
+    {
+        IServerPlayer caller = args.Caller.Player as IServerPlayer;
+        if (caller?.Entity == null) return TextCommandResult.Error("Must be called by a player");
+
+        int? sizeArg = args.Parsers[0].GetValue() as int?;
+        // Keep the interior odd so it centers cleanly on the player.
+        int interior = sizeArg.HasValue ? GameMath.Clamp(sizeArg.Value, 5, 21) : 9;
+        if (interior % 2 == 0) interior++;
+
+        return BuildDungeon(caller, interior);
+    }
+
+    /// <summary>
+    /// Builds a small sunken stone ruin on the sea floor below the player:
+    /// a crumbling stonebrick hall with a cobblestone floor and corner
+    /// pillars, neon-green glow blocks, ruin loot vessels, one treasure
+    /// chest, and two serpent spawner blocks. The interior is left flooded
+    /// so it reads as a drowned ruin.
+    /// </summary>
+    private TextCommandResult BuildDungeon(IServerPlayer caller, int interior)
+    {
+        Block wall = sapi.World.GetBlock(DungeonWallAsset);
+        Block floor = sapi.World.GetBlock(DungeonFloorAsset);
+        Block light = sapi.World.GetBlock(DungeonLightAsset);
+        Block spawner = sapi.World.GetBlock(DungeonSpawnerAsset);
+        if (wall == null || floor == null || light == null || spawner == null)
+        {
+            return TextCommandResult.Error("Missing a required block type (stonebricks-granite / cobblestone-granite / creativelight-43 / serpentspawner). Is the mod fully loaded?");
+        }
+
+        int dim = caller.Entity.Pos.Dimension;
+        int px = (int)Math.Floor(caller.Entity.Pos.X);
+        int pz = (int)Math.Floor(caller.Entity.Pos.Z);
+        int startY = (int)Math.Floor(caller.Entity.Pos.Y);
+
+        int floorY = FindSeabedTopY(px, startY, pz, dim);
+        if (floorY < 0)
+        {
+            return TextCommandResult.Error("Could not find a sea floor below you. Stand over the ocean and try again.");
+        }
+
+        int half = interior / 2;
+        int x0 = px - half - 1, x1 = px + half + 1;   // outer bounds (walls included)
+        int z0 = pz - half - 1, z1 = pz + half + 1;
+        const int wallH = 5;
+
+        var rand = sapi.World.Rand;
+        var ba = sapi.World.GetBlockAccessorBulkUpdate(true, true);
+        int placed = 0;
+
+        // Floor slab across the whole footprint (also the base under walls).
+        for (int x = x0; x <= x1; x++)
+            for (int z = z0; z <= z1; z++)
+            {
+                ba.SetBlock(floor.BlockId, new BlockPos(x, floorY, z, dim));
+                placed++;
+            }
+
+        // Doorway: a 2-block-tall gap in the middle of the south wall.
+        int doorX = px;
+
+        // Perimeter walls, crumbling more toward the top. Corners are always
+        // solid pillars so the shell reads as a building.
+        for (int y = floorY + 1; y <= floorY + wallH; y++)
+        {
+            double breakChance = 0.10 + 0.12 * (y - (floorY + 1));
+            for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    bool onPerimeter = x == x0 || x == x1 || z == z0 || z == z1;
+                    if (!onPerimeter) continue;
+
+                    bool isCorner = (x == x0 || x == x1) && (z == z0 || z == z1);
+                    if (!isCorner)
+                    {
+                        bool isDoorway = z == z1 && x == doorX && y <= floorY + 2;
+                        if (isDoorway) continue;
+                        if (rand.NextDouble() < breakChance) continue;
+                    }
+
+                    ba.SetBlock(wall.BlockId, new BlockPos(x, y, z, dim));
+                    placed++;
+                }
+        }
+
+        // A neon-green light on top of each corner pillar, and a lit pedestal
+        // in the middle, so the ruin glows through the water.
+        int topY = floorY + wallH;
+        foreach (var (cx, cz) in new[] { (x0, z0), (x0, z1), (x1, z0), (x1, z1) })
+        {
+            ba.SetBlock(light.BlockId, new BlockPos(cx, topY, cz, dim));
+            placed++;
+        }
+        ba.SetBlock(floor.BlockId, new BlockPos(px, floorY + 1, pz, dim));
+        ba.SetBlock(light.BlockId, new BlockPos(px, floorY + 2, pz, dim));
+        placed += 2;
+
+        ba.Commit();
+
+        // Interior floor cells (excluding the central pedestal) for props.
+        var cells = new List<BlockPos>();
+        for (int x = x0 + 1; x <= x1 - 1; x++)
+            for (int z = z0 + 1; z <= z1 - 1; z++)
+            {
+                if (x == px && z == pz) continue;   // central pedestal
+                cells.Add(new BlockPos(x, floorY + 1, z, dim));
+            }
+        // Fisher-Yates shuffle so props scatter differently each build.
+        for (int i = cells.Count - 1; i > 0; i--)
+        {
+            int j = rand.Next(i + 1);
+            (cells[i], cells[j]) = (cells[j], cells[i]);
+        }
+
+        var accessor = sapi.World.BlockAccessor;
+        int cell = 0;
+        int spawners = 0, vessels = 0, chests = 0;
+
+        // Two serpent spawners.
+        for (int i = 0; i < 2 && cell < cells.Count; i++)
+        {
+            accessor.SetBlock(spawner.BlockId, cells[cell]);
+            accessor.MarkBlockDirty(cells[cell]);
+            cell++;
+            spawners++;
+        }
+
+        // One treasure chest, filled defensively.
+        if (cell < cells.Count)
+        {
+            Block chestBlock = sapi.World.GetBlock(DungeonChestAsset);
+            if (chestBlock != null)
+            {
+                BlockPos chestPos = cells[cell++];
+                accessor.SetBlock(chestBlock.BlockId, chestPos);
+                accessor.MarkBlockDirty(chestPos);
+                TryFillChest(chestPos, rand);
+                chests++;
+            }
+        }
+
+        // A scattering of ruin loot vessels (they roll their own loot when
+        // broken, like the vessels found in surface and underground ruins).
+        for (int i = 0; i < 4 && cell < cells.Count; i++)
+        {
+            string loot = DungeonLootTypes[rand.Next(DungeonLootTypes.Length)];
+            Block vessel = sapi.World.GetBlock(new AssetLocation("game", "lootvessel-" + loot));
+            if (vessel == null) continue;
+            accessor.SetBlock(vessel.BlockId, cells[cell]);
+            accessor.MarkBlockDirty(cells[cell]);
+            cell++;
+            vessels++;
+        }
+
+        return TextCommandResult.Success(
+            $"Built a sunken serpent ruin at {px}, {floorY}, {pz}: {placed} blocks, {spawners} spawners, {vessels} loot vessels, {chests} chest. Swim inside to arm the spawners.");
+    }
+
+    /// <summary>Scans down from startY for the first non-air, non-water block and returns its Y, or -1.</summary>
+    private int FindSeabedTopY(int x, int startY, int z, int dim)
+    {
+        var accessor = sapi.World.BlockAccessor;
+        var pos = new BlockPos(x, startY, z, dim);
+        int limit = Math.Max(1, startY - 120);
+        for (int y = startY; y >= limit; y--)
+        {
+            pos.Y = y;
+            Block b = accessor.GetBlock(pos);
+            if (b != null && b.Id != 0 && !WaterHelper.IsWaterBlock(b)) return y;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Drops a little themed treasure into a freshly placed chest. Guarded so
+    /// any container/inventory surprise leaves an empty chest rather than
+    /// failing the whole build.
+    /// </summary>
+    private void TryFillChest(BlockPos pos, Random rand)
+    {
+        try
+        {
+            if (sapi.World.BlockAccessor.GetBlockEntity(pos) is not BlockEntityContainer container) return;
+            if (container.Inventory == null) return;
+
+            AddChestStack(container.Inventory, "game", "gear-rusty", 2 + rand.Next(5));
+            AddChestStack(container.Inventory, "game", "nugget-nativegold", 1 + rand.Next(4));
+            AddChestStack(container.Inventory, "game", "nugget-nativecopper", 3 + rand.Next(6));
+            AddChestStack(container.Inventory, "game", "bone", 4 + rand.Next(6));
+            container.MarkDirty(true);
+        }
+        catch (Exception e)
+        {
+            DebugLog(sapi, $"Dungeon chest fill skipped: {e.Message}");
+        }
+    }
+
+    private void AddChestStack(IInventory inv, string domain, string code, int qty)
+    {
+        Item item = sapi.World.GetItem(new AssetLocation(domain, code));
+        if (item == null) return;
+        var stack = new ItemStack(item, qty);
+        foreach (ItemSlot slot in inv)
+        {
+            if (slot.Empty)
+            {
+                slot.Itemstack = stack;
+                slot.MarkDirty();
+                return;
+            }
+        }
     }
 
     private TextCommandResult OnCmdDragSpeed(TextCommandCallingArgs args)
