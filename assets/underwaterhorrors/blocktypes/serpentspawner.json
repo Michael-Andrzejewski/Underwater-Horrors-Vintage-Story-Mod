@@ -1,0 +1,25 @@
+{
+	"code": "serpentspawner",
+	"entityClass": "UHSerpentSpawner",
+	"drawtype": "json",
+	"shape": { "base": "game:block/locustnest/cage/cage1" },
+	"textures": {
+		"metal": { "base": "game:block/locustnest/cage/metal" },
+		"fabric-side1": { "base": "game:block/locustnest/cage/fabric-side1" },
+		"fabric-side2": { "base": "game:block/locustnest/cage/fabric-side2" },
+		"fabric-top": { "base": "game:block/locustnest/cage/fabric-top" }
+	},
+	"blockmaterial": "Metal",
+	"creativeinventory": { "general": ["*"], "decorative": ["*"] },
+	"replaceable": 300,
+	"resistance": 20,
+	"lightAbsorption": 0,
+	"sidesolid": { "all": false },
+	"sideopaque": { "all": false },
+	"sounds": {
+		"place": "block/anvil",
+		"hit": "block/metal",
+		"break": "block/metal",
+		"walk": "walk/stone"
+	}
+}

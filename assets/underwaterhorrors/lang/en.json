@@ -2,5 +2,7 @@
     "item-creature-seaserpent": "Sea Serpent",
     "item-creature-krakenbody": "Kraken",
     "item-creature-krakententacle": "Kraken Tentacle",
-    "item-creature-krakenambienttentacle": "Kraken Tentacle"
+    "item-creature-krakenambienttentacle": "Kraken Tentacle",
+    "block-serpentspawner": "Serpent Spawner",
+    "blockhelp-serpentspawner": "Spawns a sea serpent when a player enters the water nearby, then vanishes until that serpent despawns."
 }

@@ -169,6 +169,18 @@ public class UnderwaterHorrorsConfig
     // on servers that don't want this.
     public bool IgnoreCreativePlayers { get; set; } = false;
 
+    // Serpent spawner block. A creative-only block (looks like a vanilla
+    // locust nest cage) that watches for a player who is in the water and
+    // within SpawnerTriggerRange blocks, then spawns one sea serpent and
+    // removes itself. When that serpent despawns on its own (the player
+    // left the water, so it retreats) the block reappears in the exact
+    // same spot and re-arms. If the serpent is killed instead, the block
+    // stays gone. This gives persistent, place-anywhere serpent encounters
+    // in dedicated areas such as the /uh dungeon ruins. When
+    // IgnoreCreativePlayers is on, a creative or spectator player standing
+    // in range will not arm the spawner.
+    public float SpawnerTriggerRange { get; set; } = 40f;
+
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
 
@@ -437,5 +449,8 @@ public class UnderwaterHorrorsConfig
         // MaxLivingCreatures of 0 would make the over-cap path the only way to
         // ever spawn; at least 1 keeps normal spawning meaningful.
         if (MaxLivingCreatures < 1) MaxLivingCreatures = 1;
+
+        // A zero/negative trigger range would make the spawner block inert.
+        SpawnerTriggerRange = Math.Max(1f, SpawnerTriggerRange);
     }
 }
