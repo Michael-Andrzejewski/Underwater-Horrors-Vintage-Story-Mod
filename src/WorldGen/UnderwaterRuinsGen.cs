@@ -15,9 +15,8 @@ namespace UnderwaterHorrors;
 /// tilde-relative build script (shipped under assets/underwaterhorrors/
 /// ruinscripts/) and placed at the sea floor. Collapsed loot chests are stocked
 /// like vanilla lore-location chests (stackrandomizer tokens resolved in place),
-/// and each structure rolls for a serpent spawner (50%), with a per-structure 5%
-/// chance that every spawner becomes a kraken instead. The huge wreck carries two
-/// spawner spots, everything else one.
+/// and each spawner spot rolls at 85%, with a per-structure 5% chance that every
+/// spawner becomes a kraken instead.
 ///
 /// The same placement runs from the /uhruin test command using the normal block
 /// accessor, so the structures can be inspected on land without hunting an ocean.
@@ -36,11 +35,17 @@ public class UnderwaterRuinsGen : ModSystem
 
     // Chests and spawners are block entities. Placing them via the worldgen
     // accessor left them empty (its GetBlockEntity returns null mid-gen), so
-    // during gen we only RECORD them here and place them for real on the main
-    // thread once the containing chunk column loads, using the normal block
-    // accessor (which reliably creates the BE, stocks loot, and starts the
-    // spawner). The list is persisted so pre-generated-but-never-loaded chunks
-    // still get their features when a player finally visits.
+    // during gen we only RECORD them here and place them for real from the
+    // main-thread game tick once a player is within PlaceRadius blocks (a
+    // chunk with a player that close is loaded by definition). This is the
+    // same thread + accessor combination the /uhruin command uses, which is
+    // proven to create the BE, stock loot, and start the spawner. Earlier
+    // versions tried ChunkColumnLoaded (fires mid-worldgen off the main
+    // thread; its placements were silently lost) and chunk-loaded checks via
+    // WorldManager.GetChunk / IBlockAccessor.GetChunk (returned null even for
+    // chunks a player stood in), so neither is trusted anymore. The list is
+    // persisted so pre-generated-but-never-visited ruins still get their
+    // features when a player finally swims by.
     private readonly object pendingLock = new();
     private List<PendingFeature> pending = new();
     private const string PendingDataKey = "underwaterhorrors:pendingruinfeatures";
@@ -59,6 +64,8 @@ public class UnderwaterRuinsGen : ModSystem
         [ProtoBuf.ProtoMember(9)] public bool IsIngots;
         [ProtoBuf.ProtoMember(10)] public string Metal;
         [ProtoBuf.ProtoMember(11)] public int Count;
+        // in-memory only: placement retries this session, not persisted
+        [ProtoBuf.ProtoIgnore] public int Attempts;
     }
 
     private static readonly string[] StructureNames =
@@ -102,7 +109,6 @@ public class UnderwaterRuinsGen : ModSystem
         seaLevel = api.World.SeaLevel;
         api.Event.GetWorldgenBlockAccessor(chunkProvider => wgba = chunkProvider.GetBlockAccessor(false));
         api.Event.ChunkColumnGeneration(OnChunkColumnGen, EnumWorldGenPass.TerrainFeatures, "standard");
-        api.Event.ChunkColumnLoaded += OnChunkColumnLoaded;
         api.Event.RegisterGameTickListener(ProcessPendingTick, 1000);
         api.Event.SaveGameLoaded += LoadPending;
         api.Event.GameWorldSave += SavePending;
@@ -325,18 +331,18 @@ public class UnderwaterRuinsGen : ModSystem
     }
 
     // ── immediate placement on the main thread (normal accessor) ──────────
-    private void PlaceChestNow(IBlockAccessor acc, BlockPos pos, int variant, string side, Random rnd)
+    private bool PlaceChestNow(IBlockAccessor acc, BlockPos pos, int variant, string side, Random rnd)
     {
         string ctype = "collapsed" + variant;
         Block chest = ResolveBlock("game:chest-" + side);
-        if (chest == null) return;
+        if (chest == null) return false;
 
         var stack = new ItemStack(chest);
         stack.Attributes.SetString("type", ctype);
         acc.SetBlock(chest.BlockId, pos, stack);
 
         BlockEntity be = acc.GetBlockEntity(pos);
-        if (be == null) return;
+        if (be == null) return false;
 
         FieldInfo tf = be.GetType().GetField("type");
         if (tf != null && tf.FieldType == typeof(string)) tf.SetValue(be, ctype);
@@ -357,6 +363,7 @@ public class UnderwaterRuinsGen : ModSystem
             }
         }
         be.MarkDirty(true);
+        return true;
     }
 
     private bool PlaceSpawnerNow(IBlockAccessor acc, BlockPos pos, bool kraken)
@@ -404,35 +411,50 @@ public class UnderwaterRuinsGen : ModSystem
         return null;
     }
 
-    // ── place deferred features once their chunk is loaded ────────────────
-    // Two triggers: ChunkColumnLoaded (immediate, right after a column loads)
-    // and a slow tick fallback (catches anything the event missed, e.g. chunks
-    // pre-generated in a batch). Both funnel through PlacePending, which removes
-    // under lock so a feature is never placed twice.
-    private void OnChunkColumnLoaded(Vec2i chunkCoord, IWorldChunk[] chunks)
-    {
-        PlacePending(f => (f.X >> 5) == chunkCoord.X && (f.Z >> 5) == chunkCoord.Y);
-    }
+    // ── place deferred features once a player comes near ──────────────────
+    // Single trigger: a 1s game tick (server main thread) places any queued
+    // feature within PlaceRadius blocks of an online player. Player proximity
+    // is the load check: a chunk that close to a player is always loaded, so
+    // no chunk API has to be trusted for the decision. The accessor is still
+    // consulted before placing; a missing chunk or a failed placement requeues
+    // the feature instead of dropping it, and every outcome is logged.
+    private const int PlaceRadius = 96;
+    private const int MaxPlaceAttempts = 60;
 
     private void ProcessPendingTick(float dt)
     {
+        TryPlaceNearPlayers(PlaceRadius);
+    }
+
+    private int TryPlaceNearPlayers(int radius)
+    {
         int cnt;
         lock (pendingLock) cnt = pending.Count;
-        if (cnt == 0) return;
-        int placed = PlacePending(ChunkIsLoaded);
+        if (cnt == 0) return 0;
+
+        IPlayer[] players = sapi.World.AllOnlinePlayers;
+        if (players.Length == 0) return 0;
+
+        int placed = PlacePending(f => NearAnyPlayer(f, players, radius));
         if (placed > 0)
         {
             int remaining;
             lock (pendingLock) remaining = pending.Count;
             sapi.Logger.Notification("[UH ruins] placed {0} deferred feature(s); {1} still pending", placed, remaining);
         }
+        return placed;
     }
 
-    // Authoritative "is this feature's chunk loaded on the server" check. The
-    // IBlockAccessor.GetChunk used before returned null for freshly generated
-    // chunks, so nothing ever got placed.
-    private bool ChunkIsLoaded(PendingFeature f) =>
-        sapi.WorldManager.GetChunk(f.X >> 5, f.Y >> 5, f.Z >> 5) != null;
+    private static bool NearAnyPlayer(PendingFeature f, IPlayer[] players, int radius)
+    {
+        foreach (IPlayer plr in players)
+        {
+            var e = plr?.Entity;
+            if (e == null) continue;
+            if (Math.Abs(e.Pos.X - f.X) <= radius && Math.Abs(e.Pos.Z - f.Z) <= radius) return true;
+        }
+        return false;
+    }
 
     private int PlacePending(System.Func<PendingFeature, bool> match)
     {
@@ -454,18 +476,42 @@ public class UnderwaterRuinsGen : ModSystem
         IBlockAccessor acc = sapi.World.BlockAccessor;
         var rnd = new Random();
         int placed = 0;
+        List<PendingFeature> retry = null;
+
         foreach (PendingFeature f in toPlace)
         {
+            var pos = new BlockPos(f.X, f.Y, f.Z, f.Dim);
+            bool ok = false;
+            bool chunkMissing = false;
             try
             {
-                var pos = new BlockPos(f.X, f.Y, f.Z, f.Dim);
-                if (f.IsChest) PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
-                else if (f.IsIngots) PlaceIngotsNow(acc, pos, f.Metal, f.Count);
-                else PlaceSpawnerNow(acc, pos, f.Kraken);
-                placed++;
+                if (acc.GetChunkAtBlockPos(pos) == null)
+                {
+                    chunkMissing = true;   // near a player but not served yet: retry, no penalty
+                }
+                else if (f.IsChest) ok = PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
+                else if (f.IsIngots) ok = PlaceIngotsNow(acc, pos, f.Metal, f.Count);
+                else ok = PlaceSpawnerNow(acc, pos, f.Kraken);
             }
-            catch (Exception e) { sapi.Logger.Warning("[UH ruins] feature placement failed: {0}", e.Message); }
+            catch (Exception e)
+            {
+                sapi.Logger.Warning("[UH ruins] feature at {0},{1},{2} failed to place: {3}", f.X, f.Y, f.Z, e.Message);
+            }
+
+            if (ok) { placed++; continue; }
+
+            if (chunkMissing || ++f.Attempts < MaxPlaceAttempts)
+            {
+                (retry ??= new List<PendingFeature>()).Add(f);
+            }
+            else
+            {
+                sapi.Logger.Error("[UH ruins] dropping feature at {0},{1},{2} after {3} failed placements",
+                    f.X, f.Y, f.Z, MaxPlaceAttempts);
+            }
         }
+
+        if (retry != null) lock (pendingLock) pending.AddRange(retry);
         return placed;
     }
 
@@ -524,16 +570,37 @@ public class UnderwaterRuinsGen : ModSystem
             return TextCommandResult.Success("Structures: " + string.Join(", ", StructureNames) + ". Use /uhruin &lt;name&gt;, or /uhruin pending to force-place queued worldgen features.");
         name = name.ToLowerInvariant();
 
-        // Diagnostic: how many worldgen features are queued, and force-place any
-        // whose chunk is loaded right now.
+        // Diagnostic: how many worldgen features are queued, where the nearest
+        // one is, and force-place everything near online players right now.
         if (name == "pending")
         {
             int cnt;
             lock (pendingLock) cnt = pending.Count;
-            int forced = PlacePending(ChunkIsLoaded);
+            if (cnt == 0) return TextCommandResult.Success("No worldgen features are queued.");
+
+            string nearestText = "";
+            var caller = args.Caller.Entity;
+            if (caller != null)
+            {
+                double best = double.MaxValue;
+                PendingFeature bf = null;
+                lock (pendingLock)
+                {
+                    foreach (PendingFeature f in pending)
+                    {
+                        double dx = caller.Pos.X - f.X, dz = caller.Pos.Z - f.Z;
+                        double d = dx * dx + dz * dz;
+                        if (d < best) { best = d; bf = f; }
+                    }
+                }
+                if (bf != null)
+                    nearestText = $" Nearest is {(int)Math.Sqrt(best)} blocks away at {bf.X},{bf.Y},{bf.Z}.";
+            }
+
+            int forced = TryPlaceNearPlayers(640);
             int left;
             lock (pendingLock) left = pending.Count;
-            return TextCommandResult.Success($"{cnt} worldgen features were queued; force-placed {forced} in loaded chunks, {left} still pending (chunks not loaded).");
+            return TextCommandResult.Success($"{cnt} features queued.{nearestText} Placed {forced} near online players; {left} remain queued.");
         }
 
         if (!scripts.TryGetValue(name, out string[] lines))
