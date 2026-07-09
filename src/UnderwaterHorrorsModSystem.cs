@@ -48,6 +48,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // entityId -> seconds target player has been on land
     private Dictionary<long, float> landTimers = new();
 
+    // Spawner-spawned creatures: entityId -> seconds the target player has
+    // been out of the water. When it reaches SpawnerDespawnAfterLeaveSeconds
+    // the creature despawns and its spawner block reappears. Scratch list is
+    // reused each check to prune timers for creatures that are gone.
+    private readonly Dictionary<long, float> spawnerLeaveTimers = new();
+    private readonly List<long> spawnerPruneScratch = new();
+
     // Session-only flag: when false, OnSpawnCheck returns immediately
     // (commands like /uh spawn still work — only NATURAL spawn checks
     // are gated). Resets to true on server restart.
@@ -96,7 +103,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpentharvest", typeof(EntityBehaviorSerpentHarvest));
         api.RegisterEntityBehaviorClass("underwaterhorrors:spawnerreturn", typeof(EntityBehaviorSpawnerReturn));
 
-        api.RegisterBlockEntityClass("UHSerpentSpawner", typeof(BlockEntitySerpentSpawner));
+        api.RegisterBlockEntityClass("UHCreatureSpawner", typeof(BlockEntityCreatureSpawner));
 
         api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
         api.RegisterEntity("SerpentEntity", typeof(SerpentEntity));
@@ -2090,6 +2097,68 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 landTimers.Remove(eid);
             }
             activeCreatures.Remove(uid);
+        }
+
+        CheckSpawnerCreatures();
+    }
+
+    /// <summary>
+    /// Despawns spawner-spawned creatures whose target player has been out of
+    /// the water for SpawnerDespawnAfterLeaveSeconds, so their spawner block
+    /// reappears (via EntityBehaviorSpawnerReturn on a graceful Expire). This
+    /// is the despawn mechanism for spawner-krakens, which unlike serpents do
+    /// not retreat on their own; serpents are covered too as a safety net.
+    /// </summary>
+    private void CheckSpawnerCreatures()
+    {
+        // Prune timers for creatures that have died or unloaded.
+        if (spawnerLeaveTimers.Count > 0)
+        {
+            spawnerPruneScratch.Clear();
+            foreach (long id in spawnerLeaveTimers.Keys)
+            {
+                Entity e = sapi.World.GetEntityById(id);
+                if (e == null || !e.Alive) spawnerPruneScratch.Add(id);
+            }
+            for (int i = 0; i < spawnerPruneScratch.Count; i++) spawnerLeaveTimers.Remove(spawnerPruneScratch[i]);
+        }
+
+        foreach (Entity creature in sapi.World.LoadedEntities.Values)
+        {
+            if (creature == null || !creature.Alive) continue;
+            string path = creature.Code?.Path;
+            if (path == null || !PrimaryCreatureCodes.Contains(path)) continue;
+            if (!creature.WatchedAttributes.GetBool("underwaterhorrors:fromSpawner")) continue;
+
+            string uid = creature.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
+            IPlayer target = string.IsNullOrEmpty(uid) ? null : sapi.World.PlayerByUid(uid);
+
+            bool engaged = false;
+            if (target?.Entity != null && target.Entity.Alive)
+            {
+                Block feet = sapi.World.BlockAccessor.GetBlock(target.Entity.Pos.AsBlockPos);
+                engaged = feet != null && WaterHelper.IsWaterBlock(feet);
+            }
+
+            if (engaged)
+            {
+                spawnerLeaveTimers.Remove(creature.EntityId);
+                continue;
+            }
+
+            float t = (spawnerLeaveTimers.TryGetValue(creature.EntityId, out float v) ? v : 0f)
+                      + Config.DespawnCheckIntervalSeconds;
+            if (t >= Config.SpawnerDespawnAfterLeaveSeconds)
+            {
+                if (Config.DebugLogging)
+                    DebugLog(sapi, $"Spawner {path} (id {creature.EntityId}) despawning: target out of water {t:F0}s, block will reappear");
+                creature.Die(EnumDespawnReason.Expire);
+                spawnerLeaveTimers.Remove(creature.EntityId);
+            }
+            else
+            {
+                spawnerLeaveTimers[creature.EntityId] = t;
+            }
         }
     }
 }

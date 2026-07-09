@@ -24,7 +24,8 @@
             { "code": "health", "currenthealth": 200, "maxhealth": 200 },
             { "code": "deaddecay", "decayHours": 0.5 },
             { "code": "underwaterhorrors:oceancreature" },
-            { "code": "underwaterhorrors:krakenbody" }
+            { "code": "underwaterhorrors:krakenbody" },
+            { "code": "underwaterhorrors:spawnerreturn" }
         ],
         "spawnConditions": {
             "runtime": {

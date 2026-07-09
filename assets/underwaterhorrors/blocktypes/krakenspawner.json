@@ -1,7 +1,7 @@
 {
-	"code": "serpentspawner",
+	"code": "krakenspawner",
 	"entityClass": "UHCreatureSpawner",
-	"attributes": { "spawnEntity": "seaserpent" },
+	"attributes": { "spawnEntity": "krakenbody" },
 	"drawtype": "json",
 	"shape": { "base": "game:block/locustnest/cage/cage1" },
 	"textures": {
@@ -15,6 +15,7 @@
 	"replaceable": 300,
 	"resistance": 20,
 	"lightAbsorption": 0,
+	"lightHsv": [32, 6, 8],
 	"sidesolid": { "all": false },
 	"sideopaque": { "all": false },
 	"sounds": {

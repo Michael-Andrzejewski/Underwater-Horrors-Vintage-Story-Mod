@@ -8,7 +8,7 @@ namespace UnderwaterHorrors;
 /// Restores a serpent spawner block when a serpent that came from one
 /// despawns gracefully. Attached to the base sea serpent; inert unless the
 /// serpent carries the fromSpawner tag written by
-/// <see cref="BlockEntitySerpentSpawner"/>.
+/// <see cref="BlockEntityCreatureSpawner"/>.
 ///
 /// Only a graceful Expire (the serpent retreated because the player left
 /// the water, hit a timeout, etc.) brings the block back. A kill fires with
@@ -28,7 +28,7 @@ public class EntityBehaviorSpawnerReturn : EntityBehavior
         if (entity.Api.Side == EnumAppSide.Server
             && despawn != null
             && despawn.Reason == EnumDespawnReason.Expire
-            && entity.WatchedAttributes.GetBool(BlockEntitySerpentSpawner.FromSpawnerAttr))
+            && entity.WatchedAttributes.GetBool(BlockEntityCreatureSpawner.FromSpawnerAttr))
         {
             RestoreSpawnerBlock();
         }
@@ -40,17 +40,17 @@ public class EntityBehaviorSpawnerReturn : EntityBehavior
     {
         var wa = entity.WatchedAttributes;
 
-        string code = wa.GetString(BlockEntitySerpentSpawner.SpawnerBlockCodeAttr);
+        string code = wa.GetString(BlockEntityCreatureSpawner.SpawnerBlockCodeAttr);
         if (string.IsNullOrEmpty(code)) return;
 
         Block block = entity.World.GetBlock(new AssetLocation(code));
         if (block == null) return;
 
         var pos = new BlockPos(
-            wa.GetInt(BlockEntitySerpentSpawner.SpawnerXAttr),
-            wa.GetInt(BlockEntitySerpentSpawner.SpawnerYAttr),
-            wa.GetInt(BlockEntitySerpentSpawner.SpawnerZAttr),
-            wa.GetInt(BlockEntitySerpentSpawner.SpawnerDimAttr));
+            wa.GetInt(BlockEntityCreatureSpawner.SpawnerXAttr),
+            wa.GetInt(BlockEntityCreatureSpawner.SpawnerYAttr),
+            wa.GetInt(BlockEntityCreatureSpawner.SpawnerZAttr),
+            wa.GetInt(BlockEntityCreatureSpawner.SpawnerDimAttr));
 
         var accessor = entity.World.BlockAccessor;
 

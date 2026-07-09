@@ -181,6 +181,14 @@ public class UnderwaterHorrorsConfig
     // in range will not arm the spawner.
     public float SpawnerTriggerRange { get; set; } = 40f;
 
+    // How long the target player must be out of the water before a
+    // spawner-spawned creature despawns (and its block reappears). Serpents
+    // already retreat and despawn on their own via their AI when the player
+    // leaves the water; the kraken has no such rule, so this timer is what
+    // makes a spawner-kraken sink away and its block return. Kept short so
+    // the encounter resets soon after the player gives up and leaves.
+    public float SpawnerDespawnAfterLeaveSeconds { get; set; } = 20f;
+
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
 
@@ -452,5 +460,6 @@ public class UnderwaterHorrorsConfig
 
         // A zero/negative trigger range would make the spawner block inert.
         SpawnerTriggerRange = Math.Max(1f, SpawnerTriggerRange);
+        SpawnerDespawnAfterLeaveSeconds = Math.Max(1f, SpawnerDespawnAfterLeaveSeconds);
     }
 }
