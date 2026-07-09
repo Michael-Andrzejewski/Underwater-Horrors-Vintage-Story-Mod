@@ -34,6 +34,30 @@ public class UnderwaterRuinsGen : ModSystem
     // block code -> resolved block (0 = air). Cached across the run.
     private readonly Dictionary<string, Block> blockCache = new();
 
+    // Chests and spawners are block entities. Placing them via the worldgen
+    // accessor left them empty (its GetBlockEntity returns null mid-gen), so
+    // during gen we only RECORD them here and place them for real on the main
+    // thread once the containing chunk column loads, using the normal block
+    // accessor (which reliably creates the BE, stocks loot, and starts the
+    // spawner). The list is persisted so pre-generated-but-never-loaded chunks
+    // still get their features when a player finally visits.
+    private readonly object pendingLock = new();
+    private List<PendingFeature> pending = new();
+    private const string PendingDataKey = "underwaterhorrors:pendingruinfeatures";
+
+    [ProtoBuf.ProtoContract]
+    private class PendingFeature
+    {
+        [ProtoBuf.ProtoMember(1)] public int X;
+        [ProtoBuf.ProtoMember(2)] public int Y;
+        [ProtoBuf.ProtoMember(3)] public int Z;
+        [ProtoBuf.ProtoMember(4)] public int Dim;
+        [ProtoBuf.ProtoMember(5)] public bool IsChest;
+        [ProtoBuf.ProtoMember(6)] public int Variant;
+        [ProtoBuf.ProtoMember(7)] public string Side;
+        [ProtoBuf.ProtoMember(8)] public bool Kraken;
+    }
+
     private static readonly string[] StructureNames =
         { "ruin", "portal", "shipwreck-small", "shipwreck-medium", "city", "shipwreck-huge" };
 
@@ -74,6 +98,10 @@ public class UnderwaterRuinsGen : ModSystem
         seaLevel = api.World.SeaLevel;
         api.Event.GetWorldgenBlockAccessor(chunkProvider => wgba = chunkProvider.GetBlockAccessor(false));
         api.Event.ChunkColumnGeneration(OnChunkColumnGen, EnumWorldGenPass.TerrainFeatures, "standard");
+        api.Event.ChunkColumnLoaded += OnChunkColumnLoaded;
+        api.Event.RegisterGameTickListener(ProcessPendingTick, 3000);
+        api.Event.SaveGameLoaded += LoadPending;
+        api.Event.GameWorldSave += SavePending;
         api.Logger.Notification("[UH ruins] worldgen active: {0} structures, 1 per ~{1} deep-ocean columns.",
             scripts.Count, config.RuinRarity);
     }
@@ -230,46 +258,16 @@ public class UnderwaterRuinsGen : ModSystem
         if (side != "north" && side != "east" && side != "south" && side != "west") side = "north";
         int variant = 2;
         if (t.Length > 4 && int.TryParse(t[4], out int v) && v >= 1 && v <= 4) variant = v;
-        string ctype = "collapsed" + variant;
 
-        Block chest = ResolveBlock("game:chest-" + side);
-        if (chest == null) return 0;
-
-        var stack = new ItemStack(chest);
-        stack.Attributes.SetString("type", ctype);
-        if (acc is IWorldGenBlockAccessor wg)
+        // During worldgen, defer to the main thread (block entities + loot do
+        // not populate on the worldgen accessor). Otherwise place immediately.
+        if (acc is IWorldGenBlockAccessor)
         {
-            wg.SetBlock(chest.BlockId, pos);
-            wg.SpawnBlockEntity(chest.EntityClass, pos, stack);
+            lock (pendingLock)
+                pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsChest = true, Variant = variant, Side = side });
+            return 1;
         }
-        else
-        {
-            acc.SetBlock(chest.BlockId, pos, stack);
-        }
-
-        BlockEntity be = acc.GetBlockEntity(pos);
-        if (be != null)
-        {
-            FieldInfo tf = be.GetType().GetField("type");
-            if (tf != null && tf.FieldType == typeof(string)) tf.SetValue(be, ctype);
-
-            if (be is Vintagestory.API.Common.IBlockEntityContainer bec && bec.Inventory != null)
-            {
-                IInventory inv = bec.Inventory;
-                int toFill = Math.Min(inv.Count, 3 + rnd.Next(4));
-                for (int i = 0; i < toFill; i++)
-                {
-                    string lootType = RuinLootTypes[rnd.Next(RuinLootTypes.Length)];
-                    Item randomizer = sapi.World.GetItem(new AssetLocation("game", "stackrandomizer-" + lootType));
-                    if (randomizer == null) continue;
-                    ItemSlot slot = inv[i];
-                    slot.Itemstack = new ItemStack(randomizer, 1);
-                    if (randomizer is IResolvableCollectible resolvable) resolvable.Resolve(slot, sapi.World);
-                    slot.MarkDirty();
-                }
-            }
-            be.MarkDirty(true);
-        }
+        PlaceChestNow(acc, pos, variant, side, rnd);
         return 1;
     }
 
@@ -287,20 +285,130 @@ public class UnderwaterRuinsGen : ModSystem
             kraken = krakenMode;
         }
 
-        Block spawner = ResolveBlock("underwaterhorrors:" + (kraken ? "krakenspawner" : "serpentspawner"));
-        if (spawner == null) return 0;
-
         var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
-        if (acc is IWorldGenBlockAccessor wg)
+
+        if (acc is IWorldGenBlockAccessor)
         {
-            wg.SetBlock(spawner.BlockId, pos);
-            if (spawner.EntityClass != null) wg.SpawnBlockEntity(spawner.EntityClass, pos, null);
+            lock (pendingLock)
+                pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsChest = false, Kraken = kraken });
+            return 1;
         }
-        else
+        return PlaceSpawnerNow(acc, pos, kraken) ? 1 : 0;
+    }
+
+    // ── immediate placement on the main thread (normal accessor) ──────────
+    private void PlaceChestNow(IBlockAccessor acc, BlockPos pos, int variant, string side, Random rnd)
+    {
+        string ctype = "collapsed" + variant;
+        Block chest = ResolveBlock("game:chest-" + side);
+        if (chest == null) return;
+
+        var stack = new ItemStack(chest);
+        stack.Attributes.SetString("type", ctype);
+        acc.SetBlock(chest.BlockId, pos, stack);
+
+        BlockEntity be = acc.GetBlockEntity(pos);
+        if (be == null) return;
+
+        FieldInfo tf = be.GetType().GetField("type");
+        if (tf != null && tf.FieldType == typeof(string)) tf.SetValue(be, ctype);
+
+        if (be is Vintagestory.API.Common.IBlockEntityContainer bec && bec.Inventory != null)
         {
-            acc.SetBlock(spawner.BlockId, pos);
+            IInventory inv = bec.Inventory;
+            int toFill = Math.Min(inv.Count, 3 + rnd.Next(4));
+            for (int i = 0; i < toFill; i++)
+            {
+                string lootType = RuinLootTypes[rnd.Next(RuinLootTypes.Length)];
+                Item randomizer = sapi.World.GetItem(new AssetLocation("game", "stackrandomizer-" + lootType));
+                if (randomizer == null) continue;
+                ItemSlot slot = inv[i];
+                slot.Itemstack = new ItemStack(randomizer, 1);
+                if (randomizer is IResolvableCollectible resolvable) resolvable.Resolve(slot, sapi.World);
+                slot.MarkDirty();
+            }
         }
-        return 1;
+        be.MarkDirty(true);
+    }
+
+    private bool PlaceSpawnerNow(IBlockAccessor acc, BlockPos pos, bool kraken)
+    {
+        Block spawner = ResolveBlock("underwaterhorrors:" + (kraken ? "krakenspawner" : "serpentspawner"));
+        if (spawner == null) return false;
+        acc.SetBlock(spawner.BlockId, pos);
+        acc.MarkBlockDirty(pos);
+        return true;
+    }
+
+    // ── place deferred features once their chunk is loaded ────────────────
+    // Two triggers: ChunkColumnLoaded (immediate, right after a column loads)
+    // and a slow tick fallback (catches anything the event missed, e.g. chunks
+    // pre-generated in a batch). Both funnel through PlacePending, which removes
+    // under lock so a feature is never placed twice.
+    private void OnChunkColumnLoaded(Vec2i chunkCoord, IWorldChunk[] chunks)
+    {
+        PlacePending(f => (f.X >> 5) == chunkCoord.X && (f.Z >> 5) == chunkCoord.Y);
+    }
+
+    private void ProcessPendingTick(float dt)
+    {
+        bool any;
+        lock (pendingLock) any = pending.Count > 0;
+        if (!any) return;
+        IBlockAccessor ba = sapi.World.BlockAccessor;
+        PlacePending(f => ba.GetChunk(f.X >> 5, f.Y >> 5, f.Z >> 5) != null);
+    }
+
+    private void PlacePending(System.Func<PendingFeature, bool> match)
+    {
+        List<PendingFeature> toPlace = null;
+        lock (pendingLock)
+        {
+            if (pending.Count == 0) return;
+            for (int i = pending.Count - 1; i >= 0; i--)
+            {
+                if (match(pending[i]))
+                {
+                    (toPlace ??= new List<PendingFeature>()).Add(pending[i]);
+                    pending.RemoveAt(i);
+                }
+            }
+        }
+        if (toPlace == null) return;
+
+        IBlockAccessor acc = sapi.World.BlockAccessor;
+        var rnd = new Random();
+        foreach (PendingFeature f in toPlace)
+        {
+            var pos = new BlockPos(f.X, f.Y, f.Z, f.Dim);
+            if (f.IsChest) PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
+            else PlaceSpawnerNow(acc, pos, f.Kraken);
+        }
+    }
+
+    private void LoadPending()
+    {
+        try
+        {
+            byte[] data = sapi.WorldManager.SaveGame.GetData(PendingDataKey);
+            if (data != null && data.Length > 0)
+            {
+                var loaded = Vintagestory.API.Util.SerializerUtil.Deserialize<List<PendingFeature>>(data);
+                if (loaded != null) lock (pendingLock) pending = loaded;
+            }
+        }
+        catch (Exception e) { sapi.Logger.Warning("[UH ruins] could not load pending features: {0}", e.Message); }
+    }
+
+    private void SavePending()
+    {
+        try
+        {
+            byte[] data;
+            lock (pendingLock) data = Vintagestory.API.Util.SerializerUtil.Serialize(pending);
+            sapi.WorldManager.SaveGame.StoreData(PendingDataKey, data);
+        }
+        catch (Exception e) { sapi.Logger.Warning("[UH ruins] could not save pending features: {0}", e.Message); }
     }
 
     // ~ -> base, ~n -> base + n, plain n -> absolute

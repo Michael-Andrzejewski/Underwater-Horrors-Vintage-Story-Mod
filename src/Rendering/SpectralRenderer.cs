@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 
@@ -50,6 +51,17 @@ public class SpectralRenderer : IRenderer
 
     private const int FallbackColor = unchecked((int)0xFFFFFFFF); // White
 
+    // Spawner block markers (found by scanning loaded chunks for the creature
+    // spawner block entity). Serpent = hot pink, kraken = purple, both bright
+    // so they stand out from the red serpent boxes.
+    private static readonly int SerpentSpawnerColor = ColorUtil.ToRgba(255, 255, 105, 180);
+    private static readonly int KrakenSpawnerColor = ColorUtil.ToRgba(255, 170, 0, 255);
+    private readonly List<BlockPos> serpentSpawners = new();
+    private readonly List<BlockPos> krakenSpawners = new();
+    private float spawnerScanAccum = 999f;          // force a scan on the first frame
+    private const float SpawnerScanInterval = 0.5f; // rescan twice a second
+    private const int SpawnerScanChunkRadius = 4;   // ~128 blocks horizontally
+
     public double RenderOrder => 1.0;
     public int RenderRange => 9999;
 
@@ -67,13 +79,11 @@ public class SpectralRenderer : IRenderer
         if (capi.World == null) return;
 
         var entities = capi.World.LoadedEntities;
-        if (entities == null || entities.Count == 0) return;
-
         var playerPos = capi.World.Player?.Entity?.Pos;
 
         capi.Render.GLDisableDepthTest();
 
-        foreach (Entity entity in entities.Values)
+        foreach (Entity entity in entities != null ? (IEnumerable<Entity>)entities.Values : Array.Empty<Entity>())
         {
             if (entity == null || !entity.Alive) continue;
             if (entity.Code?.Domain != "underwaterhorrors") continue;
@@ -105,7 +115,60 @@ public class SpectralRenderer : IRenderer
             }
         }
 
+        RescanSpawners(deltaTime, playerPos);
+        DrawSpawners(serpentSpawners, SerpentSpawnerColor, playerPos);
+        DrawSpawners(krakenSpawners, KrakenSpawnerColor, playerPos);
+
         capi.Render.GLEnableDepthTest();
+    }
+
+    // Periodically walk the loaded chunks near the player and cache the
+    // positions of any creature-spawner block entities, split by type.
+    private void RescanSpawners(float dt, EntityPos playerPos)
+    {
+        spawnerScanAccum += dt;
+        if (spawnerScanAccum < SpawnerScanInterval) return;
+        spawnerScanAccum = 0f;
+
+        serpentSpawners.Clear();
+        krakenSpawners.Clear();
+        if (playerPos == null) return;
+
+        int pcx = (int)playerPos.X >> 5;
+        int pcy = (int)playerPos.Y >> 5;
+        int pcz = (int)playerPos.Z >> 5;
+        int r = SpawnerScanChunkRadius;
+        var ba = capi.World.BlockAccessor;
+
+        for (int cx = pcx - r; cx <= pcx + r; cx++)
+            for (int cz = pcz - r; cz <= pcz + r; cz++)
+                for (int cy = Math.Max(0, pcy - r); cy <= pcy + r; cy++)
+                {
+                    IWorldChunk chunk = ba.GetChunk(cx, cy, cz);
+                    if (chunk?.BlockEntities == null) continue;
+                    foreach (BlockEntity be in chunk.BlockEntities.Values)
+                    {
+                        if (be is not BlockEntityCreatureSpawner) continue;
+                        string path = be.Block?.Code?.Path ?? "";
+                        (path.Contains("kraken") ? krakenSpawners : serpentSpawners).Add(be.Pos.Copy());
+                    }
+                }
+    }
+
+    private void DrawSpawners(List<BlockPos> positions, int color, EntityPos playerPos)
+    {
+        for (int i = 0; i < positions.Count; i++)
+        {
+            BlockPos p = positions[i];
+            if (playerPos != null)
+            {
+                double dx = p.X - playerPos.X, dy = p.Y - playerPos.Y, dz = p.Z - playerPos.Z;
+                if (dx * dx + dy * dy + dz * dz > MaxDrawDistSq) continue;
+            }
+            originPos.Set(p.X, p.Y, p.Z);
+            originPos.dimension = p.dimension;
+            DrawBox(-0.1f, 0f, -0.1f, 1.1f, 1.7f, 1.1f, color);
+        }
     }
 
     private void DrawEntityBox(Entity entity, int color)
