@@ -124,10 +124,17 @@ public class BlockEntityCreatureSpawner : BlockEntity
 
         // The kraken anchors its tentacles to wherever the body sits, so drop
         // it to the sea floor under the block rather than leaving it floating.
+        // Serpents are the opposite: they are long and spawn embedded in the
+        // ruin when the spawner sits at floor level, so rise through the open
+        // water column above the block and spawn up there instead.
         if (isKraken)
         {
             int fy = FindFloorYBelow(sapi);
             if (fy >= 0) spawnY = fy;
+        }
+        else
+        {
+            spawnY = FindOpenWaterYAbove(sapi) + 0.5;
         }
 
         Entity creature = sapi.World.ClassRegistry.CreateEntity(props);
@@ -163,6 +170,26 @@ public class BlockEntityCreatureSpawner : BlockEntity
         // becomes open water.
         sapi.World.BlockAccessor.SetBlock(0, Pos);
         sapi.World.BlockAccessor.MarkBlockDirty(Pos);
+    }
+
+    /// <summary>
+    /// Y of the highest open-water block in the column directly above this
+    /// block, scanning at most 10 up (a ceiling or the surface stops the
+    /// scan). Falls back to the block's own Y when there is no water above.
+    /// </summary>
+    private int FindOpenWaterYAbove(ICoreServerAPI sapi)
+    {
+        var accessor = sapi.World.BlockAccessor;
+        var pos = new BlockPos(Pos.X, Pos.Y, Pos.Z, Pos.dimension);
+        int best = Pos.Y;
+        for (int y = Pos.Y + 1; y <= Pos.Y + 10; y++)
+        {
+            pos.Y = y;
+            Block b = accessor.GetBlock(pos);
+            if (b == null || !WaterHelper.IsWaterBlock(b)) break;
+            best = y;
+        }
+        return best;
     }
 
     /// <summary>Y of the first empty space above the sea floor below this block, or -1.</summary>
