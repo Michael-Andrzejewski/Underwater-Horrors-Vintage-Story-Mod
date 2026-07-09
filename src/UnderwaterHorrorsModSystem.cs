@@ -42,18 +42,18 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // until the client is ready. This was a hard join crash near a creature.
     private bool clientWorldReady;
 
-    // playerUID -> entityId of assigned creature
+    // playerUID -> entityId of assigned creature. Only throttles spawning
+    // (one tracked creature per player); the despawn decisions live in
+    // SweepCreatureDespawns, which covers every loaded creature.
     private Dictionary<string, long> activeCreatures = new();
 
-    // entityId -> seconds target player has been on land
+    // entityId -> seconds the creature's target player has been out of the
+    // water (or unreachable entirely). Spawner-spawned creatures despawn at
+    // SpawnerDespawnAfterLeaveSeconds so their block re-arms quickly; all
+    // others at DespawnAfterLandSeconds. Scratch list is reused each check
+    // to prune timers for creatures that are gone.
     private Dictionary<long, float> landTimers = new();
-
-    // Spawner-spawned creatures: entityId -> seconds the target player has
-    // been out of the water. When it reaches SpawnerDespawnAfterLeaveSeconds
-    // the creature despawns and its spawner block reappears. Scratch list is
-    // reused each check to prune timers for creatures that are gone.
-    private readonly Dictionary<long, float> spawnerLeaveTimers = new();
-    private readonly List<long> spawnerPruneScratch = new();
+    private readonly List<long> timerPruneScratch = new();
 
     // Session-only flag: when false, OnSpawnCheck returns immediately
     // (commands like /uh spawn still work — only NATURAL spawn checks
@@ -668,6 +668,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                 .HandleWith(OnCmdObserver)
             .EndSubCommand()
+            .BeginSubCommand("ruins")
+                .WithDescription("Toggle underwater ruins worldgen (sunken ruins, shipwrecks, drowned city). Applies to newly generated chunks right away; existing ruins stay. Saved to config. Optional on/off.")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                .HandleWith(OnCmdRuins)
+            .EndSubCommand()
             .BeginSubCommand("status")
                 .WithDescription("Show all toggle states and entity counts")
                 .HandleWith(OnCmdStatus)
@@ -682,6 +687,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .EndSubCommand()
             .BeginSubCommand("kraken")
                 .WithDescription("Kraken-specific settings")
+                .BeginSubCommand("spawns")
+                    .WithDescription("Toggle automatic kraken spawns: the natural spawn roll and kraken spawner blocks. /uh spawn kraken always works. Saved to config. Optional on/off.")
+                    .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                    .HandleWith(OnCmdKrakenSpawns)
+                .EndSubCommand()
                 .BeginSubCommand("biolum")
                     .WithDescription("Toggle bioluminescent glow on kraken tentacles")
                     .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
@@ -830,6 +840,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
         msg += $"  Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}" + nl;
         msg += $"  Bioluminescence: {(Config.BiolumActive ? "on" : "off")}" + nl;
         msg += $"  Biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}" + nl;
+        msg += $"  Creative observer: {(Config.IgnoreCreativePlayers ? "on" : "off")}" + nl;
+        msg += $"  Monster sounds: {(Config.MonsterSoundsEnabled ? "on" : "off")}" + nl;
+        msg += $"  Ruins worldgen: {(Config.UnderwaterRuinsEnabled ? "on" : "off")}" + nl;
+        msg += $"  Kraken spawns: {(Config.KrakenNaturalSpawnEnabled ? "on" : "off")}" + nl;
 
         // Config values
         msg += nl + "-- Config --" + nl;
@@ -1232,6 +1246,48 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TextCommandResult.Success(
             $"Creative observer mode: {(Config.IgnoreCreativePlayers ? "on" : "off")}. " +
             "When on, creatures ignore creative and spectator players and spawners will not arm for them.");
+    }
+
+    private TextCommandResult OnCmdRuins(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.UnderwaterRuinsEnabled = !Config.UnderwaterRuinsEnabled;
+        }
+        else
+        {
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.UnderwaterRuinsEnabled = parsed.Value;
+        }
+
+        // The worldgen runner reads this live per chunk column, so the change
+        // applies to the next chunk generated with no restart.
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success(Config.UnderwaterRuinsEnabled
+            ? "Underwater ruins worldgen: on. Newly generated ocean chunks can contain ruins."
+            : "Underwater ruins worldgen: off. Newly generated ocean chunks stay empty. Ruins that already generated remain in the world.");
+    }
+
+    private TextCommandResult OnCmdKrakenSpawns(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.KrakenNaturalSpawnEnabled = !Config.KrakenNaturalSpawnEnabled;
+        }
+        else
+        {
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.KrakenNaturalSpawnEnabled = parsed.Value;
+        }
+
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success(Config.KrakenNaturalSpawnEnabled
+            ? "Kraken spawns: on. The kraken can appear from natural spawns and from kraken spawner blocks."
+            : "Kraken spawns: off. No natural krakens, and kraken spawner blocks stay dormant. /uh spawn kraken still works. Living krakens are not removed; use /uh killall for those.");
     }
 
     private TextCommandResult OnCmdGlow(TextCommandCallingArgs args)
@@ -2059,158 +2115,139 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void OnDespawnCheck(float dt)
     {
-        despawnRemoveList.Clear();
-
-        foreach (var kvp in activeCreatures)
-        {
-            string playerUid = kvp.Key;
-            long entityId = kvp.Value;
-
-            Entity creature = sapi.World.GetEntityById(entityId);
-            if (creature == null || !creature.Alive)
-            {
-                despawnRemoveList.Add(playerUid);
-                continue;
-            }
-
-            // Direct UID lookup instead of iterating AllOnlinePlayers
-            IPlayer player = sapi.World.PlayerByUid(playerUid);
-
-            if (player?.Entity == null)
-            {
-                despawnRemoveList.Add(playerUid);
-                continue;
-            }
-
-            // Distance despawn: if the creature has drifted too far from
-            // its target player (escaped by boat, or player respawned far
-            // away after death), remove it so a new one can spawn naturally.
-            double ddx = creature.Pos.X - player.Entity.Pos.X;
-            double ddy = creature.Pos.Y - player.Entity.Pos.Y;
-            double ddz = creature.Pos.Z - player.Entity.Pos.Z;
-            double distSq = ddx * ddx + ddy * ddy + ddz * ddz;
-            double maxDist = Config.DespawnMaxDistance;
-            if (distSq > maxDist * maxDist)
-            {
-                if (Config.DebugLogging)
-                    DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): too far from {player.PlayerName} ({Math.Sqrt(distSq):F0} &gt; {maxDist} blocks)");
-                creature.Die(EnumDespawnReason.Expire);
-                despawnRemoveList.Add(playerUid);
-                continue;
-            }
-
-            // Check if player's feet are in saltwater using cached block ID check
-            BlockPos feetPos = player.Entity.Pos.AsBlockPos;
-            Block feetBlock = sapi.World.BlockAccessor.GetBlock(feetPos);
-            bool inSaltwater = feetBlock != null && WaterHelper.IsSaltwater(feetBlock);
-
-            // Mounted players (on a boat) have AIR at their feet even
-            // over deep water.  Don't despawn if they're hovering over
-            // saltwater within a few blocks.
-            if (!inSaltwater && player.Entity.MountedOn != null)
-            {
-                inSaltwater = PlayerHasSaltwaterBelow(player.Entity, MountedWaterScanDownLimit);
-            }
-
-            if (!inSaltwater)
-            {
-                if (!landTimers.ContainsKey(entityId))
-                {
-                    landTimers[entityId] = 0;
-                    if (Config.DebugLogging)
-                        DebugLog(sapi, $"Despawn timer started: {player.PlayerName} left saltwater, creature {creature.Code} will despawn in {Config.DespawnAfterLandSeconds}s");
-                }
-                landTimers[entityId] += Config.DespawnCheckIntervalSeconds;
-
-                if (landTimers[entityId] >= Config.DespawnAfterLandSeconds)
-                {
-                    if (Config.DebugLogging)
-                        DebugLog(sapi, $"DESPAWNING {creature.Code} (id {entityId}): {player.PlayerName} on land for {landTimers[entityId]:F0}s");
-                    creature.Die(EnumDespawnReason.Expire);
-                    despawnRemoveList.Add(playerUid);
-                }
-            }
-            else
-            {
-                if (landTimers.ContainsKey(entityId))
-                {
-                    if (Config.DebugLogging)
-                        DebugLog(sapi, $"Despawn timer reset: {player.PlayerName} re-entered saltwater");
-                }
-                landTimers.Remove(entityId);
-            }
-        }
-
-        for (int i = 0; i < despawnRemoveList.Count; i++)
-        {
-            string uid = despawnRemoveList[i];
-            if (activeCreatures.TryGetValue(uid, out long eid))
-            {
-                landTimers.Remove(eid);
-            }
-            activeCreatures.Remove(uid);
-        }
-
-        CheckSpawnerCreatures();
+        PruneDespawnTracking();
+        SweepCreatureDespawns();
     }
 
     /// <summary>
-    /// Despawns spawner-spawned creatures whose target player has been out of
-    /// the water for SpawnerDespawnAfterLeaveSeconds, so their spawner block
-    /// reappears (via EntityBehaviorSpawnerReturn on a graceful Expire). This
-    /// is the despawn mechanism for spawner-krakens, which unlike serpents do
-    /// not retreat on their own; serpents are covered too as a safety net.
+    /// Drops spawn-throttle entries and out-of-water timers whose creature no
+    /// longer exists (killed, expired, or unloaded), so the maps cannot grow
+    /// unbounded and a player whose creature is gone can get a fresh natural
+    /// spawn.
     /// </summary>
-    private void CheckSpawnerCreatures()
+    private void PruneDespawnTracking()
     {
-        // Prune timers for creatures that have died or unloaded.
-        if (spawnerLeaveTimers.Count > 0)
+        despawnRemoveList.Clear();
+        foreach (var kvp in activeCreatures)
         {
-            spawnerPruneScratch.Clear();
-            foreach (long id in spawnerLeaveTimers.Keys)
-            {
-                Entity e = sapi.World.GetEntityById(id);
-                if (e == null || !e.Alive) spawnerPruneScratch.Add(id);
-            }
-            for (int i = 0; i < spawnerPruneScratch.Count; i++) spawnerLeaveTimers.Remove(spawnerPruneScratch[i]);
+            Entity creature = sapi.World.GetEntityById(kvp.Value);
+            if (creature == null || !creature.Alive) despawnRemoveList.Add(kvp.Key);
+        }
+        for (int i = 0; i < despawnRemoveList.Count; i++)
+        {
+            activeCreatures.Remove(despawnRemoveList[i]);
         }
 
+        if (landTimers.Count > 0)
+        {
+            timerPruneScratch.Clear();
+            foreach (long id in landTimers.Keys)
+            {
+                Entity e = sapi.World.GetEntityById(id);
+                if (e == null || !e.Alive) timerPruneScratch.Add(id);
+            }
+            for (int i = 0; i < timerPruneScratch.Count; i++) landTimers.Remove(timerPruneScratch[i]);
+        }
+    }
+
+    /// <summary>
+    /// One pass over every loaded serpent and kraken deciding whether it
+    /// should still exist. Rules, per creature:
+    ///  1. Target farther than DespawnMaxDistance: despawn immediately.
+    ///  2. Target out of the water, or no reachable player at all: despawn
+    ///     after DespawnAfterLandSeconds. Spawner-spawned creatures use the
+    ///     shorter SpawnerDespawnAfterLeaveSeconds so their block re-arms
+    ///     quickly.
+    /// Works off each creature's own target attribute rather than the
+    /// activeCreatures map, so untracked creatures get exactly the same
+    /// treatment: rare bonus second spawns, creatures reloaded after a
+    /// server restart, and creatures whose player disconnected. Serpents
+    /// also retreat on their own via their AI; this sweep is what removes
+    /// krakens, which have no self-despawn logic of their own. The graceful
+    /// Expire tears down kraken tentacles (EntityBehaviorKrakenBody) and
+    /// restores spawner blocks (EntityBehaviorSpawnerReturn).
+    /// </summary>
+    private void SweepCreatureDespawns()
+    {
         foreach (Entity creature in sapi.World.LoadedEntities.Values)
         {
             if (creature == null || !creature.Alive) continue;
             string path = creature.Code?.Path;
             if (path == null || !PrimaryCreatureCodes.Contains(path)) continue;
-            if (!creature.WatchedAttributes.GetBool("underwaterhorrors:fromSpawner")) continue;
+            // Show/inspection pieces are frozen display models; never remove.
+            if (creature.WatchedAttributes.GetBool("underwaterhorrors:static")) continue;
 
-            string uid = creature.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
-            IPlayer target = string.IsNullOrEmpty(uid) ? null : sapi.World.PlayerByUid(uid);
+            long id = creature.EntityId;
+            bool fromSpawner = creature.WatchedAttributes.GetBool(BlockEntityCreatureSpawner.FromSpawnerAttr);
+
+            // Resolve the target. For orphans (target offline) this adopts
+            // the nearest online player, mirroring the serpent AI, so an
+            // orphaned kraken either becomes a real encounter for whoever
+            // wanders close or is removed by the rules below.
+            IPlayer target = TargetingHelper.ResolveTarget(creature);
 
             bool engaged = false;
             if (target?.Entity != null && target.Entity.Alive)
             {
+                // Distance despawn: the creature drifted too far from its
+                // target (escaped by boat, or the player respawned far away
+                // after death). Remove it so a new one can spawn naturally.
+                double ddx = creature.Pos.X - target.Entity.Pos.X;
+                double ddy = creature.Pos.Y - target.Entity.Pos.Y;
+                double ddz = creature.Pos.Z - target.Entity.Pos.Z;
+                double distSq = ddx * ddx + ddy * ddy + ddz * ddz;
+                double maxDist = Config.DespawnMaxDistance;
+                if (distSq > maxDist * maxDist)
+                {
+                    if (Config.DebugLogging)
+                        DebugLog(sapi, $"DESPAWNING {creature.Code} (id {id}): too far from {target.PlayerName} ({Math.Sqrt(distSq):F0} &gt; {maxDist} blocks)");
+                    creature.Die(EnumDespawnReason.Expire);
+                    landTimers.Remove(id);
+                    continue;
+                }
+
                 Block feet = sapi.World.BlockAccessor.GetBlock(target.Entity.Pos.AsBlockPos);
-                engaged = feet != null && WaterHelper.IsWaterBlock(feet);
+                if (fromSpawner)
+                {
+                    // Spawner encounters can sit in fresh water (a /uh
+                    // dungeon built in a lake), so any water counts.
+                    engaged = feet != null && WaterHelper.IsWaterBlock(feet);
+                }
+                else
+                {
+                    engaged = feet != null && WaterHelper.IsSaltwater(feet);
+                    // Mounted players (on a boat) have AIR at their feet
+                    // even over deep water. Don't start the timer if they
+                    // are hovering over saltwater within a few blocks.
+                    if (!engaged && target.Entity.MountedOn != null)
+                        engaged = PlayerHasSaltwaterBelow(target.Entity, MountedWaterScanDownLimit);
+                }
             }
 
             if (engaged)
             {
-                spawnerLeaveTimers.Remove(creature.EntityId);
+                if (landTimers.Remove(id) && Config.DebugLogging)
+                    DebugLog(sapi, $"Despawn timer reset: {target.PlayerName} re-entered the water near {creature.Code}");
                 continue;
             }
 
-            float t = (spawnerLeaveTimers.TryGetValue(creature.EntityId, out float v) ? v : 0f)
-                      + Config.DespawnCheckIntervalSeconds;
-            if (t >= Config.SpawnerDespawnAfterLeaveSeconds)
+            float limit = fromSpawner ? Config.SpawnerDespawnAfterLeaveSeconds : Config.DespawnAfterLandSeconds;
+            bool hadTimer = landTimers.TryGetValue(id, out float elapsed);
+            float t = (hadTimer ? elapsed : 0f) + Config.DespawnCheckIntervalSeconds;
+            if (t >= limit)
             {
                 if (Config.DebugLogging)
-                    DebugLog(sapi, $"Spawner {path} (id {creature.EntityId}) despawning: target out of water {t:F0}s, block will reappear");
+                    DebugLog(sapi, $"DESPAWNING {creature.Code} (id {id}): target out of water or unreachable for {t:F0}s{(fromSpawner ? ", spawner block will reappear" : "")}");
                 creature.Die(EnumDespawnReason.Expire);
-                spawnerLeaveTimers.Remove(creature.EntityId);
+                landTimers.Remove(id);
             }
             else
             {
-                spawnerLeaveTimers[creature.EntityId] = t;
+                if (!hadTimer && Config.DebugLogging)
+                    DebugLog(sapi, $"Despawn timer started: {creature.Code} (id {id}) despawns in {limit:F0}s unless its target returns to the water");
+                landTimers[id] = t;
             }
         }
     }
+
 }

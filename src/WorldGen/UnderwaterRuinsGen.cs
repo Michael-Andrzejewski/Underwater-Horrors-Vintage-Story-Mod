@@ -101,21 +101,32 @@ public class UnderwaterRuinsGen : ModSystem
             .WithArgs(api.ChatCommands.Parsers.OptionalWord("name"))
             .HandleWith(OnRuinTestCommand);
 
-        if (!config.UnderwaterRuinsEnabled || scripts.Count == 0)
+        if (scripts.Count == 0)
         {
-            api.Logger.Notification("[UH ruins] worldgen disabled or no scripts loaded ({0} loaded).", scripts.Count);
+            api.Logger.Notification("[UH ruins] no scripts loaded; worldgen inactive.");
             return;
         }
 
+        // Registered even when UnderwaterRuinsEnabled is off: the per-column
+        // gate in OnChunkColumnGen reads the live config, so /uh ruins on/off
+        // takes effect immediately in both directions with no restart. The
+        // tick listener stays too, so features queued before a disable still
+        // finish placing (their structures already exist as blocks).
         seaLevel = api.World.SeaLevel;
         api.Event.GetWorldgenBlockAccessor(chunkProvider => wgba = chunkProvider.GetBlockAccessor(false));
         api.Event.ChunkColumnGeneration(OnChunkColumnGen, EnumWorldGenPass.TerrainFeatures, "standard");
         api.Event.RegisterGameTickListener(ProcessPendingTick, 1000);
         api.Event.SaveGameLoaded += LoadPending;
         api.Event.GameWorldSave += SavePending;
-        api.Logger.Notification("[UH ruins] worldgen active: {0} structures, 1 per ~{1} deep-ocean columns.",
+        api.Logger.Notification("[UH ruins] worldgen {0}: {1} structures, 1 per ~{2} deep-ocean columns.",
+            config.UnderwaterRuinsEnabled ? "active" : "registered but toggled off (/uh ruins on)",
             scripts.Count, config.RuinRarity);
     }
+
+    // Live config: prefer the main mod system's copy, which the /uh commands
+    // update and persist at runtime. Our own load above is only the fallback
+    // for the window before that system has started.
+    private UnderwaterHorrorsConfig Cfg => UnderwaterHorrorsModSystem.Config ?? config;
 
     // ── load the shipped build scripts ────────────────────────────────────
     // Shipped as one JSON bundle (name -> lines) under config/, a real asset
@@ -146,6 +157,7 @@ public class UnderwaterRuinsGen : ModSystem
     private void OnChunkColumnGen(IChunkColumnGenerateRequest request)
     {
         if (wgba == null || scripts.Count == 0) return;
+        if (!Cfg.UnderwaterRuinsEnabled) return;   // /uh ruins off stops new ruins immediately
 
         int cx = request.ChunkX, cz = request.ChunkZ;
         // deterministic per-column RNG so a given world always places the same
@@ -153,7 +165,7 @@ public class UnderwaterRuinsGen : ModSystem
         int hash = unchecked((int)(sapi.World.Seed * 8161L ^ cx * 341873128712L ^ cz * 132897987541L));
         var rnd = new Random(hash);
 
-        int rarity = Math.Max(1, config.RuinRarity);
+        int rarity = Math.Max(1, Cfg.RuinRarity);
         if (rnd.Next(rarity) != 0) return;
 
         int wx = cx * ChunkSize + ChunkSize / 2;
@@ -182,7 +194,7 @@ public class UnderwaterRuinsGen : ModSystem
     private bool FindOceanFloor(int wx, int wz, out int floorY)
     {
         floorY = 0;
-        int minDepth = Math.Max(2, config.RuinMinOceanDepth);
+        int minDepth = Math.Max(2, Cfg.RuinMinOceanDepth);
 
         Block atSea = wgba.GetBlock(new BlockPos(wx, seaLevel - 1, wz, 0));
         if (!WaterHelper.IsSaltwater(atSea)) return false;

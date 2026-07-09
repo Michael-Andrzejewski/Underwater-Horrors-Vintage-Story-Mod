@@ -20,9 +20,9 @@ namespace UnderwaterHorrors;
 /// the spawned creature despawns on its own (a graceful Expire) that
 /// behavior restores this block. A creature that is killed does not restore
 /// it. Serpents despawn themselves when the player leaves the water; the
-/// kraken has no such rule, so the spawner despawn timer in
-/// UnderwaterHorrorsModSystem.OnDespawnCheck removes both when the target
-/// player has been out of the water long enough.
+/// kraken has no such rule, so the despawn sweep in
+/// UnderwaterHorrorsModSystem.SweepCreatureDespawns removes both when the
+/// target player has been out of the water long enough.
 /// </summary>
 public class BlockEntityCreatureSpawner : BlockEntity
 {
@@ -62,6 +62,12 @@ public class BlockEntityCreatureSpawner : BlockEntity
 
         UnderwaterHorrorsConfig config = UnderwaterHorrorsModSystem.Config;
         if (config == null) return;
+
+        // /uh kraken spawns off keeps kraken spawner blocks dormant. Worldgen
+        // ruins place these, so servers that opt out of the kraken (it is a
+        // roughly 780-entity encounter) must not trip one in a ruin. The block
+        // stays in place and re-arms if the toggle comes back on.
+        if (isKraken && !config.KrakenNaturalSpawnEnabled) return;
 
         IPlayer target = FindEligiblePlayer(sapi, config);
         if (target == null) return;
