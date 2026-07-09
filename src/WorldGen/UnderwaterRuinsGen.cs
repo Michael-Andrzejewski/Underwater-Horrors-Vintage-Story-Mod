@@ -234,6 +234,20 @@ public class UnderwaterRuinsGen : ModSystem
         return placed;
     }
 
+    // The ruin scripts carve decay (punched wall holes, doorways, broken
+    // floors) with "air". During natural worldgen the whole structure sits in
+    // ocean, and worldgen never triggers liquid physics, so literal air would
+    // stay as immersion-breaking bubble pockets forever. Substitute saltwater
+    // for any air placed below sea level; /uhruin on land keeps real air.
+    private int saltwaterId = -1;
+    private int AirIdFor(IBlockAccessor acc, int y)
+    {
+        if (!(acc is IWorldGenBlockAccessor) || y >= seaLevel) return 0;
+        if (saltwaterId < 0)
+            saltwaterId = sapi.World.GetBlock(new AssetLocation("game", "saltwater-still-7"))?.BlockId ?? 0;
+        return saltwaterId;
+    }
+
     private int DoFill(IBlockAccessor acc, string[] t, BlockPos o)
     {
         if (t.Length < 8) return 0;
@@ -251,7 +265,7 @@ public class UnderwaterRuinsGen : ModSystem
                 for (int z = z1; z <= z2; z++)
                 {
                     p.Set(x, y, z);
-                    acc.SetBlock(id, p);
+                    acc.SetBlock(id == 0 ? AirIdFor(acc, y) : id, p);
                     n++;
                 }
         return n;
@@ -261,7 +275,9 @@ public class UnderwaterRuinsGen : ModSystem
     {
         if (t.Length < 5) return 0;
         Block b = ResolveBlock(t[4]);
-        acc.SetBlock(b?.BlockId ?? 0, new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension));
+        int id = b?.BlockId ?? 0;
+        var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
+        acc.SetBlock(id == 0 ? AirIdFor(acc, pos.Y) : id, pos);
         return 1;
     }
 
@@ -418,7 +434,11 @@ public class UnderwaterRuinsGen : ModSystem
     // no chunk API has to be trusted for the decision. The accessor is still
     // consulted before placing; a missing chunk or a failed placement requeues
     // the feature instead of dropping it, and every outcome is logged.
-    private const int PlaceRadius = 96;
+    // 160 rather than 96 so features are usually placed (and their block
+    // entity data synced) before the player is close enough to watch them pop
+    // in; the GetChunkAtBlockPos gate requeues for free if a chunk that far
+    // out is not loaded yet.
+    private const int PlaceRadius = 160;
     private const int MaxPlaceAttempts = 60;
 
     private void ProcessPendingTick(float dt)
