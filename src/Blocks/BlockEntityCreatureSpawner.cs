@@ -70,10 +70,11 @@ public class BlockEntityCreatureSpawner : BlockEntity
     }
 
     /// <summary>
-    /// Nearest online player who is alive, in this block's dimension, within
-    /// trigger range, and standing in water. When IgnoreCreativePlayers is
-    /// on, creative and spectator players are skipped so a builder can work
-    /// near a spawner without setting it off.
+    /// Nearest online SURVIVAL player who is alive, in this block's dimension,
+    /// within trigger range, and standing in water. Creative and spectator
+    /// players never arm a spawner (independent of the IgnoreCreativePlayers
+    /// combat toggle, which only governs whether spawned creatures attack
+    /// such players), so a builder can work near one without setting it off.
     /// </summary>
     private IPlayer FindEligiblePlayer(ICoreServerAPI sapi, UnderwaterHorrorsConfig config)
     {
@@ -88,11 +89,8 @@ public class BlockEntityCreatureSpawner : BlockEntity
             if (p?.Entity == null || !p.Entity.Alive) continue;
             if (p.Entity.Pos.Dimension != Pos.dimension) continue;
 
-            if (config.IgnoreCreativePlayers)
-            {
-                EnumGameMode mode = p.WorldData.CurrentGameMode;
-                if (mode == EnumGameMode.Creative || mode == EnumGameMode.Spectator) continue;
-            }
+            EnumGameMode mode = p.WorldData.CurrentGameMode;
+            if (mode == EnumGameMode.Creative || mode == EnumGameMode.Spectator) continue;
 
             double dx = p.Entity.Pos.X - cx;
             double dy = p.Entity.Pos.Y - cy;
