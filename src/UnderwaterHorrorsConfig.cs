@@ -189,6 +189,18 @@ public class UnderwaterHorrorsConfig
     // the encounter resets soon after the player gives up and leaves.
     public float SpawnerDespawnAfterLeaveSeconds { get; set; } = 20f;
 
+    // ─── Underwater ruins worldgen ───────────────────────────────────────
+    // Sunken ruins, portals, shipwrecks and a drowned city that generate
+    // rarely on deep ocean floors, each with collapsed loot chests and a
+    // chance of a serpent (or, rarely, kraken) spawner inside.
+    public bool UnderwaterRuinsEnabled { get; set; } = true;
+    // Average of one ruin per this many deep-ocean chunk columns. Higher =
+    // rarer. 320 is quite sparse; drop it to see them more often.
+    public int RuinRarity { get; set; } = 320;
+    // The sea floor must be at least this many blocks below sea level for a
+    // ruin to place, so they only appear in genuinely deep water.
+    public int RuinMinOceanDepth { get; set; } = 12;
+
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
 
@@ -461,5 +473,9 @@ public class UnderwaterHorrorsConfig
         // A zero/negative trigger range would make the spawner block inert.
         SpawnerTriggerRange = Math.Max(1f, SpawnerTriggerRange);
         SpawnerDespawnAfterLeaveSeconds = Math.Max(1f, SpawnerDespawnAfterLeaveSeconds);
+
+        // A rarity below 1 would divide-by-zero the placement roll.
+        if (RuinRarity < 1) RuinRarity = 1;
+        if (RuinMinOceanDepth < 2) RuinMinOceanDepth = 2;
     }
 }
