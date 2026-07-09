@@ -6,6 +6,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
 
@@ -169,6 +170,7 @@ public class UnderwaterRuinsGen : ModSystem
         int before;
         lock (pendingLock) before = pending.Count;
         int placed = PlaceScript(wgba, lines, origin, rnd, krakenMode);
+        wgba.RunScheduledBlockLightUpdates(cx, cz);   // bake the creative lights
         int queued;
         lock (pendingLock) queued = pending.Count - before;
         sapi.Logger.Notification("[UH ruins] generated {0} at {1},{2},{3}: {4} blocks, queued {5} features",
@@ -259,6 +261,11 @@ public class UnderwaterRuinsGen : ModSystem
         if (y1 > y2) (y1, y2) = (y2, y1);
         if (z1 > z2) (z1, z2) = (z2, z1);
         int n = 0;
+        // the worldgen accessor does not relight on its own, so glowing
+        // blocks need an explicit scheduled light update to bake into the
+        // chunk (the normal accessor used by /uhruin relights automatically)
+        var wg = acc as IWorldGenBlockAccessor;
+        bool glows = wg != null && b != null && b.LightHsv[2] > 0;
         var p = new BlockPos(0, 0, 0, o.dimension);
         for (int x = x1; x <= x2; x++)
             for (int y = y1; y <= y2; y++)
@@ -266,6 +273,7 @@ public class UnderwaterRuinsGen : ModSystem
                 {
                     p.Set(x, y, z);
                     acc.SetBlock(id == 0 ? AirIdFor(acc, y) : id, p);
+                    if (glows) wg.ScheduleBlockLightUpdate(p.Copy(), 0, id);
                     n++;
                 }
         return n;
@@ -278,6 +286,8 @@ public class UnderwaterRuinsGen : ModSystem
         int id = b?.BlockId ?? 0;
         var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
         acc.SetBlock(id == 0 ? AirIdFor(acc, pos.Y) : id, pos);
+        if (id != 0 && b.LightHsv[2] > 0 && acc is IWorldGenBlockAccessor wg)
+            wg.ScheduleBlockLightUpdate(pos, 0, id);
         return 1;
     }
 
@@ -391,40 +401,29 @@ public class UnderwaterRuinsGen : ModSystem
         return true;
     }
 
-    // Place a game:ingotpile and stock it with <count> ingots of <metal>. The
-    // pile is a block entity, so a plain SetBlock renders nothing; we fill its
-    // inventory slot and re-tessellate.
+    // Place a stack of ingots as modern ground storage (the same thing a
+    // player creates by sneak-placing ingots, and what vanilla renders every
+    // day). The earlier approach stocked the legacy game:ingotpile block
+    // entity, which no vanilla code path creates anymore and which rendered
+    // invisible on the client. BlockEntityGroundStorage derives its own
+    // storage props (stacking layout, ingotpile model) from the contained
+    // ingot's GroundStorable behavior on both server init and client sync.
     private bool PlaceIngotsNow(IBlockAccessor acc, BlockPos pos, string metal, int count)
     {
         Item ingot = sapi.World.GetItem(new AssetLocation("game", "ingot-" + metal));
-        Block pile = ResolveBlock("game:ingotpile");
-        if (ingot == null || pile == null) return false;
+        Block storage = ResolveBlock("game:groundstorage");
+        if (ingot == null || storage == null) return false;
+        if (ingot.GetBehavior<CollectibleBehaviorGroundStorable>() == null) return false;
 
-        acc.SetBlock(pile.BlockId, pos);
-        BlockEntity be = acc.GetBlockEntity(pos);
-        IInventory inv = GetBlockEntityInventory(be);
-        if (inv != null && inv.Count > 0)
-        {
-            inv[0].Itemstack = new ItemStack(ingot, count);
-            inv[0].MarkDirty();
-        }
-        be?.MarkDirty(true);
+        acc.SetBlock(storage.BlockId, pos);
+        if (acc.GetBlockEntity(pos) is not BlockEntityGroundStorage be) return false;
+
+        be.Inventory[0].Itemstack = new ItemStack(ingot, Math.Min(count, 64));
+        be.Inventory[0].MarkDirty();
+        be.DetermineStorageProperties(null);
+        be.MarkDirty(true);
         acc.MarkBlockDirty(pos);
         return true;
-    }
-
-    // Item piles expose their contents as an "inventory" field rather than
-    // IBlockEntityContainer, so fall back to reflection.
-    private static IInventory GetBlockEntityInventory(BlockEntity be)
-    {
-        if (be == null) return null;
-        if (be is Vintagestory.API.Common.IBlockEntityContainer c && c.Inventory != null) return c.Inventory;
-        for (Type t = be.GetType(); t != null; t = t.BaseType)
-        {
-            FieldInfo f = t.GetField("inventory", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (f != null && typeof(IInventory).IsAssignableFrom(f.FieldType)) return f.GetValue(be) as IInventory;
-        }
-        return null;
     }
 
     // ── place deferred features once a player comes near ──────────────────
