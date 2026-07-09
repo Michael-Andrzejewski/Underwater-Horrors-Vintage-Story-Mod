@@ -56,6 +56,9 @@ public class UnderwaterRuinsGen : ModSystem
         [ProtoBuf.ProtoMember(6)] public int Variant;
         [ProtoBuf.ProtoMember(7)] public string Side;
         [ProtoBuf.ProtoMember(8)] public bool Kraken;
+        [ProtoBuf.ProtoMember(9)] public bool IsIngots;
+        [ProtoBuf.ProtoMember(10)] public string Metal;
+        [ProtoBuf.ProtoMember(11)] public int Count;
     }
 
     private static readonly string[] StructureNames =
@@ -213,6 +216,7 @@ public class UnderwaterRuinsGen : ModSystem
                 case "cbsetblock": placed += DoSet(acc, t, origin); break;
                 case "lootchest": placed += DoChest(acc, t, origin, rnd); break;
                 case "spawner": placed += DoSpawner(acc, t, origin, rnd, krakenMode); break;
+                case "ingots": placed += DoIngots(acc, t, origin); break;
             }
         }
         return placed;
@@ -281,7 +285,7 @@ public class UnderwaterRuinsGen : ModSystem
         else if (typeArg == "kraken") kraken = true;
         else
         {
-            if (rnd.NextDouble() >= 0.5) return 0;   // 50%: no spawner here at all
+            if (rnd.NextDouble() >= 0.85) return 0;   // 85% chance to place a spawner here
             kraken = krakenMode;
         }
 
@@ -294,6 +298,24 @@ public class UnderwaterRuinsGen : ModSystem
             return 1;
         }
         return PlaceSpawnerNow(acc, pos, kraken) ? 1 : 0;
+    }
+
+    // ingots x y z <metal> <count>
+    private int DoIngots(IBlockAccessor acc, string[] t, BlockPos o)
+    {
+        if (t.Length < 4) return 0;
+        var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
+        string metal = t.Length > 4 ? t[4].ToLowerInvariant() : "copper";
+        int count = 8;
+        if (t.Length > 5 && int.TryParse(t[5], out int c)) count = Math.Max(1, Math.Min(64, c));
+
+        if (acc is IWorldGenBlockAccessor)
+        {
+            lock (pendingLock)
+                pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsIngots = true, Metal = metal, Count = count });
+            return 1;
+        }
+        return PlaceIngotsNow(acc, pos, metal, count) ? 1 : 0;
     }
 
     // ── immediate placement on the main thread (normal accessor) ──────────
@@ -316,7 +338,7 @@ public class UnderwaterRuinsGen : ModSystem
         if (be is Vintagestory.API.Common.IBlockEntityContainer bec && bec.Inventory != null)
         {
             IInventory inv = bec.Inventory;
-            int toFill = Math.Min(inv.Count, 3 + rnd.Next(4));
+            int toFill = Math.Min(inv.Count, 5 + rnd.Next(4));
             for (int i = 0; i < toFill; i++)
             {
                 string lootType = RuinLootTypes[rnd.Next(RuinLootTypes.Length)];
@@ -338,6 +360,42 @@ public class UnderwaterRuinsGen : ModSystem
         acc.SetBlock(spawner.BlockId, pos);
         acc.MarkBlockDirty(pos);
         return true;
+    }
+
+    // Place a game:ingotpile and stock it with <count> ingots of <metal>. The
+    // pile is a block entity, so a plain SetBlock renders nothing; we fill its
+    // inventory slot and re-tessellate.
+    private bool PlaceIngotsNow(IBlockAccessor acc, BlockPos pos, string metal, int count)
+    {
+        Item ingot = sapi.World.GetItem(new AssetLocation("game", "ingot-" + metal));
+        Block pile = ResolveBlock("game:ingotpile");
+        if (ingot == null || pile == null) return false;
+
+        acc.SetBlock(pile.BlockId, pos);
+        BlockEntity be = acc.GetBlockEntity(pos);
+        IInventory inv = GetBlockEntityInventory(be);
+        if (inv != null && inv.Count > 0)
+        {
+            inv[0].Itemstack = new ItemStack(ingot, count);
+            inv[0].MarkDirty();
+        }
+        be?.MarkDirty(true);
+        acc.MarkBlockDirty(pos);
+        return true;
+    }
+
+    // Item piles expose their contents as an "inventory" field rather than
+    // IBlockEntityContainer, so fall back to reflection.
+    private static IInventory GetBlockEntityInventory(BlockEntity be)
+    {
+        if (be == null) return null;
+        if (be is Vintagestory.API.Common.IBlockEntityContainer c && c.Inventory != null) return c.Inventory;
+        for (Type t = be.GetType(); t != null; t = t.BaseType)
+        {
+            FieldInfo f = t.GetField("inventory", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (f != null && typeof(IInventory).IsAssignableFrom(f.FieldType)) return f.GetValue(be) as IInventory;
+        }
+        return null;
     }
 
     // ── place deferred features once their chunk is loaded ────────────────
@@ -382,6 +440,7 @@ public class UnderwaterRuinsGen : ModSystem
         {
             var pos = new BlockPos(f.X, f.Y, f.Z, f.Dim);
             if (f.IsChest) PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
+            else if (f.IsIngots) PlaceIngotsNow(acc, pos, f.Metal, f.Count);
             else PlaceSpawnerNow(acc, pos, f.Kraken);
         }
     }
