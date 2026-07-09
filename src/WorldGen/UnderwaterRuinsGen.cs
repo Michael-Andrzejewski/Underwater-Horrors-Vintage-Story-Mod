@@ -83,6 +83,7 @@ public class UnderwaterRuinsGen : ModSystem
         try { config = api.LoadModConfig<UnderwaterHorrorsConfig>("UnderwaterHorrorsConfig.json"); }
         catch { config = null; }
         if (config == null) config = new UnderwaterHorrorsConfig();
+        config.Validate();   // applies clamps + the RuinRarity migration to our copy
 
         LoadScripts();
 
@@ -102,7 +103,7 @@ public class UnderwaterRuinsGen : ModSystem
         api.Event.GetWorldgenBlockAccessor(chunkProvider => wgba = chunkProvider.GetBlockAccessor(false));
         api.Event.ChunkColumnGeneration(OnChunkColumnGen, EnumWorldGenPass.TerrainFeatures, "standard");
         api.Event.ChunkColumnLoaded += OnChunkColumnLoaded;
-        api.Event.RegisterGameTickListener(ProcessPendingTick, 3000);
+        api.Event.RegisterGameTickListener(ProcessPendingTick, 1000);
         api.Event.SaveGameLoaded += LoadPending;
         api.Event.GameWorldSave += SavePending;
         api.Logger.Notification("[UH ruins] worldgen active: {0} structures, 1 per ~{1} deep-ocean columns.",
@@ -159,8 +160,13 @@ public class UnderwaterRuinsGen : ModSystem
         wgba.BeginColumn();
         bool krakenMode = rnd.NextDouble() < 0.05;
         var origin = new BlockPos(wx, floorY + 1, wz, 0);
+        int before;
+        lock (pendingLock) before = pending.Count;
         int placed = PlaceScript(wgba, lines, origin, rnd, krakenMode);
-        sapi.Logger.VerboseDebug("[UH ruins] placed {0} at {1},{2},{3} ({4} blocks)", name, wx, floorY + 1, wz, placed);
+        int queued;
+        lock (pendingLock) queued = pending.Count - before;
+        sapi.Logger.Notification("[UH ruins] generated {0} at {1},{2},{3}: {4} blocks, queued {5} features",
+            name, wx, floorY + 1, wz, placed, queued);
     }
 
     // Deep saltwater only: saltwater at sea level, a solid floor far enough
@@ -410,19 +416,30 @@ public class UnderwaterRuinsGen : ModSystem
 
     private void ProcessPendingTick(float dt)
     {
-        bool any;
-        lock (pendingLock) any = pending.Count > 0;
-        if (!any) return;
-        IBlockAccessor ba = sapi.World.BlockAccessor;
-        PlacePending(f => ba.GetChunk(f.X >> 5, f.Y >> 5, f.Z >> 5) != null);
+        int cnt;
+        lock (pendingLock) cnt = pending.Count;
+        if (cnt == 0) return;
+        int placed = PlacePending(ChunkIsLoaded);
+        if (placed > 0)
+        {
+            int remaining;
+            lock (pendingLock) remaining = pending.Count;
+            sapi.Logger.Notification("[UH ruins] placed {0} deferred feature(s); {1} still pending", placed, remaining);
+        }
     }
 
-    private void PlacePending(System.Func<PendingFeature, bool> match)
+    // Authoritative "is this feature's chunk loaded on the server" check. The
+    // IBlockAccessor.GetChunk used before returned null for freshly generated
+    // chunks, so nothing ever got placed.
+    private bool ChunkIsLoaded(PendingFeature f) =>
+        sapi.WorldManager.GetChunk(f.X >> 5, f.Y >> 5, f.Z >> 5) != null;
+
+    private int PlacePending(System.Func<PendingFeature, bool> match)
     {
         List<PendingFeature> toPlace = null;
         lock (pendingLock)
         {
-            if (pending.Count == 0) return;
+            if (pending.Count == 0) return 0;
             for (int i = pending.Count - 1; i >= 0; i--)
             {
                 if (match(pending[i]))
@@ -432,17 +449,24 @@ public class UnderwaterRuinsGen : ModSystem
                 }
             }
         }
-        if (toPlace == null) return;
+        if (toPlace == null) return 0;
 
         IBlockAccessor acc = sapi.World.BlockAccessor;
         var rnd = new Random();
+        int placed = 0;
         foreach (PendingFeature f in toPlace)
         {
-            var pos = new BlockPos(f.X, f.Y, f.Z, f.Dim);
-            if (f.IsChest) PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
-            else if (f.IsIngots) PlaceIngotsNow(acc, pos, f.Metal, f.Count);
-            else PlaceSpawnerNow(acc, pos, f.Kraken);
+            try
+            {
+                var pos = new BlockPos(f.X, f.Y, f.Z, f.Dim);
+                if (f.IsChest) PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
+                else if (f.IsIngots) PlaceIngotsNow(acc, pos, f.Metal, f.Count);
+                else PlaceSpawnerNow(acc, pos, f.Kraken);
+                placed++;
+            }
+            catch (Exception e) { sapi.Logger.Warning("[UH ruins] feature placement failed: {0}", e.Message); }
         }
+        return placed;
     }
 
     private void LoadPending()
@@ -497,8 +521,21 @@ public class UnderwaterRuinsGen : ModSystem
     {
         string name = args.Parsers[0].GetValue() as string;
         if (string.IsNullOrEmpty(name))
-            return TextCommandResult.Success("Structures: " + string.Join(", ", StructureNames) + ". Use /uhruin &lt;name&gt;.");
+            return TextCommandResult.Success("Structures: " + string.Join(", ", StructureNames) + ". Use /uhruin &lt;name&gt;, or /uhruin pending to force-place queued worldgen features.");
         name = name.ToLowerInvariant();
+
+        // Diagnostic: how many worldgen features are queued, and force-place any
+        // whose chunk is loaded right now.
+        if (name == "pending")
+        {
+            int cnt;
+            lock (pendingLock) cnt = pending.Count;
+            int forced = PlacePending(ChunkIsLoaded);
+            int left;
+            lock (pendingLock) left = pending.Count;
+            return TextCommandResult.Success($"{cnt} worldgen features were queued; force-placed {forced} in loaded chunks, {left} still pending (chunks not loaded).");
+        }
+
         if (!scripts.TryGetValue(name, out string[] lines))
             return TextCommandResult.Error($"Unknown structure '{name}'. One of: {string.Join(", ", StructureNames)}.");
 

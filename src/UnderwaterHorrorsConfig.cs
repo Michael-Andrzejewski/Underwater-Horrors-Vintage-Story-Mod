@@ -195,8 +195,11 @@ public class UnderwaterHorrorsConfig
     // chance of a serpent (or, rarely, kraken) spawner inside.
     public bool UnderwaterRuinsEnabled { get; set; } = true;
     // Average of one ruin per this many deep-ocean chunk columns. Higher =
-    // rarer. 320 is quite sparse; drop it to see them more often.
-    public int RuinRarity { get; set; } = 320;
+    // rarer. Drop it to see them more often.
+    public int RuinRarity { get; set; } = 107;
+    // One-shot migration: configs written with the old sparser default (320)
+    // are bumped to the new one on first load; see Validate().
+    public bool RuinRarityMigrated { get; set; } = false;
     // The sea floor must be at least this many blocks below sea level for a
     // ruin to place, so they only appear in genuinely deep water.
     public int RuinMinOceanDepth { get; set; } = 12;
@@ -477,5 +480,14 @@ public class UnderwaterHorrorsConfig
         // A rarity below 1 would divide-by-zero the placement roll.
         if (RuinRarity < 1) RuinRarity = 1;
         if (RuinMinOceanDepth < 2) RuinMinOceanDepth = 2;
+
+        // One-shot: bump the old sparse default (320) to the new default so
+        // existing worlds get ~3x more ruins without hand-editing, but leave
+        // any other user-chosen value alone.
+        if (!RuinRarityMigrated)
+        {
+            if (RuinRarity == 320) RuinRarity = 107;
+            RuinRarityMigrated = true;
+        }
     }
 }
