@@ -635,8 +635,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .HandleWith(OnCmdNatural)
             .EndSubCommand()
             .BeginSubCommand("spawn")
-                .WithDescription("Force spawn a creature on the calling player")
-                .WithArgs(api.ChatCommands.Parsers.Word("type", new[] { "serpent", "deepserpent", "serpent3", "kraken" }))
+                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant.")
+                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken"))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dungeon")
@@ -906,6 +906,19 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TextCommandResult.Success($"Spawn chance set to {Config.SpawnChancePerCheck:F3}");
     }
 
+    // "on"/"true"/"1" is true, "off"/"false"/"0" is false, anything else is
+    // null so the caller can reject a typo instead of silently treating it
+    // as "off" (the old comparisons did exactly that).
+    private static bool? ParseOnOff(string val)
+    {
+        switch (val?.ToLowerInvariant())
+        {
+            case "on": case "true": case "1": return true;
+            case "off": case "false": case "0": return false;
+            default: return null;
+        }
+    }
+
     private TextCommandResult OnCmdDebug(TextCommandCallingArgs args)
     {
         string val = args.Parsers[0].GetValue() as string;
@@ -913,7 +926,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             return TextCommandResult.Success($"Debug logging: {(Config.DebugLogging ? "on" : "off")}");
         }
-        Config.DebugLogging = val == "on" || val == "true" || val == "1";
+        bool? parsed = ParseOnOff(val);
+        if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+        Config.DebugLogging = parsed.Value;
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         return TextCommandResult.Success($"Debug logging: {(Config.DebugLogging ? "on" : "off")}");
     }
@@ -927,7 +942,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
         else
         {
-            naturalSpawningEnabled = val == "on" || val == "true" || val == "1";
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            naturalSpawningEnabled = parsed.Value;
         }
         return TextCommandResult.Success(
             $"Natural spawning: {(naturalSpawningEnabled ? "on" : "off")} (session-only, resets on server restart)");
@@ -935,32 +952,28 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private TextCommandResult OnCmdSpawn(TextCommandCallingArgs args)
     {
-        string type = args.Parsers[0].GetValue() as string;
+        string type = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
         IServerPlayer caller = args.Caller.Player as IServerPlayer;
         if (caller == null) return TextCommandResult.Error("Must be called by a player");
 
+        // No fallthrough here: an unrecognized type must error, never
+        // silently become a kraken (players hit exactly that with the old
+        // dispatch, where anything but an exact lowercase match spawned one).
         Entity creature;
-        if (type == "serpent")
+        switch (type)
         {
-            creature = SpawnSerpent(caller, forceDeep: false);  // always regular
-        }
-        else if (type == "deepserpent")
-        {
-            creature = SpawnSerpent(caller, forceDeep: true);
-        }
-        else if (type == "serpent3")
-        {
-            creature = SpawnSerpent3(caller);
-        }
-        else
-        {
-            creature = SpawnKraken(caller);
+            case "serpent": creature = SpawnSerpent(caller); break;           // random: rust (200 hp) or deep (100 hp)
+            case "rustserpent": creature = SpawnSerpent(caller, forceDeep: false); break;
+            case "deepserpent": creature = SpawnSerpent(caller, forceDeep: true); break;
+            case "serpent3": creature = SpawnSerpent3(caller); break;
+            case "kraken": creature = SpawnKraken(caller); break;
+            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3 or kraken.");
         }
 
-        if (creature == null) return TextCommandResult.Error("Failed to spawn creature");
+        if (creature == null) return TextCommandResult.Error("Failed to spawn creature (no valid water position found nearby). Try deeper water.");
 
         activeCreatures[caller.PlayerUID] = creature.EntityId;
-        return TextCommandResult.Success($"Spawned {type} targeting {caller.PlayerName}");
+        return TextCommandResult.Success($"Spawned {creature.Code.Path} targeting {caller.PlayerName}");
     }
 
     // Neon-green creative light (lightHsv hue 22), which shines fully even
@@ -1207,7 +1220,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
         else
         {
-            Config.IgnoreCreativePlayers = val == "on" || val == "true" || val == "1";
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.IgnoreCreativePlayers = parsed.Value;
         }
 
         // Config is read live everywhere (the AI, the kraken contact damage,
@@ -1228,7 +1243,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
         else
         {
-            Config.GlowDebugActive = val == "on" || val == "true" || val == "1";
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.GlowDebugActive = parsed.Value;
         }
 
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
@@ -1236,7 +1253,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .BroadcastPacket(new DebugToggleMessage { Toggle = "glow", Active = Config.GlowDebugActive });
         return TextCommandResult.Success(
             $"Glow debug: {(Config.GlowDebugActive ? "on" : "off")} " +
-            "(note: only affects newly spawned creatures — existing ones keep their glow until they respawn)");
+            "(note: only affects newly spawned creatures. Existing ones keep their glow until they respawn.)");
     }
 
     private TextCommandResult OnCmdSpectral(TextCommandCallingArgs args)
@@ -1248,7 +1265,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
         else
         {
-            Config.SpectralDebugActive = val == "on" || val == "true" || val == "1";
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.SpectralDebugActive = parsed.Value;
         }
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         sapi.Network.GetChannel("underwaterhorrors")
@@ -1265,7 +1284,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
         else
         {
-            Config.BiolumActive = val == "on" || val == "true" || val == "1";
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.BiolumActive = parsed.Value;
         }
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
 
@@ -1294,7 +1315,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
         else
         {
-            Config.BiolumPulsing = val == "on" || val == "true" || val == "1";
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.BiolumPulsing = parsed.Value;
         }
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         return TextCommandResult.Success($"Kraken biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}");
@@ -1345,7 +1368,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         sapi.World.SpawnEntity(ent);
 
-        return TextCommandResult.Success($"Spawned {code} (static) at ({sx:F1}, {sy:F1}, {sz:F1}) — clean up with /uh killall");
+        return TextCommandResult.Success($"Spawned {code} (static) at ({sx:F1}, {sy:F1}, {sz:F1}). Clean up with /uh killall.");
     }
 
     // ---- Bioluminescent glow shader test commands ----
@@ -1475,32 +1498,35 @@ public class UnderwaterHorrorsModSystem : ModSystem
         if (caller?.Entity == null)
             return TextCommandResult.Error("No player entity");
 
-        // Find the nearest serpent
+        // Find the nearest serpent that actually carries the debug-anim
+        // behavior. Matching on the exact "seaserpent" code missed the deep
+        // serpent entirely; matching the prefix and requiring the behavior
+        // skips variants (like the deep serpent's own AI) gracefully.
         Entity nearest = null;
+        EntityBehaviorSerpentAI behavior = null;
         double nearestDist = double.MaxValue;
         foreach (Entity e in sapi.World.LoadedEntities.Values)
         {
             if (e == null || !e.Alive) continue;
-            if (e.Code?.Path != "seaserpent") continue;
+            if (e.Code?.Path == null || !e.Code.Path.StartsWith("seaserpent")) continue;
+            var ai = e.GetBehavior<EntityBehaviorSerpentAI>();
+            if (ai == null) continue;
             double dist = e.Pos.DistanceTo(caller.Entity.Pos.XYZ);
             if (dist < nearestDist)
             {
                 nearestDist = dist;
                 nearest = e;
+                behavior = ai;
             }
         }
 
         if (nearest == null)
-            return TextCommandResult.Error("No living serpent found. Spawn one with /uh spawn serpent");
-
-        var behavior = nearest.GetBehavior<EntityBehaviorSerpentAI>();
-        if (behavior == null)
-            return TextCommandResult.Error("Serpent has no SerpentAI behavior");
+            return TextCommandResult.Error("No living rust serpent found (debug animations only exist on that variant). Spawn one with /uh spawn rustserpent.");
 
         if (animName == "off")
         {
             behavior.SetDebugAnimation(null);
-            return TextCommandResult.Success($"Serpent debug anim OFF — AI resumed (dist: {nearestDist:F0})");
+            return TextCommandResult.Success($"Serpent debug anim OFF. AI resumed (dist: {nearestDist:F0}).");
         }
 
         behavior.SetDebugAnimation(animName);
