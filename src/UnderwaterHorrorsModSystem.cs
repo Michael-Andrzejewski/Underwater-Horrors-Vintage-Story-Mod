@@ -663,6 +663,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                 .HandleWith(OnCmdSpectral)
             .EndSubCommand()
+            .BeginSubCommand("observer")
+                .WithDescription("Toggle creative-observer mode: creatures ignore creative and spectator players, and spawners will not arm for them. Optional on/off.")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                .HandleWith(OnCmdObserver)
+            .EndSubCommand()
             .BeginSubCommand("status")
                 .WithDescription("Show all toggle states and entity counts")
                 .HandleWith(OnCmdStatus)
@@ -1191,6 +1196,27 @@ public class UnderwaterHorrorsModSystem : ModSystem
         Config.TentacleDragSpeed = GameMath.Clamp(speed.Value, 0f, 10f);
         sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
         return TextCommandResult.Success($"Drag speed set to {Config.TentacleDragSpeed:F3}");
+    }
+
+    private TextCommandResult OnCmdObserver(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.IgnoreCreativePlayers = !Config.IgnoreCreativePlayers;
+        }
+        else
+        {
+            Config.IgnoreCreativePlayers = val == "on" || val == "true" || val == "1";
+        }
+
+        // Config is read live everywhere (the AI, the kraken contact damage,
+        // and the spawner block all check it each use), so this takes effect
+        // immediately with no reload.
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success(
+            $"Creative observer mode: {(Config.IgnoreCreativePlayers ? "on" : "off")}. " +
+            "When on, creatures ignore creative and spectator players and spawners will not arm for them.");
     }
 
     private TextCommandResult OnCmdGlow(TextCommandCallingArgs args)
