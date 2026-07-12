@@ -992,7 +992,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     // Neon-green creative light (lightHsv hue 22), which shines fully even
     // underwater. Used to make the ruin glow from a distance.
-    private static readonly AssetLocation DungeonLightAsset = new("game", "creativelight-43");
+    private static readonly AssetLocation DungeonLightAsset = new("underwaterhorrors", "ghostlight-green");
     private static readonly AssetLocation DungeonWallAsset = new("game", "stonebricks-granite");
     private static readonly AssetLocation DungeonFloorAsset = new("game", "cobblestone-granite");
     private static readonly AssetLocation DungeonSpawnerAsset = new("underwaterhorrors", "serpentspawner");
@@ -1027,7 +1027,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         Block spawner = sapi.World.GetBlock(DungeonSpawnerAsset);
         if (wall == null || floor == null || light == null || spawner == null)
         {
-            return TextCommandResult.Error("Missing a required block type (stonebricks-granite / cobblestone-granite / creativelight-43 / serpentspawner). Is the mod fully loaded?");
+            return TextCommandResult.Error("Missing a required block type (stonebricks-granite / cobblestone-granite / ghostlight-green / serpentspawner). Is the mod fully loaded?");
         }
 
         int dim = caller.Entity.Pos.Dimension;

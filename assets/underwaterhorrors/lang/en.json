@@ -6,5 +6,7 @@
     "block-serpentspawner": "Serpent Spawner",
     "blockhelp-serpentspawner": "Spawns a sea serpent when a player enters the water nearby, then vanishes until that serpent despawns.",
     "block-krakenspawner": "Kraken Spawner",
-    "blockhelp-krakenspawner": "Spawns a kraken when a player enters the water nearby, then vanishes until that kraken despawns."
+    "blockhelp-krakenspawner": "Spawns a kraken when a player enters the water nearby, then vanishes until that kraken despawns.",
+    "block-ghostlight-green": "Ghostlight",
+    "block-ghostlight-blue": "Ghostlight"
 }

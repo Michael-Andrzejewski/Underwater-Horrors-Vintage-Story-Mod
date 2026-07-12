@@ -1,0 +1,28 @@
+{
+	"code": "ghostlight",
+	"variantgroups": [
+		{ "code": "color", "states": ["green", "blue"] }
+	],
+	"drawtype": "json",
+	"shape": { "base": "block/ghostlight" },
+	"textures": {
+		"glow": { "base": "block/ghostlight-{color}" }
+	},
+	"attributes": {
+		"handbook": { "exclude": true }
+	},
+	"blockmaterial": "Glass",
+	"creativeinventory": { "general": ["*"], "decorative": ["*"] },
+	"replaceable": 300,
+	"resistance": 1,
+	"lightAbsorption": 0,
+	"sidesolid": { "all": false },
+	"sideopaque": { "all": false },
+	"collisionbox": { "x1": 0.3125, "y1": 0.3125, "z1": 0.3125, "x2": 0.6875, "y2": 0.6875, "z2": 0.6875 },
+	"selectionbox": { "x1": 0.3125, "y1": 0.3125, "z1": 0.3125, "x2": 0.6875, "y2": 0.6875, "z2": 0.6875 },
+	"vertexFlags": { "glowLevel": 255 },
+	"lightHsvByType": {
+		"*-green": [22, 7, 22],
+		"*-blue": [34, 7, 22]
+	}
+}

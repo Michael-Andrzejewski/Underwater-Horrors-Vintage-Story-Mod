@@ -265,6 +265,7 @@ public class UnderwaterRuinsGen : ModSystem
                 case "ingots":
                     if (TakeLootSpot(rnd, ref ingotBudget, ref ingotSpots)) placed += DoIngots(acc, t, origin);
                     break;
+                case "scatter": placed += DoScatter(acc, t, origin); break;
             }
         }
         return placed;
@@ -418,9 +419,96 @@ public class UnderwaterRuinsGen : ModSystem
         return PlaceIngotsNow(acc, pos, metal, count) ? 1 : 0;
     }
 
+    // scatter x y z <block> [count] — debris that settles onto the nearest
+    // solid surface below the scripted spot. Structures assume a flat sea
+    // floor; on slopes that assumption left debris hovering mid-water (the
+    // floating blocks and debris piles players reported). A spot buried in
+    // terrain, or with no support within DropRange below, places nothing at
+    // all. count stacks a small column upward from the support, which lets
+    // rubble mounds drape over uneven ground column by column.
+    private const int ScatterDropRange = 20;
+
+    private int DoScatter(IBlockAccessor acc, string[] t, BlockPos o)
+    {
+        if (t.Length < 5) return 0;
+        Block b = ResolveBlock(t[4]);
+        if (b == null) return 0;
+        int count = 1;
+        if (t.Length > 5 && int.TryParse(t[5], out int c)) count = Math.Clamp(c, 1, 8);
+
+        var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
+        if (IsSolidSupport(acc.GetBlock(pos))) return 0;   // spot is inside something solid; skip
+
+        int baseY;
+        var below = new BlockPos(pos.X, pos.Y - 1, pos.Z, pos.dimension);
+        if (IsSolidSupport(acc.GetBlock(below)))
+        {
+            baseY = pos.Y;
+        }
+        else
+        {
+            baseY = FindDropY(acc, pos, ScatterDropRange);
+            if (baseY == int.MinValue) return 0;           // nothing below: no floaters
+        }
+
+        var wg = acc as IWorldGenBlockAccessor;
+        bool glows = wg != null && b.LightHsv[2] > 0;
+        var p = new BlockPos(pos.X, 0, pos.Z, pos.dimension);
+        int n = 0;
+        for (int i = 0; i < count; i++)
+        {
+            p.Y = baseY + i;
+            acc.SetBlock(b.BlockId, p);
+            if (glows) wg.ScheduleBlockLightUpdate(p.Copy(), 0, b.BlockId);
+            n++;
+        }
+        return n;
+    }
+
+    /// <summary>
+    /// Y to place at after dropping straight down: one above the first solid
+    /// block below pos, or int.MinValue when there is none within maxDrop.
+    /// </summary>
+    private int FindDropY(IBlockAccessor acc, BlockPos pos, int maxDrop)
+    {
+        var p = new BlockPos(pos.X, 0, pos.Z, pos.dimension);
+        int limit = Math.Max(1, pos.Y - maxDrop);
+        for (int y = pos.Y - 1; y >= limit; y--)
+        {
+            p.Y = y;
+            if (IsSolidSupport(acc.GetBlock(p))) return y + 1;
+        }
+        return int.MinValue;
+    }
+
+    /// <summary>
+    /// Drops a loot position onto the nearest solid support below, so chests
+    /// and ingot piles never hover over slope dips or broken-floor gaps.
+    /// Keeps the scripted spot when it is already supported, buried, or has
+    /// no support in reach (better a rare floater than lost loot).
+    /// </summary>
+    private void SettleOntoSupport(IBlockAccessor acc, BlockPos pos)
+    {
+        var below = new BlockPos(pos.X, pos.Y - 1, pos.Z, pos.dimension);
+        if (IsSolidSupport(acc.GetBlock(below))) return;
+        int y = FindDropY(acc, pos, 12);
+        if (y != int.MinValue) pos.Y = y;
+    }
+
+    // Support = something with a collision box that is not water. Kelp and
+    // other collisionless plants do not count, so debris sinks through them
+    // onto the actual floor.
+    private static bool IsSolidSupport(Block b)
+    {
+        if (b == null || b.Id == 0) return false;
+        if (WaterHelper.IsWaterBlock(b)) return false;
+        return b.CollisionBoxes != null && b.CollisionBoxes.Length > 0;
+    }
+
     // ── immediate placement on the main thread (normal accessor) ──────────
     private bool PlaceChestNow(IBlockAccessor acc, BlockPos pos, int variant, string side, Random rnd)
     {
+        SettleOntoSupport(acc, pos);
         string ctype = "collapsed" + variant;
         Block chest = ResolveBlock("game:chest-" + side);
         if (chest == null) return false;
@@ -472,6 +560,7 @@ public class UnderwaterRuinsGen : ModSystem
     // ingot's GroundStorable behavior on both server init and client sync.
     private bool PlaceIngotsNow(IBlockAccessor acc, BlockPos pos, string metal, int count)
     {
+        SettleOntoSupport(acc, pos);
         Item ingot = sapi.World.GetItem(new AssetLocation("game", "ingot-" + metal));
         Block storage = ResolveBlock("game:groundstorage");
         if (ingot == null || storage == null) return false;
