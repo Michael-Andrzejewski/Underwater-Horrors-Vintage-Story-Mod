@@ -583,6 +583,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         Config = LoadConfig();
 
+        // Write the config straight back so the file on disk always carries
+        // the full current schema with defaults filled in. Without this, new
+        // settings stay invisible until some /uh command happens to save,
+        // and server owners cannot discover them by reading the file. Also
+        // persists the one-shot migrations immediately.
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+
         int spawnInterval = (int)(Config.SpawnCheckIntervalSeconds * 1000);
         int despawnInterval = (int)(Config.DespawnCheckIntervalSeconds * 1000);
 
