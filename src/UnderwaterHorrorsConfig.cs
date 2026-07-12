@@ -1,6 +1,27 @@
 using System;
+using System.Collections.Generic;
 
 namespace UnderwaterHorrors;
+
+/// <summary>Inclusive count range used by the per-structure loot settings.</summary>
+public class MinMaxCount
+{
+    public int Min { get; set; }
+    public int Max { get; set; }
+}
+
+/// <summary>
+/// One entry in RuinIngotTypes: how likely this metal is to be picked for a
+/// pile (Weight, relative to the other entries) and how many ingots the pile
+/// holds (uniform between CountMin and CountMax, capped at 64, the ground
+/// storage limit).
+/// </summary>
+public class IngotPileType
+{
+    public float Weight { get; set; } = 1f;
+    public int CountMin { get; set; } = 6;
+    public int CountMax { get; set; } = 20;
+}
 
 public class UnderwaterHorrorsConfig
 {
@@ -233,17 +254,49 @@ public class UnderwaterHorrorsConfig
     // The sea floor must be at least this many blocks below sea level for a
     // ruin to place, so they only appear in genuinely deep water.
     public int RuinMinOceanDepth { get; set; } = 12;
-    // Loot amount per generated structure. Each structure script defines a
-    // fixed set of chest spots and ingot-pile spots (roughly 10 chests in
-    // the small ruin up to roughly 59 in the drowned city). A target count
-    // is rolled between Min and Max per structure and that many randomly
-    // chosen spots are used; the rest stay empty. Counts above the number
-    // of scripted spots mean every spot is used, so the 9999 defaults
-    // reproduce the old always-full behavior.
-    public int RuinLootChestsMin { get; set; } = 9999;
-    public int RuinLootChestsMax { get; set; } = 9999;
-    public int RuinIngotPilesMin { get; set; } = 9999;
-    public int RuinIngotPilesMax { get; set; } = 9999;
+    // Loot amount per structure type. A target count is rolled between Min
+    // and Max each time a structure generates and that many randomly chosen
+    // scripted spots are used; the rest stay empty. Counts are capped at how
+    // many spots the structure actually defines, and the defaults below ARE
+    // those spot counts, so out of the box every spot is used. Structures
+    // missing from the map use every spot too.
+    public Dictionary<string, MinMaxCount> RuinLootChestsPerStructure { get; set; } = DefaultChestCounts();
+    public Dictionary<string, MinMaxCount> RuinIngotPilesPerStructure { get; set; } = DefaultIngotPileCounts();
+
+    // What an ingot pile contains, per metal: relative pick weight plus the
+    // pile size range. Keys are vanilla ingot codes (game:ingot-<key>).
+    // Defaults are HALF the pre-0.15 pile sizes. Add or remove metals
+    // freely; setting a structure's pile count to 0 disables its ingots.
+    public Dictionary<string, IngotPileType> RuinIngotTypes { get; set; } = DefaultIngotTypes();
+
+    public static Dictionary<string, MinMaxCount> DefaultChestCounts() => new()
+    {
+        ["ruin"] = new MinMaxCount { Min = 14, Max = 14 },
+        ["portal"] = new MinMaxCount { Min = 13, Max = 13 },
+        ["shipwreck-small"] = new MinMaxCount { Min = 8, Max = 8 },
+        ["shipwreck-medium"] = new MinMaxCount { Min = 15, Max = 15 },
+        ["shipwreck-huge"] = new MinMaxCount { Min = 30, Max = 30 },
+        ["city"] = new MinMaxCount { Min = 49, Max = 49 },
+    };
+
+    public static Dictionary<string, MinMaxCount> DefaultIngotPileCounts() => new()
+    {
+        ["ruin"] = new MinMaxCount { Min = 5, Max = 5 },
+        ["portal"] = new MinMaxCount { Min = 4, Max = 4 },
+        ["shipwreck-small"] = new MinMaxCount { Min = 6, Max = 6 },
+        ["shipwreck-medium"] = new MinMaxCount { Min = 12, Max = 12 },
+        ["shipwreck-huge"] = new MinMaxCount { Min = 24, Max = 24 },
+        ["city"] = new MinMaxCount { Min = 18, Max = 18 },
+    };
+
+    public static Dictionary<string, IngotPileType> DefaultIngotTypes() => new()
+    {
+        ["copper"] = new IngotPileType { Weight = 25, CountMin = 6, CountMax = 20 },
+        ["silver"] = new IngotPileType { Weight = 25, CountMin = 6, CountMax = 20 },
+        ["molybdochalkos"] = new IngotPileType { Weight = 26, CountMin = 6, CountMax = 20 },
+        ["gold"] = new IngotPileType { Weight = 9, CountMin = 24, CountMax = 32 },
+        ["steel"] = new IngotPileType { Weight = 15, CountMin = 2, CountMax = 5 },
+    };
     // Chance (0 to 1) that an auto spawner spot in a generated structure
     // gets a creature spawner block. Spots explicitly typed serpent or
     // kraken in a script (the /uh dungeon uses those) always place.
@@ -537,10 +590,28 @@ public class UnderwaterHorrorsConfig
         SerpentAggressionMultiplier = Math.Clamp(SerpentAggressionMultiplier, 0.1f, 10f);
         RuinSpawnerChance = Math.Clamp(RuinSpawnerChance, 0f, 1f);
         RuinKrakenVariantChance = Math.Clamp(RuinKrakenVariantChance, 0f, 1f);
-        if (RuinLootChestsMin < 0) RuinLootChestsMin = 0;
-        if (RuinLootChestsMax < RuinLootChestsMin) RuinLootChestsMax = RuinLootChestsMin;
-        if (RuinIngotPilesMin < 0) RuinIngotPilesMin = 0;
-        if (RuinIngotPilesMax < RuinIngotPilesMin) RuinIngotPilesMax = RuinIngotPilesMin;
+
+        // Per-structure loot maps: a nulled-out map is restored to defaults;
+        // individual entries just get their ranges sanitized.
+        RuinLootChestsPerStructure ??= DefaultChestCounts();
+        RuinIngotPilesPerStructure ??= DefaultIngotPileCounts();
+        if (RuinIngotTypes == null || RuinIngotTypes.Count == 0) RuinIngotTypes = DefaultIngotTypes();
+        foreach (var map in new[] { RuinLootChestsPerStructure, RuinIngotPilesPerStructure })
+        {
+            foreach (MinMaxCount m in map.Values)
+            {
+                if (m == null) continue;
+                if (m.Min < 0) m.Min = 0;
+                if (m.Max < m.Min) m.Max = m.Min;
+            }
+        }
+        foreach (IngotPileType t in RuinIngotTypes.Values)
+        {
+            if (t == null) continue;
+            t.Weight = Math.Max(0f, t.Weight);
+            t.CountMin = Math.Clamp(t.CountMin, 1, 64);
+            t.CountMax = Math.Clamp(t.CountMax, t.CountMin, 64);
+        }
 
         // One-shot: bump the old sparse default (320) to the new default so
         // existing worlds get ~3x more ruins without hand-editing, but leave

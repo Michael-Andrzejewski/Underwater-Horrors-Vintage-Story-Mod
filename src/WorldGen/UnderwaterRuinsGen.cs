@@ -183,7 +183,7 @@ public class UnderwaterRuinsGen : ModSystem
         var origin = new BlockPos(wx, floorY + 1, wz, 0);
         int before;
         lock (pendingLock) before = pending.Count;
-        int placed = PlaceScript(wgba, lines, origin, rnd, krakenMode);
+        int placed = PlaceScript(wgba, lines, origin, rnd, krakenMode, name);
         wgba.RunScheduledBlockLightUpdates(cx, cz);   // bake the creative lights
         int queued;
         lock (pendingLock) queued = pending.Count - before;
@@ -225,12 +225,11 @@ public class UnderwaterRuinsGen : ModSystem
     }
 
     // ── script runner (works with worldgen OR normal accessor) ────────────
-    private int PlaceScript(IBlockAccessor acc, string[] lines, BlockPos origin, Random rnd, bool krakenMode)
+    private int PlaceScript(IBlockAccessor acc, string[] lines, BlockPos origin, Random rnd, bool krakenMode, string structureName)
     {
         // Server-configurable loot amount: count the scripted chest and
-        // ingot-pile spots, roll how many this structure actually uses, then
-        // pick that many uniformly as the lines stream by. The 9999 defaults
-        // resolve to "every spot", the original behavior.
+        // ingot-pile spots, roll this structure type's configured count,
+        // then pick that many uniformly as the lines stream by.
         int chestSpots = 0, ingotSpots = 0;
         foreach (string raw in lines)
         {
@@ -240,8 +239,8 @@ public class UnderwaterRuinsGen : ModSystem
             else if (l.StartsWith("ingots", StringComparison.OrdinalIgnoreCase)) ingotSpots++;
         }
         UnderwaterHorrorsConfig cfg = Cfg;
-        int chestBudget = RollLootCount(rnd, chestSpots, cfg.RuinLootChestsMin, cfg.RuinLootChestsMax);
-        int ingotBudget = RollLootCount(rnd, ingotSpots, cfg.RuinIngotPilesMin, cfg.RuinIngotPilesMax);
+        int chestBudget = RollLootCount(rnd, chestSpots, cfg.RuinLootChestsPerStructure, structureName);
+        int ingotBudget = RollLootCount(rnd, ingotSpots, cfg.RuinIngotPilesPerStructure, structureName);
 
         int placed = 0;
         foreach (string raw in lines)
@@ -263,7 +262,7 @@ public class UnderwaterRuinsGen : ModSystem
                     break;
                 case "spawner": placed += DoSpawner(acc, t, origin, rnd, krakenMode); break;
                 case "ingots":
-                    if (TakeLootSpot(rnd, ref ingotBudget, ref ingotSpots)) placed += DoIngots(acc, t, origin);
+                    if (TakeLootSpot(rnd, ref ingotBudget, ref ingotSpots)) placed += DoIngots(acc, t, origin, rnd);
                     break;
                 case "scatter": placed += DoScatter(acc, t, origin); break;
             }
@@ -271,9 +270,16 @@ public class UnderwaterRuinsGen : ModSystem
         return placed;
     }
 
-    /// <summary>Rolls the loot target for one structure: a count between min and max, capped at the scripted spot count.</summary>
-    private static int RollLootCount(Random rnd, int spots, int min, int max)
+    /// <summary>
+    /// Rolls the loot target for one structure from its per-structure config
+    /// range, capped at the scripted spot count. Structures missing from the
+    /// map use every spot.
+    /// </summary>
+    private static int RollLootCount(Random rnd, int spots, Dictionary<string, MinMaxCount> map, string structureName)
     {
+        if (map == null || structureName == null
+            || !map.TryGetValue(structureName, out MinMaxCount m) || m == null) return spots;
+        int min = m.Min, max = m.Max;
         if (max > spots) max = spots;
         if (min > max) min = max;
         return min + rnd.Next(max - min + 1);
@@ -401,14 +407,18 @@ public class UnderwaterRuinsGen : ModSystem
         return PlaceSpawnerNow(acc, pos, kraken) ? 1 : 0;
     }
 
-    // ingots x y z <metal> <count>
-    private int DoIngots(IBlockAccessor acc, string[] t, BlockPos o)
+    // ingots x y z <metal> <count> — the scripted metal and count are only a
+    // fallback; each pile is normally re-rolled from RuinIngotTypes so server
+    // owners control the loot economy and every ruin instance varies instead
+    // of repeating the exact hoards baked into the structure script.
+    private int DoIngots(IBlockAccessor acc, string[] t, BlockPos o, Random rnd)
     {
         if (t.Length < 4) return 0;
         var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
         string metal = t.Length > 4 ? t[4].ToLowerInvariant() : "copper";
         int count = 8;
         if (t.Length > 5 && int.TryParse(t[5], out int c)) count = Math.Max(1, Math.Min(64, c));
+        RollIngotPile(rnd, ref metal, ref count);
 
         if (acc is IWorldGenBlockAccessor)
         {
@@ -417,6 +427,34 @@ public class UnderwaterRuinsGen : ModSystem
             return 1;
         }
         return PlaceIngotsNow(acc, pos, metal, count) ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Picks a metal by weight from RuinIngotTypes and rolls its pile size.
+    /// Keeps the script's baked values when the map has no usable entries.
+    /// </summary>
+    private void RollIngotPile(Random rnd, ref string metal, ref int count)
+    {
+        Dictionary<string, IngotPileType> types = Cfg.RuinIngotTypes;
+        if (types == null || types.Count == 0) return;
+
+        float total = 0;
+        foreach (IngotPileType t in types.Values)
+            if (t != null) total += Math.Max(0f, t.Weight);
+        if (total <= 0) return;
+
+        double roll = rnd.NextDouble() * total;
+        foreach (var kv in types)
+        {
+            if (kv.Value == null) continue;
+            roll -= Math.Max(0f, kv.Value.Weight);
+            if (roll <= 0)
+            {
+                metal = kv.Key.ToLowerInvariant();
+                count = kv.Value.CountMin + rnd.Next(kv.Value.CountMax - kv.Value.CountMin + 1);
+                return;
+            }
+        }
     }
 
     // scatter x y z <block> [count] — debris that settles onto the nearest
@@ -783,7 +821,7 @@ public class UnderwaterRuinsGen : ModSystem
         var origin = new BlockPos(feet.X, feet.Y, feet.Z, feet.dimension);
         var rnd = new Random();
         bool krakenMode = rnd.NextDouble() < Cfg.RuinKrakenVariantChance;
-        int placed = PlaceScript(sapi.World.BlockAccessor, lines, origin, rnd, krakenMode);
+        int placed = PlaceScript(sapi.World.BlockAccessor, lines, origin, rnd, krakenMode, name);
         return TextCommandResult.Success($"Built {name} ({placed} blocks){(krakenMode ? ", kraken variant" : "")}.");
     }
 }
