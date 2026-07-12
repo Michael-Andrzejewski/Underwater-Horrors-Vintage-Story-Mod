@@ -53,6 +53,36 @@ public class UnderwaterHorrorsConfig
     public float KrakenSpawnChanceDay { get; set; } = 0.05f;
     public float KrakenSpawnChanceNight { get; set; } = 0.10f;
 
+    // ─── Server tuning: one-stop serpent knobs ───────────────────────────
+    // Max health applied to serpents when they spawn (already-living
+    // creatures keep their current health; they despawn quickly anyway).
+    // The entity JSON defaults are 200 rust and 100 deep, matching these.
+    public float RustSerpentMaxHealth { get; set; } = 200f;
+    public float DeepSerpentMaxHealth { get; set; } = 100f;
+
+    // Movement speed multiplier for both serpent variants. One knob that
+    // scales every serpent motion together: approach, attack lunge, orbit,
+    // rise, and retreat. 1 = default, 2 = twice as fast, 0.5 = half speed.
+    // Values far from 1 can make orbits and turns look a little odd since
+    // turn smoothing is tuned for the defaults.
+    public float SerpentSpeedMultiplier { get; set; } = 1f;
+
+    // Aggression multiplier for both serpent variants. Above 1 the serpent
+    // closes its spiral in faster, waits less before striking, bites more
+    // often (attack cooldown shrinks), is more likely to re-attack after a
+    // strike and to turn on whoever hits it, and is less likely to flee
+    // when hurt. Below 1 gives a more skittish serpent. 1 = default.
+    // Attack damage and armor piercing are separate: SerpentAttackDamage
+    // and SerpentDamageTier further down.
+    public float SerpentAggressionMultiplier { get; set; } = 1f;
+
+    /// <summary>Aggression-scaled wait: higher aggression = shorter delays.</summary>
+    public float AggroTime(float seconds) => seconds / SerpentAggressionMultiplier;
+    /// <summary>Aggression-scaled probability: higher aggression = more likely.</summary>
+    public float AggroChance(float chance) => chance * SerpentAggressionMultiplier;
+    /// <summary>Inverse-scaled probability for timid reactions like fleeing: higher aggression = less likely.</summary>
+    public float AggroInverseChance(float chance) => chance / SerpentAggressionMultiplier;
+
     // Day/night threshold for kraken bioluminescence. Krakens spawning
     // during [DayKrakenStartHour, DayKrakenEndHour) on the VS calendar
     // get NO glow; outside this window they get a pulsing cyan glow
@@ -203,6 +233,24 @@ public class UnderwaterHorrorsConfig
     // The sea floor must be at least this many blocks below sea level for a
     // ruin to place, so they only appear in genuinely deep water.
     public int RuinMinOceanDepth { get; set; } = 12;
+    // Loot amount per generated structure. Each structure script defines a
+    // fixed set of chest spots and ingot-pile spots (roughly 10 chests in
+    // the small ruin up to roughly 59 in the drowned city). A target count
+    // is rolled between Min and Max per structure and that many randomly
+    // chosen spots are used; the rest stay empty. Counts above the number
+    // of scripted spots mean every spot is used, so the 9999 defaults
+    // reproduce the old always-full behavior.
+    public int RuinLootChestsMin { get; set; } = 9999;
+    public int RuinLootChestsMax { get; set; } = 9999;
+    public int RuinIngotPilesMin { get; set; } = 9999;
+    public int RuinIngotPilesMax { get; set; } = 9999;
+    // Chance (0 to 1) that an auto spawner spot in a generated structure
+    // gets a creature spawner block. Spots explicitly typed serpent or
+    // kraken in a script (the /uh dungeon uses those) always place.
+    public float RuinSpawnerChance { get; set; } = 0.85f;
+    // Chance (0 to 1) that a structure rolls kraken mode, which makes every
+    // auto spawner in it a kraken spawner instead of a serpent spawner.
+    public float RuinKrakenVariantChance { get; set; } = 0.05f;
 
     // Movement limits
     public double CreatureMaxY { get; set; } = 110;
@@ -480,6 +528,19 @@ public class UnderwaterHorrorsConfig
         // A rarity below 1 would divide-by-zero the placement roll.
         if (RuinRarity < 1) RuinRarity = 1;
         if (RuinMinOceanDepth < 2) RuinMinOceanDepth = 2;
+
+        // Server-tuning knobs. HP below 1 is instantly dead; the multipliers
+        // are divisors in the aggro helpers so zero would NaN the AI.
+        RustSerpentMaxHealth = Math.Max(1f, RustSerpentMaxHealth);
+        DeepSerpentMaxHealth = Math.Max(1f, DeepSerpentMaxHealth);
+        SerpentSpeedMultiplier = Math.Clamp(SerpentSpeedMultiplier, 0.1f, 10f);
+        SerpentAggressionMultiplier = Math.Clamp(SerpentAggressionMultiplier, 0.1f, 10f);
+        RuinSpawnerChance = Math.Clamp(RuinSpawnerChance, 0f, 1f);
+        RuinKrakenVariantChance = Math.Clamp(RuinKrakenVariantChance, 0f, 1f);
+        if (RuinLootChestsMin < 0) RuinLootChestsMin = 0;
+        if (RuinLootChestsMax < RuinLootChestsMin) RuinLootChestsMax = RuinLootChestsMin;
+        if (RuinIngotPilesMin < 0) RuinIngotPilesMin = 0;
+        if (RuinIngotPilesMax < RuinIngotPilesMin) RuinIngotPilesMax = RuinIngotPilesMin;
 
         // One-shot: bump the old sparse default (320) to the new default so
         // existing worlds get ~3x more ruins without hand-editing, but leave

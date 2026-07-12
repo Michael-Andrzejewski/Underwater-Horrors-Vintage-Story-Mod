@@ -166,6 +166,7 @@ public class BlockEntityCreatureSpawner : BlockEntity
         }
 
         sapi.World.SpawnEntity(creature);
+        UnderwaterHorrorsModSystem.ApplyConfiguredHealth(creature);
 
         // DebugLog is a no-op unless DebugLogging is on, so no guard needed.
         UnderwaterHorrorsModSystem.DebugLog(sapi, $"Creature spawner at {Pos} spawned {spawnAsset.Path} for {target.PlayerName}, block hidden until it despawns");

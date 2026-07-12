@@ -1976,11 +1976,42 @@ public class UnderwaterHorrorsModSystem : ModSystem
         serpent.Pos.SetFrom(serpent.Pos);
         serpent.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(serpent);
+        ApplyConfiguredHealth(serpent);
 
         if (Config.DebugLogging)
             DebugLog(sapi, $"SPAWNED {label} targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
 
         return serpent;
+    }
+
+    /// <summary>
+    /// Applies the server-configured max health to a freshly spawned
+    /// serpent. Writes the same "health" watched-attribute tree the vanilla
+    /// health behavior is backed by (basemaxhealth / maxhealth /
+    /// currenthealth, verified against the game's EntityBehaviorHealth), so
+    /// it syncs to clients and persists with the entity. Called right after
+    /// SpawnEntity, when the health behavior has initialized the tree. The
+    /// kraken and the serpent3 prototype keep their JSON values.
+    /// </summary>
+    public static void ApplyConfiguredHealth(Entity creature)
+    {
+        UnderwaterHorrorsConfig cfg = Config;
+        if (cfg == null || creature?.Code == null) return;
+
+        float hp;
+        switch (creature.Code.Path)
+        {
+            case "seaserpent": hp = cfg.RustSerpentMaxHealth; break;
+            case "seaserpent2": hp = cfg.DeepSerpentMaxHealth; break;
+            default: return;
+        }
+
+        var healthTree = creature.WatchedAttributes.GetTreeAttribute("health");
+        if (healthTree == null) return;
+        healthTree.SetFloat("basemaxhealth", hp);
+        healthTree.SetFloat("maxhealth", hp);
+        healthTree.SetFloat("currenthealth", hp);
+        creature.WatchedAttributes.MarkPathDirty("health");
     }
 
     /// <summary>

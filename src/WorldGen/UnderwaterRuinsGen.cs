@@ -16,8 +16,10 @@ namespace UnderwaterHorrors;
 /// tilde-relative build script (shipped under assets/underwaterhorrors/
 /// ruinscripts/) and placed at the sea floor. Collapsed loot chests are stocked
 /// like vanilla lore-location chests (stackrandomizer tokens resolved in place),
-/// and each spawner spot rolls at 85%, with a per-structure 5% chance that every
-/// spawner becomes a kraken instead.
+/// and each auto spawner spot rolls RuinSpawnerChance (default 85%), with a
+/// per-structure RuinKrakenVariantChance (default 5%) that every spawner
+/// becomes a kraken instead. Loot amounts are server-tunable via the
+/// RuinLootChests / RuinIngotPiles min-max counts in the config.
 ///
 /// The same placement runs from the /uhruin test command using the normal block
 /// accessor, so the structures can be inspected on land without hunting an ocean.
@@ -177,7 +179,7 @@ public class UnderwaterRuinsGen : ModSystem
         if (!scripts.TryGetValue(name, out string[] lines)) return;
 
         wgba.BeginColumn();
-        bool krakenMode = rnd.NextDouble() < 0.05;
+        bool krakenMode = rnd.NextDouble() < Cfg.RuinKrakenVariantChance;
         var origin = new BlockPos(wx, floorY + 1, wz, 0);
         int before;
         lock (pendingLock) before = pending.Count;
@@ -225,6 +227,22 @@ public class UnderwaterRuinsGen : ModSystem
     // ── script runner (works with worldgen OR normal accessor) ────────────
     private int PlaceScript(IBlockAccessor acc, string[] lines, BlockPos origin, Random rnd, bool krakenMode)
     {
+        // Server-configurable loot amount: count the scripted chest and
+        // ingot-pile spots, roll how many this structure actually uses, then
+        // pick that many uniformly as the lines stream by. The 9999 defaults
+        // resolve to "every spot", the original behavior.
+        int chestSpots = 0, ingotSpots = 0;
+        foreach (string raw in lines)
+        {
+            string l = raw.TrimStart();
+            if (l.StartsWith("/")) l = l.Substring(1);
+            if (l.StartsWith("lootchest", StringComparison.OrdinalIgnoreCase)) chestSpots++;
+            else if (l.StartsWith("ingots", StringComparison.OrdinalIgnoreCase)) ingotSpots++;
+        }
+        UnderwaterHorrorsConfig cfg = Cfg;
+        int chestBudget = RollLootCount(rnd, chestSpots, cfg.RuinLootChestsMin, cfg.RuinLootChestsMax);
+        int ingotBudget = RollLootCount(rnd, ingotSpots, cfg.RuinIngotPilesMin, cfg.RuinIngotPilesMax);
+
         int placed = 0;
         foreach (string raw in lines)
         {
@@ -240,12 +258,38 @@ public class UnderwaterRuinsGen : ModSystem
                 case "fill": placed += DoFill(acc, t, origin); break;
                 case "setblock":
                 case "cbsetblock": placed += DoSet(acc, t, origin); break;
-                case "lootchest": placed += DoChest(acc, t, origin, rnd); break;
+                case "lootchest":
+                    if (TakeLootSpot(rnd, ref chestBudget, ref chestSpots)) placed += DoChest(acc, t, origin, rnd);
+                    break;
                 case "spawner": placed += DoSpawner(acc, t, origin, rnd, krakenMode); break;
-                case "ingots": placed += DoIngots(acc, t, origin); break;
+                case "ingots":
+                    if (TakeLootSpot(rnd, ref ingotBudget, ref ingotSpots)) placed += DoIngots(acc, t, origin);
+                    break;
             }
         }
         return placed;
+    }
+
+    /// <summary>Rolls the loot target for one structure: a count between min and max, capped at the scripted spot count.</summary>
+    private static int RollLootCount(Random rnd, int spots, int min, int max)
+    {
+        if (max > spots) max = spots;
+        if (min > max) min = max;
+        return min + rnd.Next(max - min + 1);
+    }
+
+    /// <summary>
+    /// Uniform streaming selection of exactly <c>budget</c> spots out of
+    /// <c>spotsLeft</c> remaining: each spot is taken with probability
+    /// budget/spotsLeft, and both counters tick down as spots pass.
+    /// </summary>
+    private static bool TakeLootSpot(Random rnd, ref int budget, ref int spotsLeft)
+    {
+        if (spotsLeft <= 0) return false;
+        bool take = rnd.Next(spotsLeft) < budget;
+        spotsLeft--;
+        if (take) budget--;
+        return take;
     }
 
     // The ruin scripts carve decay (punched wall holes, doorways, broken
@@ -335,7 +379,7 @@ public class UnderwaterRuinsGen : ModSystem
         else if (typeArg == "kraken") kraken = true;
         else
         {
-            if (rnd.NextDouble() >= 0.85) return 0;   // 85% chance to place a spawner here
+            if (rnd.NextDouble() >= Cfg.RuinSpawnerChance) return 0;   // default: 85% chance per auto spot
             kraken = krakenMode;
         }
 
@@ -649,7 +693,7 @@ public class UnderwaterRuinsGen : ModSystem
         BlockPos feet = ent.Pos.AsBlockPos;
         var origin = new BlockPos(feet.X, feet.Y, feet.Z, feet.dimension);
         var rnd = new Random();
-        bool krakenMode = rnd.NextDouble() < 0.05;
+        bool krakenMode = rnd.NextDouble() < Cfg.RuinKrakenVariantChance;
         int placed = PlaceScript(sapi.World.BlockAccessor, lines, origin, rnd, krakenMode);
         return TextCommandResult.Success($"Built {name} ({placed} blocks){(krakenMode ? ", kraken variant" : "")}.");
     }

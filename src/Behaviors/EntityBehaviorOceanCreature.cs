@@ -75,8 +75,16 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         }
     }
 
+    // Movement speed scale applied inside MoveToward / MoveTowardDamped.
+    // 1 for everything except the two serpent AIs, which override it with
+    // the server-configurable SerpentSpeedMultiplier so a single config
+    // knob rescales every serpent motion coherently (tentacles unaffected).
+    protected virtual double SpeedScale => 1.0;
+
     protected void MoveToward(double targetX, double targetY, double targetZ, double speed, double minDist = 0.1)
     {
+        speed *= SpeedScale;
+
         double dx = targetX - entity.Pos.X;
         double dy = targetY - entity.Pos.Y;
         double dz = targetZ - entity.Pos.Z;
@@ -163,6 +171,12 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         double horizSpeed, double maxVerticalSpeed, double verticalSlewPerSec,
         float deltaTime)
     {
+        // Scale caps and slew together so a sped-up serpent keeps the same
+        // strike angles instead of moving fast horizontally but rising slowly.
+        horizSpeed *= SpeedScale;
+        maxVerticalSpeed *= SpeedScale;
+        verticalSlewPerSec *= SpeedScale;
+
         double dx = targetX - entity.Pos.X;
         double dy = targetY - entity.Pos.Y;
         double dz = targetZ - entity.Pos.Z;

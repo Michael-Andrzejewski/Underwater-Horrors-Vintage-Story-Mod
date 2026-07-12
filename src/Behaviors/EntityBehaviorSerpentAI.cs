@@ -17,6 +17,10 @@ public enum SerpentState
 
 public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 {
+    // Server-tuning knob: scales all movement done through the base-class
+    // movers; the direct Motion writes below multiply it in themselves.
+    protected override double SpeedScale => config?.SerpentSpeedMultiplier ?? 1.0;
+
     private SerpentState state = SerpentState.Rising;
     private float stateTimer;
     private float stalkDuration;
@@ -499,11 +503,11 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
                 PlayAnimation(AnimSlither);
                 // Roll a random dwell threshold for body-proximity aggro.
                 proximityBodyDwellTimer = 0;
-                proximityBodyDwellThreshold =
+                proximityBodyDwellThreshold = config.AggroTime(
                     config.SerpentProximityBodyDwellMin +
                     (float)(entity.World.Rand.NextDouble() *
                         (config.SerpentProximityBodyDwellMax -
-                         config.SerpentProximityBodyDwellMin));
+                         config.SerpentProximityBodyDwellMin)));
                 // Seed slew limiter so we don't ramp from old Motion.Y.
                 lastCommandedMotionY = entity.Pos.Motion.Y;
                 break;
@@ -568,9 +572,10 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             (float)(rand.NextDouble() *
                 (config.SerpentSpiralReductionMax - config.SerpentSpiralReductionMin));
         orbitRadiusEnd = Math.Max(config.SerpentOrbitRadius, orbitRadiusStart - reduction);
-        radiusTransitionDuration = config.SerpentSpiralStepDurationMin +
+        radiusTransitionDuration = config.AggroTime(
+            config.SerpentSpiralStepDurationMin +
             (float)(rand.NextDouble() *
-                (config.SerpentSpiralStepDurationMax - config.SerpentSpiralStepDurationMin));
+                (config.SerpentSpiralStepDurationMax - config.SerpentSpiralStepDurationMin)));
         radiusTransitionTime = 0;
 
         // Roll whether this step rises to the surface (fin-above-waves).
@@ -589,7 +594,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
         double targetY = targetPlayer.Entity.Pos.Y;
 
-        entity.Pos.Motion.Y = config.SerpentRiseSpeed;
+        entity.Pos.Motion.Y = config.SerpentRiseSpeed * SpeedScale;
 
         double dx = surfaceX - entity.Pos.X;
         double dz = surfaceZ - entity.Pos.Z;
@@ -597,8 +602,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
         if (horizDist > 1)
         {
-            entity.Pos.Motion.X = (dx / horizDist) * config.SerpentApproachSpeed;
-            entity.Pos.Motion.Z = (dz / horizDist) * config.SerpentApproachSpeed;
+            entity.Pos.Motion.X = (dx / horizDist) * config.SerpentApproachSpeed * SpeedScale;
+            entity.Pos.Motion.Z = (dz / horizDist) * config.SerpentApproachSpeed * SpeedScale;
         }
 
         if (entity.Pos.Y >= targetY - 2)
@@ -620,8 +625,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 
         if (dist > 0.5)
         {
-            entity.Pos.Motion.X = (dx / dist) * config.SerpentApproachSpeed * 0.2;
-            entity.Pos.Motion.Z = (dz / dist) * config.SerpentApproachSpeed * 0.2;
+            entity.Pos.Motion.X = (dx / dist) * config.SerpentApproachSpeed * 0.2 * SpeedScale;
+            entity.Pos.Motion.Z = (dz / dist) * config.SerpentApproachSpeed * 0.2 * SpeedScale;
         }
         else
         {
@@ -695,7 +700,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             radius = config.SerpentOrbitRadius;
         }
 
-        float effectiveOrbitSpeed = config.SerpentOrbitSpeed * config.SerpentOrbitRadius / radius;
+        float effectiveOrbitSpeed = config.SerpentOrbitSpeed * config.SerpentOrbitRadius / radius * (float)SpeedScale;
         orbitAngle += effectiveOrbitSpeed * deltaTime;
 
         double targetX = targetPlayer.Entity.Pos.X + Math.Cos(orbitAngle) * radius;
@@ -925,17 +930,20 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             if (attackAnimTimer >= StrikeDuration)
             {
                 isStriking = false;
-                attackCooldownTimer = config.SerpentAttackCooldown;
+                attackCooldownTimer = config.AggroTime(config.SerpentAttackCooldown);
                 PlayAnimation(AnimSlither);
 
-                // Enraged serpents never disengage after a strike.
+                // Enraged serpents never disengage after a strike. Aggression
+                // scales the disengage roll down, so an aggressive serpent
+                // keeps pressing instead of backing off to circle.
                 if (enrageTimer <= 0 &&
-                    entity.World.Rand.NextDouble() < config.SerpentReStalkChance)
+                    entity.World.Rand.NextDouble() < config.AggroInverseChance(config.SerpentReStalkChance))
                 {
                     var rand = entity.World.Rand;
-                    stalkDuration = config.SerpentStalkDurationMin +
+                    stalkDuration = config.AggroTime(
+                        config.SerpentStalkDurationMin +
                         (float)(rand.NextDouble() *
-                            (config.SerpentStalkDurationMax - config.SerpentStalkDurationMin));
+                            (config.SerpentStalkDurationMax - config.SerpentStalkDurationMin)));
                     if (config.DebugLogging)
                         UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                             $"Serpent disengaging, re-stalk for {stalkDuration:F1}s");
@@ -971,7 +979,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // Enraged serpents are committed and skip the flee roll entirely.
         if (enrageTimer <= 0)
         {
-            double chance = damage * config.RustSerpentFleeChancePerDamage;
+            double chance = damage * config.AggroInverseChance(config.RustSerpentFleeChancePerDamage);
             double roll = entity.World.Rand.NextDouble();
             if (roll < chance)
             {
@@ -998,7 +1006,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // toggle is on.
         if (state != SerpentState.Attacking &&
             !TargetIsPassiveObserver &&
-            entity.World.Rand.NextDouble() < config.SerpentProvokeChance)
+            entity.World.Rand.NextDouble() < config.AggroChance(config.SerpentProvokeChance))
         {
             if (config.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api,
