@@ -1,0 +1,9203 @@
+{
+	"editor": {
+		"allAngles": false,
+		"entityTextureMode": false,
+		"singleTexture": false
+	},
+	"textureWidth": 64,
+	"textureHeight": 64,
+	"textureSizes": {
+		"anglerfish": [
+			64,
+			64
+		]
+	},
+	"textures": {
+		"anglerfish": "underwaterhorrors:entity/anglerfish"
+	},
+	"elements": [
+		{
+			"name": "angler",
+			"from": [
+				0,
+				27,
+				0
+			],
+			"to": [
+				0,
+				27,
+				0
+			],
+			"rotationOrigin": [
+				0,
+				27,
+				0
+			],
+			"children": [
+				{
+					"name": "body0",
+					"from": [
+						-15.677287209831588,
+						4.096950386891219,
+						-58.0
+					],
+					"to": [
+						15.677287209831588,
+						49.45152480655439,
+						-53.07692307692308
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge0",
+					"from": [
+						-7.838643604915794,
+						48.45152480655439,
+						-58.0
+					],
+					"to": [
+						7.838643604915794,
+						51.95152480655439,
+						-53.07692307692308
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body1",
+					"from": [
+						-17.949476558944014,
+						1.0673645880746498,
+						-53.07692307692308
+					],
+					"to": [
+						17.949476558944014,
+						50.96631770596268,
+						-48.15384615384615
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge1",
+					"from": [
+						-8.974738279472007,
+						49.96631770596268,
+						-53.07692307692308
+					],
+					"to": [
+						8.974738279472007,
+						53.46631770596268,
+						-48.15384615384615
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body2",
+					"from": [
+						-19.672735548475192,
+						-1.230314064633589,
+						-48.15384615384615
+					],
+					"to": [
+						19.672735548475192,
+						52.115157032316795,
+						-43.230769230769226
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge2",
+					"from": [
+						-9.836367774237596,
+						51.115157032316795,
+						-48.15384615384615
+					],
+					"to": [
+						9.836367774237596,
+						54.615157032316795,
+						-43.230769230769226
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body3",
+					"from": [
+						-21.058800721522616,
+						-3.0588007215226156,
+						-43.230769230769226
+					],
+					"to": [
+						21.058800721522616,
+						53.11760144304523,
+						-38.30769230769231
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge3",
+					"from": [
+						-10.529400360761308,
+						52.11760144304523,
+						-43.230769230769226
+					],
+					"to": [
+						10.529400360761308,
+						55.61760144304523,
+						-38.30769230769231
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body4",
+					"from": [
+						-22.038453109459027,
+						-4.038453109459027,
+						-38.30769230769231
+					],
+					"to": [
+						22.038453109459027,
+						55.076906218918054,
+						-33.38461538461539
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge4",
+					"from": [
+						-11.019226554729514,
+						54.076906218918054,
+						-38.30769230769231
+					],
+					"to": [
+						11.019226554729514,
+						57.576906218918054,
+						-33.38461538461539
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body5",
+					"from": [
+						-22.966317705962677,
+						-4.966317705962677,
+						-33.38461538461539
+					],
+					"to": [
+						22.966317705962677,
+						56.93263541192535,
+						-28.46153846153846
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge5",
+					"from": [
+						-11.483158852981338,
+						55.93263541192535,
+						-33.38461538461539
+					],
+					"to": [
+						11.483158852981338,
+						59.43263541192535,
+						-28.46153846153846
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body6",
+					"from": [
+						-23.198250728862973,
+						-5.198250728862973,
+						-28.46153846153846
+					],
+					"to": [
+						23.198250728862973,
+						57.59475218658892,
+						-23.538461538461533
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge6",
+					"from": [
+						-11.599125364431487,
+						56.59475218658892,
+						-28.46153846153846
+					],
+					"to": [
+						11.599125364431487,
+						60.09475218658892,
+						-23.538461538461533
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body7",
+					"from": [
+						-23.70086030380681,
+						-5.7008603038068095,
+						-23.538461538461533
+					],
+					"to": [
+						23.70086030380681,
+						59.10258091142043,
+						-18.615384615384613
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge7",
+					"from": [
+						-11.850430151903405,
+						58.10258091142043,
+						-23.538461538461533
+					],
+					"to": [
+						11.850430151903405,
+						61.60258091142043,
+						-18.615384615384613
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body8",
+					"from": [
+						-23.999640378942395,
+						-5.999640378942395,
+						-18.615384615384613
+					],
+					"to": [
+						23.999640378942395,
+						59.998921136827185,
+						-13.692307692307693
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge8",
+					"from": [
+						-11.999820189471198,
+						58.998921136827185,
+						-18.615384615384613
+					],
+					"to": [
+						11.999820189471198,
+						62.498921136827185,
+						-13.692307692307693
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body9",
+					"from": [
+						-23.786418624829313,
+						-5.572837249658626,
+						-13.692307692307693
+					],
+					"to": [
+						23.786418624829313,
+						59.572837249658626,
+						-8.769230769230766
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge9",
+					"from": [
+						-11.893209312414657,
+						58.572837249658626,
+						-13.692307692307693
+					],
+					"to": [
+						11.893209312414657,
+						62.072837249658626,
+						-8.769230769230766
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body10",
+					"from": [
+						-23.343712662152935,
+						-4.68742532430587,
+						-8.769230769230766
+					],
+					"to": [
+						23.343712662152935,
+						58.68742532430587,
+						-3.8461538461538396
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge10",
+					"from": [
+						-11.671856331076468,
+						57.68742532430587,
+						-8.769230769230766
+					],
+					"to": [
+						11.671856331076468,
+						61.18742532430587,
+						-3.8461538461538396
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body11",
+					"from": [
+						-23.021170559285387,
+						-4.0423411185707785,
+						-3.8461538461538396
+					],
+					"to": [
+						23.021170559285387,
+						58.042341118570775,
+						1.0769230769230802
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge11",
+					"from": [
+						-11.510585279642694,
+						57.042341118570775,
+						-3.8461538461538396
+					],
+					"to": [
+						11.510585279642694,
+						60.542341118570775,
+						1.0769230769230802
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body12",
+					"from": [
+						-22.521944183096217,
+						-3.3625922441282903,
+						1.0769230769230802
+					],
+					"to": [
+						22.521944183096217,
+						57.362592244128294,
+						6.0
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge12",
+					"from": [
+						-11.260972091548108,
+						56.362592244128294,
+						1.0769230769230802
+					],
+					"to": [
+						11.260972091548108,
+						59.862592244128294,
+						6.0
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body13",
+					"from": [
+						-21.03704627699314,
+						-1.3827283693241874,
+						6.0
+					],
+					"to": [
+						21.03704627699314,
+						55.382728369324184,
+						10.923076923076934
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge13",
+					"from": [
+						-10.51852313849657,
+						54.382728369324184,
+						6.0
+					],
+					"to": [
+						10.51852313849657,
+						57.882728369324184,
+						10.923076923076934
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body14",
+					"from": [
+						-20.01687963045287,
+						-0.0225061739371597,
+						10.923076923076934
+					],
+					"to": [
+						20.01687963045287,
+						54.02250617393716,
+						15.846153846153854
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge14",
+					"from": [
+						-10.008439815226435,
+						53.02250617393716,
+						10.923076923076934
+					],
+					"to": [
+						10.008439815226435,
+						56.52250617393716,
+						15.846153846153854
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body15",
+					"from": [
+						-18.871187983614018,
+						1.3545744196631802,
+						15.846153846153854
+					],
+					"to": [
+						18.871187983614018,
+						52.64542558033682,
+						20.769230769230774
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge15",
+					"from": [
+						-9.435593991807009,
+						51.64542558033682,
+						15.846153846153854
+					],
+					"to": [
+						9.435593991807009,
+						55.14542558033682,
+						20.769230769230774
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body16",
+					"from": [
+						-16.345400765156832,
+						4.3855190818118,
+						20.769230769230774
+					],
+					"to": [
+						16.345400765156832,
+						49.6144809181882,
+						25.692307692307693
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge16",
+					"from": [
+						-8.172700382578416,
+						48.6144809181882,
+						20.769230769230774
+					],
+					"to": [
+						8.172700382578416,
+						52.1144809181882,
+						25.692307692307693
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body17",
+					"from": [
+						-14.998561515769582,
+						6.002157726345626,
+						25.692307692307693
+					],
+					"to": [
+						14.998561515769582,
+						47.99784227365437,
+						30.615384615384613
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge17",
+					"from": [
+						-7.499280757884791,
+						46.99784227365437,
+						25.692307692307693
+					],
+					"to": [
+						7.499280757884791,
+						50.49784227365437,
+						30.615384615384613
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body18",
+					"from": [
+						-13.803441215227231,
+						7.7948381771591535,
+						30.615384615384613
+					],
+					"to": [
+						13.803441215227231,
+						46.20516182284085,
+						35.53846153846155
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge18",
+					"from": [
+						-6.9017206076136155,
+						45.20516182284085,
+						30.615384615384613
+					],
+					"to": [
+						6.9017206076136155,
+						48.70516182284085,
+						35.53846153846155
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body19",
+					"from": [
+						-11.793002915451893,
+						10.81049562682216,
+						35.53846153846155
+					],
+					"to": [
+						11.793002915451893,
+						43.18950437317784,
+						40.46153846153847
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge19",
+					"from": [
+						-5.896501457725947,
+						42.18950437317784,
+						35.53846153846155
+					],
+					"to": [
+						5.896501457725947,
+						45.68950437317784,
+						40.46153846153847
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body20",
+					"from": [
+						-10.95012546926567,
+						12.062343163417914,
+						40.46153846153847
+					],
+					"to": [
+						10.95012546926567,
+						41.937656836582086,
+						45.38461538461539
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge20",
+					"from": [
+						-5.475062734632835,
+						40.937656836582086,
+						40.46153846153847
+					],
+					"to": [
+						5.475062734632835,
+						44.437656836582086,
+						45.38461538461539
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body21",
+					"from": [
+						-9.490026818972595,
+						13.887466476284256,
+						45.38461538461539
+					],
+					"to": [
+						9.490026818972595,
+						40.11253352371574,
+						50.30769230769232
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "ridge21",
+					"from": [
+						-4.7450134094862975,
+						39.11253352371574,
+						45.38461538461539
+					],
+					"to": [
+						4.7450134094862975,
+						42.61253352371574,
+						50.30769230769232
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body22",
+					"from": [
+						-7.540737369139732,
+						16.324078288575336,
+						50.30769230769232
+					],
+					"to": [
+						7.540737369139732,
+						37.675921711424664,
+						55.23076923076924
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body23",
+					"from": [
+						-6.8790916847914785,
+						17.161211086944697,
+						55.23076923076924
+					],
+					"to": [
+						6.8790916847914785,
+						36.8387889130553,
+						60.15384615384616
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body24",
+					"from": [
+						-5.623501965972681,
+						18.835330712036427,
+						60.15384615384616
+					],
+					"to": [
+						5.623501965972681,
+						35.16466928796358,
+						65.07692307692308
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "body25",
+					"from": [
+						-4.245614547268935,
+						20.672513936974752,
+						65.07692307692308
+					],
+					"to": [
+						4.245614547268935,
+						33.32748606302525,
+						70.0
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "snout",
+					"from": [
+						-19.0,
+						20.0,
+						-66.0
+					],
+					"to": [
+						19.0,
+						40.0,
+						-50.0
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								2,
+								38,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								10,
+								10,
+								14,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "upperlip",
+					"from": [
+						-17.0,
+						18.0,
+						-72.0
+					],
+					"to": [
+						17.0,
+						27.0,
+						-63.0
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								2,
+								30,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								10,
+								10,
+								14,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "maw_roof",
+					"from": [
+						-15.0,
+						24.0,
+						-63.0
+					],
+					"to": [
+						15.0,
+						27.0,
+						-50.0
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								18,
+								2,
+								22,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								2,
+								30,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								2,
+								2,
+								6,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "eye-1",
+					"from": [
+						-19,
+						33,
+						-57
+					],
+					"to": [
+						-12,
+						41,
+						-49
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pupil-1",
+					"from": [
+						-19.5,
+						35,
+						-55
+					],
+					"to": [
+						-14.5,
+						39,
+						-51
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "eye1",
+					"from": [
+						12,
+						33,
+						-57
+					],
+					"to": [
+						19,
+						41,
+						-49
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								26,
+								10,
+								30,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pupil1",
+					"from": [
+						14.5,
+						35,
+						-55
+					],
+					"to": [
+						19.5,
+						39,
+						-51
+					],
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								34,
+								10,
+								38,
+								14
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth0",
+					"from": [
+						-16.3,
+						10.25,
+						-71
+					],
+					"to": [
+						-13.7,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						-15.0,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth1",
+					"from": [
+						-12.55,
+						6.9375,
+						-71
+					],
+					"to": [
+						-9.95,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						-11.25,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth2",
+					"from": [
+						-8.8,
+						7.625,
+						-71
+					],
+					"to": [
+						-6.2,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						-7.5,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth3",
+					"from": [
+						-5.05,
+						4.3125,
+						-71
+					],
+					"to": [
+						-2.45,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						-3.75,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth4",
+					"from": [
+						-1.3,
+						5.0,
+						-71
+					],
+					"to": [
+						1.3,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						0.0,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth5",
+					"from": [
+						2.45,
+						4.3125,
+						-71
+					],
+					"to": [
+						5.05,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						3.75,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth6",
+					"from": [
+						6.2,
+						7.625,
+						-71
+					],
+					"to": [
+						8.8,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						7.5,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth7",
+					"from": [
+						9.95,
+						6.9375,
+						-71
+					],
+					"to": [
+						12.55,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						11.25,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "utooth8",
+					"from": [
+						13.7,
+						10.25,
+						-71
+					],
+					"to": [
+						16.3,
+						21,
+						-67
+					],
+					"rotationOrigin": [
+						15.0,
+						21,
+						-69
+					],
+					"rotationX": -12,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								58,
+								2,
+								62,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "jaw",
+					"from": [
+						0,
+						19,
+						-50
+					],
+					"to": [
+						0,
+						19,
+						-50
+					],
+					"rotationOrigin": [
+						0,
+						19,
+						-50
+					],
+					"children": [
+						{
+							"name": "lowjaw",
+							"from": [
+								-17.0,
+								8.0,
+								-72.0
+							],
+							"to": [
+								17.0,
+								20.0,
+								-50.0
+							],
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										10,
+										14,
+										14
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										2,
+										2,
+										6,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "chin",
+							"from": [
+								-14.0,
+								6.0,
+								-70.0
+							],
+							"to": [
+								14.0,
+								12.0,
+								-58.0
+							],
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										10,
+										2,
+										14,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										18,
+										2,
+										22,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										2,
+										2,
+										6,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth0",
+							"from": [
+								-15.3,
+								19,
+								-71
+							],
+							"to": [
+								-12.7,
+								30.8,
+								-67
+							],
+							"rotationOrigin": [
+								-14.0,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth1",
+							"from": [
+								-11.8,
+								19,
+								-71
+							],
+							"to": [
+								-9.2,
+								33.85,
+								-67
+							],
+							"rotationOrigin": [
+								-10.5,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth2",
+							"from": [
+								-8.3,
+								19,
+								-71
+							],
+							"to": [
+								-5.7,
+								32.9,
+								-67
+							],
+							"rotationOrigin": [
+								-7.0,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth3",
+							"from": [
+								-4.8,
+								19,
+								-71
+							],
+							"to": [
+								-2.2,
+								35.95,
+								-67
+							],
+							"rotationOrigin": [
+								-3.5,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth4",
+							"from": [
+								-1.3,
+								19,
+								-71
+							],
+							"to": [
+								1.3,
+								35.0,
+								-67
+							],
+							"rotationOrigin": [
+								0.0,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth5",
+							"from": [
+								2.2,
+								19,
+								-71
+							],
+							"to": [
+								4.8,
+								35.95,
+								-67
+							],
+							"rotationOrigin": [
+								3.5,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth6",
+							"from": [
+								5.7,
+								19,
+								-71
+							],
+							"to": [
+								8.3,
+								32.9,
+								-67
+							],
+							"rotationOrigin": [
+								7.0,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth7",
+							"from": [
+								9.2,
+								19,
+								-71
+							],
+							"to": [
+								11.8,
+								33.85,
+								-67
+							],
+							"rotationOrigin": [
+								10.5,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "ltooth8",
+							"from": [
+								12.7,
+								19,
+								-71
+							],
+							"to": [
+								15.3,
+								30.8,
+								-67
+							],
+							"rotationOrigin": [
+								14.0,
+								19,
+								-69
+							],
+							"rotationX": 10,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										58,
+										2,
+										62,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "pect-1_0",
+					"from": [
+						-21.5,
+						15,
+						-0.5
+					],
+					"to": [
+						-18.5,
+						29.0,
+						2.5
+					],
+					"rotationOrigin": [
+						-20,
+						17,
+						3
+					],
+					"rotationY": 24,
+					"rotationZ": -48,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pect-1_1",
+					"from": [
+						-21.5,
+						15,
+						1.5
+					],
+					"to": [
+						-18.5,
+						26.5,
+						4.5
+					],
+					"rotationOrigin": [
+						-20,
+						17,
+						3
+					],
+					"rotationY": 24,
+					"rotationZ": -64,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pect-1_2",
+					"from": [
+						-21.5,
+						15,
+						3.5
+					],
+					"to": [
+						-18.5,
+						24.0,
+						6.5
+					],
+					"rotationOrigin": [
+						-20,
+						17,
+						3
+					],
+					"rotationY": 24,
+					"rotationZ": -80,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pect1_0",
+					"from": [
+						18.5,
+						15,
+						-0.5
+					],
+					"to": [
+						21.5,
+						29.0,
+						2.5
+					],
+					"rotationOrigin": [
+						20,
+						17,
+						3
+					],
+					"rotationY": -24,
+					"rotationZ": -48,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pect1_1",
+					"from": [
+						18.5,
+						15,
+						1.5
+					],
+					"to": [
+						21.5,
+						26.5,
+						4.5
+					],
+					"rotationOrigin": [
+						20,
+						17,
+						3
+					],
+					"rotationY": -24,
+					"rotationZ": -64,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "pect1_2",
+					"from": [
+						18.5,
+						15,
+						3.5
+					],
+					"to": [
+						21.5,
+						24.0,
+						6.5
+					],
+					"rotationOrigin": [
+						20,
+						17,
+						3
+					],
+					"rotationY": -24,
+					"rotationZ": -80,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "dorsal0",
+					"from": [
+						-1.2,
+						45.667638483965014,
+						28.8
+					],
+					"to": [
+						1.2,
+						61.667638483965014,
+						31.2
+					],
+					"rotationOrigin": [
+						0,
+						45.667638483965014,
+						30.0
+					],
+					"rotationX": -38,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "dorsal1",
+					"from": [
+						-1.2,
+						41.46118804664723,
+						36.3
+					],
+					"to": [
+						1.2,
+						55.96118804664723,
+						38.7
+					],
+					"rotationOrigin": [
+						0,
+						41.46118804664723,
+						37.5
+					],
+					"rotationX": -42,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "dorsal2",
+					"from": [
+						-1.2,
+						39.40962099125365,
+						43.8
+					],
+					"to": [
+						1.2,
+						52.40962099125365,
+						46.2
+					],
+					"rotationOrigin": [
+						0,
+						39.40962099125365,
+						45.0
+					],
+					"rotationX": -46,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "dorsal3",
+					"from": [
+						-1.2,
+						35.78125,
+						51.3
+					],
+					"to": [
+						1.2,
+						47.28125,
+						53.7
+					],
+					"rotationOrigin": [
+						0,
+						35.78125,
+						52.5
+					],
+					"rotationX": -50,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "dorsal4",
+					"from": [
+						-1.2,
+						34.20699708454811,
+						58.8
+					],
+					"to": [
+						1.2,
+						44.20699708454811,
+						61.2
+					],
+					"rotationOrigin": [
+						0,
+						34.20699708454811,
+						60.0
+					],
+					"rotationX": -54,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "anal0",
+					"from": [
+						-1.2,
+						7.332361516034986,
+						28.8
+					],
+					"to": [
+						1.2,
+						20.332361516034986,
+						31.2
+					],
+					"rotationOrigin": [
+						0,
+						7.332361516034986,
+						30.0
+					],
+					"rotationX": 38,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "anal1",
+					"from": [
+						-1.2,
+						12.429867184969227,
+						38.13333333333333
+					],
+					"to": [
+						1.2,
+						23.929867184969225,
+						40.53333333333334
+					],
+					"rotationOrigin": [
+						0,
+						12.429867184969227,
+						39.333333333333336
+					],
+					"rotationX": 42,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "anal2",
+					"from": [
+						-1.2,
+						15.321563546053344,
+						47.46666666666667
+					],
+					"to": [
+						1.2,
+						25.321563546053344,
+						49.866666666666674
+					],
+					"rotationOrigin": [
+						0,
+						15.321563546053344,
+						48.66666666666667
+					],
+					"rotationX": 46,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "anal3",
+					"from": [
+						-1.2,
+						18.221574344023324,
+						56.8
+					],
+					"to": [
+						1.2,
+						26.721574344023324,
+						59.2
+					],
+					"rotationOrigin": [
+						0,
+						18.221574344023324,
+						58.0
+					],
+					"rotationX": 50,
+					"faces": {
+						"north": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"east": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"south": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"west": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"up": {
+							"texture": "#anglerfish",
+							"uv": [
+								50,
+								2,
+								54,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						},
+						"down": {
+							"texture": "#anglerfish",
+							"uv": [
+								42,
+								2,
+								46,
+								6
+							],
+							"autoUv": false,
+							"snapUv": false
+						}
+					}
+				},
+				{
+					"name": "tail",
+					"from": [
+						0,
+						27,
+						70
+					],
+					"to": [
+						0,
+						27,
+						70
+					],
+					"rotationOrigin": [
+						0,
+						27,
+						70
+					],
+					"children": [
+						{
+							"name": "caudal0",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								51.9,
+								71.3
+							],
+							"rotationOrigin": [
+								0,
+								27,
+								70
+							],
+							"rotationX": -34.0,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "caudal1",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								53.6,
+								71.3
+							],
+							"rotationOrigin": [
+								0,
+								27,
+								70
+							],
+							"rotationX": -22.666666666666664,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "caudal2",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								55.3,
+								71.3
+							],
+							"rotationOrigin": [
+								0,
+								27,
+								70
+							],
+							"rotationX": -11.333333333333332,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "caudal3",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								57.0,
+								71.3
+							],
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "caudal4",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								55.3,
+								71.3
+							],
+							"rotationOrigin": [
+								0,
+								27,
+								70
+							],
+							"rotationX": 11.333333333333336,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "caudal5",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								53.599999999999994,
+								71.3
+							],
+							"rotationOrigin": [
+								0,
+								27,
+								70
+							],
+							"rotationX": 22.66666666666667,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "caudal6",
+							"from": [
+								-1.3,
+								27,
+								68.7
+							],
+							"to": [
+								1.3,
+								51.9,
+								71.3
+							],
+							"rotationOrigin": [
+								0,
+								27,
+								70
+							],
+							"rotationX": 34.0,
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										50,
+										2,
+										54,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										42,
+										2,
+										46,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "lure0",
+					"from": [
+						0,
+						52,
+						-57
+					],
+					"to": [
+						0,
+						52,
+						-57
+					],
+					"rotationOrigin": [
+						0,
+						52,
+						-57
+					],
+					"rotationX": -30,
+					"children": [
+						{
+							"name": "lurerod0",
+							"from": [
+								-2.6,
+								52,
+								-59.6
+							],
+							"to": [
+								2.6,
+								65,
+								-54.4
+							],
+							"faces": {
+								"north": {
+									"texture": "#anglerfish",
+									"uv": [
+										34,
+										2,
+										38,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#anglerfish",
+									"uv": [
+										34,
+										2,
+										38,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#anglerfish",
+									"uv": [
+										34,
+										2,
+										38,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#anglerfish",
+									"uv": [
+										34,
+										2,
+										38,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#anglerfish",
+									"uv": [
+										34,
+										2,
+										38,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#anglerfish",
+									"uv": [
+										34,
+										2,
+										38,
+										6
+									],
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "lure1",
+							"from": [
+								0,
+								65,
+								-57
+							],
+							"to": [
+								0,
+								65,
+								-57
+							],
+							"rotationOrigin": [
+								0,
+								65,
+								-57
+							],
+							"rotationX": -12,
+							"children": [
+								{
+									"name": "lurerod1",
+									"from": [
+										-2.3200000000000003,
+										65,
+										-59.32
+									],
+									"to": [
+										2.3200000000000003,
+										78,
+										-54.68
+									],
+									"faces": {
+										"north": {
+											"texture": "#anglerfish",
+											"uv": [
+												34,
+												2,
+												38,
+												6
+											],
+											"autoUv": false,
+											"snapUv": false
+										},
+										"east": {
+											"texture": "#anglerfish",
+											"uv": [
+												34,
+												2,
+												38,
+												6
+											],
+											"autoUv": false,
+											"snapUv": false
+										},
+										"south": {
+											"texture": "#anglerfish",
+											"uv": [
+												34,
+												2,
+												38,
+												6
+											],
+											"autoUv": false,
+											"snapUv": false
+										},
+										"west": {
+											"texture": "#anglerfish",
+											"uv": [
+												34,
+												2,
+												38,
+												6
+											],
+											"autoUv": false,
+											"snapUv": false
+										},
+										"up": {
+											"texture": "#anglerfish",
+											"uv": [
+												34,
+												2,
+												38,
+												6
+											],
+											"autoUv": false,
+											"snapUv": false
+										},
+										"down": {
+											"texture": "#anglerfish",
+											"uv": [
+												34,
+												2,
+												38,
+												6
+											],
+											"autoUv": false,
+											"snapUv": false
+										}
+									}
+								},
+								{
+									"name": "lure2",
+									"from": [
+										0,
+										78,
+										-57
+									],
+									"to": [
+										0,
+										78,
+										-57
+									],
+									"rotationOrigin": [
+										0,
+										78,
+										-57
+									],
+									"rotationX": -12,
+									"children": [
+										{
+											"name": "lurerod2",
+											"from": [
+												-2.04,
+												78,
+												-59.04
+											],
+											"to": [
+												2.04,
+												91,
+												-54.96
+											],
+											"faces": {
+												"north": {
+													"texture": "#anglerfish",
+													"uv": [
+														34,
+														2,
+														38,
+														6
+													],
+													"autoUv": false,
+													"snapUv": false
+												},
+												"east": {
+													"texture": "#anglerfish",
+													"uv": [
+														34,
+														2,
+														38,
+														6
+													],
+													"autoUv": false,
+													"snapUv": false
+												},
+												"south": {
+													"texture": "#anglerfish",
+													"uv": [
+														34,
+														2,
+														38,
+														6
+													],
+													"autoUv": false,
+													"snapUv": false
+												},
+												"west": {
+													"texture": "#anglerfish",
+													"uv": [
+														34,
+														2,
+														38,
+														6
+													],
+													"autoUv": false,
+													"snapUv": false
+												},
+												"up": {
+													"texture": "#anglerfish",
+													"uv": [
+														34,
+														2,
+														38,
+														6
+													],
+													"autoUv": false,
+													"snapUv": false
+												},
+												"down": {
+													"texture": "#anglerfish",
+													"uv": [
+														34,
+														2,
+														38,
+														6
+													],
+													"autoUv": false,
+													"snapUv": false
+												}
+											}
+										},
+										{
+											"name": "lure3",
+											"from": [
+												0,
+												91,
+												-57
+											],
+											"to": [
+												0,
+												91,
+												-57
+											],
+											"rotationOrigin": [
+												0,
+												91,
+												-57
+											],
+											"rotationX": -12,
+											"children": [
+												{
+													"name": "lurerod3",
+													"from": [
+														-1.76,
+														91,
+														-58.76
+													],
+													"to": [
+														1.76,
+														104,
+														-55.24
+													],
+													"faces": {
+														"north": {
+															"texture": "#anglerfish",
+															"uv": [
+																34,
+																2,
+																38,
+																6
+															],
+															"autoUv": false,
+															"snapUv": false
+														},
+														"east": {
+															"texture": "#anglerfish",
+															"uv": [
+																34,
+																2,
+																38,
+																6
+															],
+															"autoUv": false,
+															"snapUv": false
+														},
+														"south": {
+															"texture": "#anglerfish",
+															"uv": [
+																34,
+																2,
+																38,
+																6
+															],
+															"autoUv": false,
+															"snapUv": false
+														},
+														"west": {
+															"texture": "#anglerfish",
+															"uv": [
+																34,
+																2,
+																38,
+																6
+															],
+															"autoUv": false,
+															"snapUv": false
+														},
+														"up": {
+															"texture": "#anglerfish",
+															"uv": [
+																34,
+																2,
+																38,
+																6
+															],
+															"autoUv": false,
+															"snapUv": false
+														},
+														"down": {
+															"texture": "#anglerfish",
+															"uv": [
+																34,
+																2,
+																38,
+																6
+															],
+															"autoUv": false,
+															"snapUv": false
+														}
+													}
+												},
+												{
+													"name": "lure4",
+													"from": [
+														0,
+														104,
+														-57
+													],
+													"to": [
+														0,
+														104,
+														-57
+													],
+													"rotationOrigin": [
+														0,
+														104,
+														-57
+													],
+													"rotationX": -12,
+													"children": [
+														{
+															"name": "lurerod4",
+															"from": [
+																-1.48,
+																104,
+																-58.48
+															],
+															"to": [
+																1.48,
+																117,
+																-55.52
+															],
+															"faces": {
+																"north": {
+																	"texture": "#anglerfish",
+																	"uv": [
+																		34,
+																		2,
+																		38,
+																		6
+																	],
+																	"autoUv": false,
+																	"snapUv": false
+																},
+																"east": {
+																	"texture": "#anglerfish",
+																	"uv": [
+																		34,
+																		2,
+																		38,
+																		6
+																	],
+																	"autoUv": false,
+																	"snapUv": false
+																},
+																"south": {
+																	"texture": "#anglerfish",
+																	"uv": [
+																		34,
+																		2,
+																		38,
+																		6
+																	],
+																	"autoUv": false,
+																	"snapUv": false
+																},
+																"west": {
+																	"texture": "#anglerfish",
+																	"uv": [
+																		34,
+																		2,
+																		38,
+																		6
+																	],
+																	"autoUv": false,
+																	"snapUv": false
+																},
+																"up": {
+																	"texture": "#anglerfish",
+																	"uv": [
+																		34,
+																		2,
+																		38,
+																		6
+																	],
+																	"autoUv": false,
+																	"snapUv": false
+																},
+																"down": {
+																	"texture": "#anglerfish",
+																	"uv": [
+																		34,
+																		2,
+																		38,
+																		6
+																	],
+																	"autoUv": false,
+																	"snapUv": false
+																}
+															}
+														},
+														{
+															"name": "lure5",
+															"from": [
+																0,
+																117,
+																-57
+															],
+															"to": [
+																0,
+																117,
+																-57
+															],
+															"rotationOrigin": [
+																0,
+																117,
+																-57
+															],
+															"rotationX": -12,
+															"children": [
+																{
+																	"name": "lurerod5",
+																	"from": [
+																		-1.2,
+																		117,
+																		-58.2
+																	],
+																	"to": [
+																		1.2,
+																		130,
+																		-55.8
+																	],
+																	"faces": {
+																		"north": {
+																			"texture": "#anglerfish",
+																			"uv": [
+																				34,
+																				2,
+																				38,
+																				6
+																			],
+																			"autoUv": false,
+																			"snapUv": false
+																		},
+																		"east": {
+																			"texture": "#anglerfish",
+																			"uv": [
+																				34,
+																				2,
+																				38,
+																				6
+																			],
+																			"autoUv": false,
+																			"snapUv": false
+																		},
+																		"south": {
+																			"texture": "#anglerfish",
+																			"uv": [
+																				34,
+																				2,
+																				38,
+																				6
+																			],
+																			"autoUv": false,
+																			"snapUv": false
+																		},
+																		"west": {
+																			"texture": "#anglerfish",
+																			"uv": [
+																				34,
+																				2,
+																				38,
+																				6
+																			],
+																			"autoUv": false,
+																			"snapUv": false
+																		},
+																		"up": {
+																			"texture": "#anglerfish",
+																			"uv": [
+																				34,
+																				2,
+																				38,
+																				6
+																			],
+																			"autoUv": false,
+																			"snapUv": false
+																		},
+																		"down": {
+																			"texture": "#anglerfish",
+																			"uv": [
+																				34,
+																				2,
+																				38,
+																				6
+																			],
+																			"autoUv": false,
+																			"snapUv": false
+																		}
+																	}
+																},
+																{
+																	"name": "lure6",
+																	"from": [
+																		0,
+																		130,
+																		-57
+																	],
+																	"to": [
+																		0,
+																		130,
+																		-57
+																	],
+																	"rotationOrigin": [
+																		0,
+																		130,
+																		-57
+																	],
+																	"rotationX": -12,
+																	"children": [
+																		{
+																			"name": "lurerod6",
+																			"from": [
+																				-0.9199999999999999,
+																				130,
+																				-57.92
+																			],
+																			"to": [
+																				0.9199999999999999,
+																				143,
+																				-56.08
+																			],
+																			"faces": {
+																				"north": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						34,
+																						2,
+																						38,
+																						6
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"east": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						34,
+																						2,
+																						38,
+																						6
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"south": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						34,
+																						2,
+																						38,
+																						6
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"west": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						34,
+																						2,
+																						38,
+																						6
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"up": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						34,
+																						2,
+																						38,
+																						6
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"down": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						34,
+																						2,
+																						38,
+																						6
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				}
+																			}
+																		},
+																		{
+																			"name": "escafil",
+																			"from": [
+																				-1,
+																				152,
+																				-58
+																			],
+																			"to": [
+																				1,
+																				160,
+																				-56
+																			],
+																			"faces": {
+																				"north": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"east": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"south": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"west": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"up": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"down": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				}
+																			}
+																		},
+																		{
+																			"name": "esca",
+																			"from": [
+																				-5,
+																				143,
+																				-62
+																			],
+																			"to": [
+																				5,
+																				154,
+																				-52
+																			],
+																			"faces": {
+																				"north": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"east": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"south": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"west": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"up": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				},
+																				"down": {
+																					"texture": "#anglerfish",
+																					"uv": [
+																						2,
+																						10,
+																						6,
+																						14
+																					],
+																					"autoUv": false,
+																					"snapUv": false
+																				}
+																			}
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"animations": [
+		{
+			"name": "idle",
+			"code": "idle",
+			"quantityframes": 121,
+			"onActivityStopped": "EaseOut",
+			"onAnimationEnd": "Repeat",
+			"keyframes": [
+				{
+					"frame": 0,
+					"elements": {
+						"angler": {
+							"rotationX": 0,
+							"rotationY": 0,
+							"rotationZ": 2
+						},
+						"lure3": {
+							"rotationX": 6,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"lure5": {
+							"rotationX": -8,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"jaw": {
+							"rotationX": -2,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"tail": {
+							"rotationX": 0,
+							"rotationY": 4,
+							"rotationZ": 0
+						}
+					}
+				},
+				{
+					"frame": 60,
+					"elements": {
+						"angler": {
+							"rotationX": 0,
+							"rotationY": 0,
+							"rotationZ": -2
+						},
+						"lure3": {
+							"rotationX": -6,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"lure5": {
+							"rotationX": 8,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"jaw": {
+							"rotationX": 0,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"tail": {
+							"rotationX": 0,
+							"rotationY": -4,
+							"rotationZ": 0
+						}
+					}
+				},
+				{
+					"frame": 120,
+					"elements": {
+						"angler": {
+							"rotationX": 0,
+							"rotationY": 0,
+							"rotationZ": 2
+						},
+						"lure3": {
+							"rotationX": 6,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"lure5": {
+							"rotationX": -8,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"jaw": {
+							"rotationX": -2,
+							"rotationY": 0,
+							"rotationZ": 0
+						},
+						"tail": {
+							"rotationX": 0,
+							"rotationY": 4,
+							"rotationZ": 0
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "chomp",
+			"code": "chomp",
+			"quantityframes": 17,
+			"onActivityStopped": "EaseOut",
+			"onAnimationEnd": "Hold",
+			"keyframes": [
+				{
+					"frame": 0,
+					"elements": {
+						"jaw": {
+							"rotationX": 0,
+							"rotationY": 0,
+							"rotationZ": 0
+						}
+					}
+				},
+				{
+					"frame": 6,
+					"elements": {
+						"jaw": {
+							"rotationX": 32,
+							"rotationY": 0,
+							"rotationZ": 0
+						}
+					}
+				},
+				{
+					"frame": 9,
+					"elements": {
+						"jaw": {
+							"rotationX": -8,
+							"rotationY": 0,
+							"rotationZ": 0
+						}
+					}
+				},
+				{
+					"frame": 16,
+					"elements": {
+						"jaw": {
+							"rotationX": 0,
+							"rotationY": 0,
+							"rotationZ": 0
+						}
+					}
+				}
+			]
+		}
+	]
+}

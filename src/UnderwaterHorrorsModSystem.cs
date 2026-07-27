@@ -554,6 +554,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         new AssetLocation("underwaterhorrors", "krakententtaper"),
         new AssetLocation("underwaterhorrors", "krakententsnapper"),
         new AssetLocation("underwaterhorrors", "krakententexamp"),
+        new AssetLocation("underwaterhorrors", "anglerfish"),
+        new AssetLocation("underwaterhorrors", "giantshiver"),
     };
 
     private void ApplyGlow(bool on)
@@ -623,6 +625,15 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void RegisterCommands(ICoreServerAPI api)
     {
+        // Convenience top-level spawn command for the test creatures the user
+        // asked to eyeball in-game. Mirrors /uh spawn but with the short syntax
+        // /spawn anglerfish and /spawn giant-shiver.
+        api.ChatCommands.Create("spawn")
+            .WithDescription("Spawn an Underwater Horrors test creature on yourself (anglerfish, giant-shiver)")
+            .RequiresPrivilege(Privilege.controlserver)
+            .WithArgs(api.ChatCommands.Parsers.WordRange("type", "anglerfish", "giant-shiver"))
+            .HandleWith(OnCmdSpawnTest);
+
         api.ChatCommands.Create("uh")
             .WithDescription("Underwater Horrors settings")
             .RequiresPrivilege(Privilege.controlserver)
@@ -995,6 +1006,56 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         activeCreatures[caller.PlayerUID] = creature.EntityId;
         return TextCommandResult.Success($"Spawned {creature.Code.Path} targeting {caller.PlayerName}");
+    }
+
+    // /spawn anglerfish | giant-shiver : quick spawn of the two test creatures.
+    private TextCommandResult OnCmdSpawnTest(TextCommandCallingArgs args)
+    {
+        string type = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
+        IServerPlayer caller = args.Caller.Player as IServerPlayer;
+        if (caller?.Entity == null) return TextCommandResult.Error("Must be called by a player");
+
+        Entity creature;
+        switch (type)
+        {
+            case "anglerfish": creature = SpawnTestEntity(caller, AnglerfishAsset, upOffset: 6, forwardOffset: 12); break;
+            case "giant-shiver": creature = SpawnTestEntity(caller, GiantShiverAsset, upOffset: 0, forwardOffset: 9); break;
+            default: return TextCommandResult.Error("Unknown type. Use anglerfish or giant-shiver.");
+        }
+
+        if (creature == null)
+            return TextCommandResult.Error($"Failed to spawn '{type}' (entity type not found or invalid). Check the server log for load errors.");
+
+        return TextCommandResult.Success($"Spawned {creature.Code.Path} near {caller.PlayerName}");
+    }
+
+    // Spawn a mod entity a few blocks in front of the player (forwardOffset,
+    // along their look yaw) and optionally raised (upOffset, for the giant
+    // floating anglerfish). Health/size come from the entity JSON.
+    private Entity SpawnTestEntity(IServerPlayer player, AssetLocation asset, double upOffset, double forwardOffset)
+    {
+        EntityProperties props = sapi.World.GetEntityType(asset);
+        if (props == null)
+        {
+            DebugLog(sapi, $"ERROR: entity type {asset} not found (spawn command)");
+            return null;
+        }
+
+        var pos = player.Entity.Pos;
+        double yaw = player.Entity.Pos.Yaw;
+        // VS yaw: forward horizontal vector is (-sin(yaw), 0, -cos(yaw)).
+        double fx = -Math.Sin(yaw) * forwardOffset;
+        double fz = -Math.Cos(yaw) * forwardOffset;
+
+        Entity ent = sapi.World.ClassRegistry.CreateEntity(props);
+        ent.Pos.SetPos(pos.X + fx, pos.Y + upOffset, pos.Z + fz);
+        ent.Pos.Dimension = pos.Dimension;
+        ent.Pos.SetFrom(ent.Pos);
+        sapi.World.SpawnEntity(ent);
+
+        activeCreatures[player.PlayerUID] = ent.EntityId;
+        DebugLog(sapi, $"SPAWNED {asset.Path} for {player.PlayerName} at ({ent.Pos.X:F1}, {ent.Pos.Y:F1}, {ent.Pos.Z:F1})");
+        return ent;
     }
 
     // Neon-green creative light (lightHsv hue 22), which shines fully even
@@ -1924,6 +1985,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private static readonly AssetLocation DeepSerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent2");
     private static readonly AssetLocation Serpent3Asset = new AssetLocation("underwaterhorrors", "seaserpent3");
     private static readonly AssetLocation KrakenAsset = new AssetLocation("underwaterhorrors", "krakenbody");
+    private static readonly AssetLocation AnglerfishAsset = new AssetLocation("underwaterhorrors", "anglerfish");
+    private static readonly AssetLocation GiantShiverAsset = new AssetLocation("underwaterhorrors", "giantshiver");
 
     private Entity SpawnSerpent(IServerPlayer player, bool? forceDeep = null)
     {

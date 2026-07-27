@@ -1,0 +1,130 @@
+{
+	"code": "giantshiver",
+	"class": "EntityShiver",
+	"tags": ["rust-creature", "habitat-land"],
+	"weight": 900,
+	"canClimb": true,
+	"hitboxSize": { "x": 4.8, "y": 4.0 },
+	"deadHitboxSize": { "x": 2.8, "y": 2.8 },
+	"eyeHeight": 5.2,
+	"attributes": {
+		"allowInDevastationArea": true,
+		"killedByInfoText": "deadcreature-vile",
+		"glitchAffected": true,
+		"glitchFlicker": true,
+		"reckless": true,
+		"hitAndRunChance": 0.0
+	},
+	"drops": [
+		{ "type": "item", "code": "game:gear-temporal", "quantity": { "avg": 4, "var": 1.5 } },
+		{ "type": "item", "code": "game:gear-rusty", "quantity": { "avg": 12, "var": 4 } }
+	],
+	"client": {
+		"renderer": "Shape",
+		"pitchStep": false,
+		"shape": { "base": "game:entity/lore/shiver/bellhead" },
+		"textures": {
+			"skin": { "base": "game:entity/lore/shiver/bellhead" }
+		},
+		"size": 4,
+		"behaviors": [
+			{ "code": "repulseagents" },
+			{ "code": "controlledphysics", "stepHeight": 8.5 },
+			{ "code": "floatupwhenstuck", "onlyWhenDead": true },
+			{ "code": "interpolateposition" },
+			{ "code": "harvestable", "duration": 2 }
+		],
+		"animations": [
+			{ "code": "hurt", "animation": "hurt", "animationSpeed": 1, "weight": 100, "easeInSpeed": 100, "blendMode": "Add" },
+			{ "code": "run", "animation": "run", "animationSpeed": 1, "weight": 1, "blendMode": "Average" },
+			{ "code": "walk", "animation": "walk", "animationSpeed": 1, "weight": 1, "blendMode": "Average" },
+			{ "code": "swipe", "animation": "swipe", "animationSpeed": 1, "weight": 100, "blendMode": "Average" },
+			{ "code": "bite", "animation": "bite", "animationSpeed": 1, "weight": 100, "blendMode": "Average" },
+			{ "code": "die", "animation": "Death", "animationSpeed": 1, "weight": 10, "blendMode": "Average", "triggeredBy": { "onControls": ["dead"] } },
+			{ "code": "idle", "animation": "idle", "blendMode": "Average", "triggeredBy": { "defaultAnim": true } }
+		]
+	},
+	"server": {
+		"behaviors": [
+			{ "code": "repulseagents" },
+			{ "code": "controlledphysics", "stepHeight": 8.5 },
+			{ "code": "health", "currenthealth": 264, "maxhealth": 264 },
+			{ "code": "deaddecay", "hoursToDecay": 6 },
+			{ "code": "floatupwhenstuck", "onlyWhenDead": true },
+			{
+				"code": "emotionstates",
+				"states": [
+					{ "code": "aggressiveondamage", "duration": 30, "chance": 1, "slot": 0, "priority": 0.5, "accumType": "noaccum" }
+				]
+			},
+			{
+				"code": "taskai",
+				"aitasks": [
+					{
+						"code": "meleeattack",
+						"entityCodes": ["player"],
+						"priority": 2,
+						"damage": 30,
+						"damageTier": 4,
+						"knockbackStrength": 16,
+						"damageType": "SlashingAttack",
+						"slot": 1,
+						"mincooldown": 500,
+						"maxcooldown": 1750,
+						"damagePlayerAtMs": 400,
+						"attackDurationMs": 1000,
+						"animation": "bite",
+						"animationSpeed": 1,
+						"sound": "game:creature/drifter-hit",
+						"soundStartMs": 400
+					},
+					{
+						"code": "seekentity",
+						"entityCodes": ["player"],
+						"priority": 1.5,
+						"mincooldown": 200,
+						"maxcooldown": 400,
+						"searchWaitMs": 2000,
+						"movespeed": 0.09,
+						"animationSpeed": 1.5,
+						"executionChance": 0.9,
+						"seekingRange": 25,
+						"animation": "run",
+						"sound": "game:creature/shiver/aggro"
+					},
+					{
+						"code": "getoutofwater",
+						"movespeed": 0.03,
+						"priority": 1.4,
+						"animation": "Swim"
+					},
+					{
+						"code": "wander",
+						"priority": 1.0,
+						"movespeed": 0.03,
+						"animationSpeed": 2.5,
+						"animation": "walk",
+						"preferredLightLevel": 15,
+						"executionChance": 1
+					}
+				]
+			},
+			{
+				"code": "harvestable",
+				"duration": 2,
+				"fixedweight": true,
+				"drops": [
+					{ "type": "item", "code": "game:gear-temporal", "quantity": { "avg": 4, "var": 1.5 } },
+					{ "type": "item", "code": "game:gear-rusty", "quantity": { "avg": 12, "var": 4 } }
+				]
+			},
+			{ "code": "ripharvestable" },
+			{ "code": "entitystatetags" }
+		]
+	},
+	"sounds": {
+		"hurt": "game:creature/shiver/hurt",
+		"death": "game:creature/shiver/death",
+		"idle": { "path": "game:creature/shiver/idle*", "range": 48, "pitch": { "avg": 0.6, "var": 0.15 } }
+	}
+}
