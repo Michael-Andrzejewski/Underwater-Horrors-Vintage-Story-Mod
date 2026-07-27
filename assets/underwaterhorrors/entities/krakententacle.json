@@ -17,13 +17,17 @@
         "shape": { "base": "underwaterhorrors:entity/krakententinvisible" },
         "glowLevel": 32,
         "size": 2.5,
-        "behaviors": []
+        "behaviors": [
+            { "code": "interpolateposition" },
+            { "code": "underwaterhorrors:tentaclegrip" }
+        ]
     },
     "server": {
         "behaviors": [
             { "code": "health", "currenthealth": 30, "maxhealth": 30 },
             { "code": "deaddecay", "decayHours": 0.0083 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
+            { "code": "underwaterhorrors:tentaclegrip" },
             { "code": "underwaterhorrors:tentacle" }
         ]
     },

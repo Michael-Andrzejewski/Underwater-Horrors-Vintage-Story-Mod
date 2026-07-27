@@ -17,7 +17,9 @@
         "shape": { "base": "underwaterhorrors:entity/krakententacleclaw" },
         "glowLevel": 32,
         "size": 2.0,
-        "behaviors": []
+        "behaviors": [
+            { "code": "interpolateposition" }
+        ]
     },
     "server": {
         "behaviors": [

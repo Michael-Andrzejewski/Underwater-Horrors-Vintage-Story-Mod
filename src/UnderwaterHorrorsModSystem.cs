@@ -95,6 +95,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:deepserpentai", typeof(EntityBehaviorDeepSerpentAI));
         api.RegisterEntityBehaviorClass("underwaterhorrors:krakenbody", typeof(EntityBehaviorKrakenBody));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentacle", typeof(EntityBehaviorTentacle));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclegrip", typeof(EntityBehaviorTentacleGrip));
         api.RegisterEntityBehaviorClass("underwaterhorrors:ambienttentacle", typeof(EntityBehaviorAmbientTentacle));
         api.RegisterEntityBehaviorClass("underwaterhorrors:tentaclerenderer", typeof(EntityBehaviorTentacleRenderer));
         api.RegisterEntityBehaviorClass("underwaterhorrors:damagerelay", typeof(EntityBehaviorDamageRelay));
@@ -110,6 +111,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntity("DeepSerpentEntity", typeof(DeepSerpentEntity));
         api.RegisterEntity("EntitySerpentHitProxy", typeof(EntitySerpentHitProxy));
         api.RegisterEntity("EntityKrakenPart", typeof(EntityKrakenPart));
+
+        // Lets a client (or a reloading server) rebuild the tentacle seat
+        // from the rider's saved "mountedOn" attribute. Returning null when
+        // the tentacle is gone is the correct answer: EntityAgent then
+        // leaves MountedOn null and the player is free.
+        api.RegisterMountable(EntityBehaviorTentacleGrip.MountableClassName, (world, tree) =>
+        {
+            Entity head = world.GetEntityById(tree.GetLong("entityId"));
+            return head?.GetBehavior<EntityBehaviorTentacleGrip>()?.Seats[0];
+        });
 
         api.Network.RegisterChannel("underwaterhorrors")
             .RegisterMessageType(typeof(DebugToggleMessage))

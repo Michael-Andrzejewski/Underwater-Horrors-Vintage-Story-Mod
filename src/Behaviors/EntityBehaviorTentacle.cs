@@ -95,8 +95,14 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
     private static readonly AssetLocation BiolightAsset = new AssetLocation("underwaterhorrors", "biolight");
 
-    // Reusable BlockPos for passability checks to avoid allocation per frame
-    private readonly BlockPos reusablePassabilityPos = new BlockPos(0, 0, 0, 0);
+    // The mount that carries the player during Dragging. See
+    // EntityBehaviorTentacleGrip for why a mount and not a teleport.
+    // Resolved lazily rather than in Initialize: behaviors are created and
+    // initialized one at a time in JSON order, so looking it up early would
+    // silently return null if someone reorders krakententacle.json.
+    private EntityBehaviorTentacleGrip gripCache;
+    private EntityBehaviorTentacleGrip Grip =>
+        gripCache ??= entity.GetBehavior<EntityBehaviorTentacleGrip>();
 
     // Surface point for the Rising/Lingering phases
     private double surfaceX, surfaceY, surfaceZ;
@@ -124,6 +130,14 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         // null and ClampHeight crashes on the first tick.
         base.Initialize(properties, attributes);
         isStatic = entity.WatchedAttributes.GetBool("underwaterhorrors:static", false);
+
+        // Publish the server's grab offset so riding clients seat the player
+        // at the same height the server puts the claws. TentacleGrabYOffset
+        // is signed head-relative-to-player; the seat wants the inverse.
+        if (entity.Api.Side == EnumAppSide.Server && config != null)
+        {
+            Grip?.SetRiderYOffset(-config.TentacleGrabYOffset);
+        }
     }
 
     public override void OnGameTick(float deltaTime)
@@ -140,6 +154,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         ResolveTarget();
         ClampHeight();
+
+        // Safety net: nobody should be seated on this tentacle unless it is
+        // actively dragging. Covers the paths TransitionTo cannot see — a
+        // server restart while a player was held (state resets to Idle but
+        // the rider's saved mountedOn attribute re-seats them), or the
+        // kraken-death branch below returning before the state machine runs.
+        // A rider stuck mounted to an idle tentacle would be frozen for good.
+        if (state != TentacleState.Dragging && Grip != null && Grip.AnyMounted())
+        {
+            Grip.Release();
+        }
 
         // Kraken-death short-circuit. If the body died this tick (or any
         // earlier tick) we run cleanup once, then this branch every tick:
@@ -221,7 +246,11 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         if (state == TentacleState.Reaching || state == TentacleState.Dragging)
         {
             UpdateShallowWaterCheck(deltaTime);
-            bool playerMounted = targetPlayer?.Entity?.MountedOn != null;
+            // Our own grip mounts the player too, so "is the player on a
+            // boat" has to exclude this tentacle's seat, or the drag would
+            // stall itself on the very tick it grabs someone.
+            IMountableSeat mount = targetPlayer?.Entity?.MountedOn;
+            bool playerMounted = mount != null && mount.Entity != entity;
             if (IsInShallowWater || playerMounted)
             {
                 if (config.DebugLogging)
@@ -274,7 +303,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     // its own momentum and doesn't lag behind the tangent direction.
     private void UpdateHeadFacing()
     {
-        if ((state == TentacleState.Reaching || state == TentacleState.Dragging)
+        // Reaching only. Once the grab lands the player rides the head, so
+        // aiming at them would be aiming at a point roughly half a block
+        // away and the heading would spin on rounding noise. The tangent
+        // branch below points the head down the drag path toward the body,
+        // which is what a tentacle hauling something looks like anyway.
+        if (state == TentacleState.Reaching
             && targetPlayer?.Entity != null && !TargetIsPassiveObserver)
         {
             TentacleHeadAlignment.AlignToward(entity,
@@ -384,9 +418,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        double px = targetPlayer.Entity.Pos.X;
-        double py = targetPlayer.Entity.Pos.Y;
-        double pz = targetPlayer.Entity.Pos.Z;
+        GetGrabPoint(out double px, out double py, out double pz);
 
         for (int i = 0; i < ClawCount; i++)
         {
@@ -438,13 +470,25 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         clawsSpawned = false;
     }
 
+    /// <summary>
+    /// Where the tentacle is holding the player: the head plus the seat's
+    /// rider offset. Derived from the head rather than read off the player,
+    /// because a mounted player's server-side position is whatever their
+    /// client last reported and so trails the head by a round trip. The
+    /// claws have to sit exactly where the grab is, not where it was.
+    /// </summary>
+    private void GetGrabPoint(out double x, out double y, out double z)
+    {
+        x = entity.Pos.X;
+        y = entity.Pos.Y + (Grip?.RiderYOffset ?? EntityBehaviorTentacleGrip.DefaultRiderYOffset);
+        z = entity.Pos.Z;
+    }
+
     private void PositionClaws()
     {
-        if (clawEntities == null || targetPlayer?.Entity == null) return;
+        if (clawEntities == null) return;
 
-        double px = targetPlayer.Entity.Pos.X;
-        double py = targetPlayer.Entity.Pos.Y;
-        double pz = targetPlayer.Entity.Pos.Z;
+        GetGrabPoint(out double px, out double py, out double pz);
 
         for (int i = 0; i < clawEntities.Length; i++)
         {
@@ -642,8 +686,24 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         // Clean up when leaving drag state
         if (oldState == TentacleState.Dragging && newState != TentacleState.Dragging)
         {
+            Grip?.Release();
             RemoveSpeedDebuff();
             DespawnClaws();
+        }
+
+        // Close the last of the reach before seating anyone. Reaching stops
+        // as soon as the head is within TentacleGrabRange, so without this
+        // the mount would yank the player up to two blocks sideways on the
+        // tick the grab lands - the one snap the whole rework exists to
+        // remove. Moving the invisible head instead costs nothing visible.
+        if (newState == TentacleState.Dragging && oldState != TentacleState.Dragging
+            && targetPlayer?.Entity != null)
+        {
+            entity.Pos.SetPos(
+                targetPlayer.Entity.Pos.X,
+                targetPlayer.Entity.Pos.Y + config.TentacleGrabYOffset,
+                targetPlayer.Entity.Pos.Z
+            );
         }
 
         state = newState;
@@ -891,6 +951,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
+        // Motion is in blocks per physics step and the physics integrator
+        // advances by Motion * dt * 60, so a speed expressed in blocks per
+        // second converts by dividing by 60. TentacleDragSpeed keeps its
+        // original blocks-per-second meaning from when the drag moved the
+        // player by hand, so existing configs still mean what they say.
+        const double BlocksPerSecondToMotion = 1.0 / 60.0;
+
         // Target switched to creative/spectator mid-drag (or the toggle
         // was just enabled): release the grip. TransitionTo restores the
         // speed debuff and despawns the claws; Reaching then sees the
@@ -906,13 +973,26 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         ApplySpeedDebuff();
 
-        // Spawn claws around the player on first drag tick
+        // Seat the player on the head. From here the client positions
+        // itself from the seat every physics tick and interpolates the
+        // head between server updates every render frame, so the drag is
+        // as smooth as riding a horse. Called every tick because the grab
+        // has to survive a rider who disconnects and reconnects mid-drag.
+        if (Grip != null && targetPlayer.Entity is EntityAgent rider && !Grip.Grip(rider))
+        {
+            if (config.DebugLogging)
+                UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: could not seat the player, releasing");
+            TransitionTo(TentacleState.Sinking);
+            return;
+        }
+
+        // Spawn claws around the grab point on first drag tick
         if (!clawsSpawned)
         {
             SpawnClaws();
         }
 
-        // Position claws around the player
+        // Position claws around the grab point
         PositionClaws();
 
         // Find kraken body position (cached)
@@ -926,58 +1006,27 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             return;
         }
 
-        double playerX = targetPlayer.Entity.Pos.X;
-        double playerY = targetPlayer.Entity.Pos.Y;
-        double playerZ = targetPlayer.Entity.Pos.Z;
-
-        double dx = body.Pos.X - playerX;
-        double dy = body.Pos.Y - playerY;
-        double dz = body.Pos.Z - playerZ;
+        // The head is what moves now; the rider comes along with it. That
+        // inversion is the whole fix. Moving the player from the server
+        // fought their own client-side physics, whereas the head is a
+        // plain server-owned entity that nothing else is simulating, so
+        // its path is smooth by construction. It also means the head's
+        // controlledphysics does terrain collision for the drag, which is
+        // strictly better than the old passability probe.
+        double dx = body.Pos.X - entity.Pos.X;
+        double dy = body.Pos.Y - entity.Pos.Y;
+        double dz = body.Pos.Z - entity.Pos.Z;
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist > 0.5)
         {
-            double dragStep = config.TentacleDragSpeed * deltaTime;
-            double nx = dx / dist;
-            double ny = dy / dist;
-            double nz = dz / dist;
-
-            double newX = playerX + nx * dragStep;
-            double newY = playerY + ny * dragStep;
-            double newZ = playerZ + nz * dragStep;
-
-            bool canMove = IsPositionPassable(newX, newY, newZ);
-            if (!canMove)
-            {
-                // Try without vertical movement
-                newY = playerY;
-                canMove = IsPositionPassable(newX, newY, newZ);
-            }
-
-            if (canMove)
-            {
-                targetPlayer.Entity.TeleportToDouble(newX, newY, newZ);
-            }
+            MoveToward(body.Pos.X, body.Pos.Y, body.Pos.Z,
+                config.TentacleDragSpeed * BlocksPerSecondToMotion);
         }
-
-        // Keep tentacle tip below player. Pos.SetPos rather than
-        // TeleportToDouble — the head stays one block from the player,
-        // who already loaded the chunk, so we don't need teleport
-        // semantics. Saves a LoadChunkColumnPriority call per tick.
-        entity.Pos.SetPos(
-            targetPlayer.Entity.Pos.X,
-            targetPlayer.Entity.Pos.Y + config.TentacleGrabYOffset,
-            targetPlayer.Entity.Pos.Z
-        );
-    }
-
-    private bool IsPositionPassable(double x, double y, double z)
-    {
-        reusablePassabilityPos.Set((int)x, (int)y, (int)z);
-        Block block = entity.World.BlockAccessor.GetBlock(reusablePassabilityPos);
-        // VS 1.22: EnumBlockMaterial.Liquid was split into Water/Lava. Water is passable
-        // for the tentacle; lava is not (and shouldn't be water-dwelling anyway).
-        return block == null || block.BlockMaterial == EnumBlockMaterial.Water || !block.SideSolid[BlockFacing.UP.Index];
+        else
+        {
+            entity.Pos.Motion.Set(0, 0, 0);
+        }
     }
 
     private void OnSinking(float deltaTime)

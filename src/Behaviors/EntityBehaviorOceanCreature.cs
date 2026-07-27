@@ -226,7 +226,15 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         if (shallowWaterCheckTimer <= 0)
         {
             shallowWaterCheckTimer = ShallowWaterCheckInterval;
-            lastShallowWaterResult = targetPlayer?.Entity?.MountedOn == null &&
+
+            // "Mounted" here means a boat or a horse, which the caller
+            // handles separately. A player riding THIS creature is being
+            // dragged by it, so the shallow water check still applies to
+            // them - otherwise a grab would never release in shallow water.
+            IMountableSeat mount = targetPlayer?.Entity?.MountedOn;
+            bool onSomethingElse = mount != null && mount.Entity != entity;
+
+            lastShallowWaterResult = !onSomethingElse &&
                 TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold);
         }
     }
