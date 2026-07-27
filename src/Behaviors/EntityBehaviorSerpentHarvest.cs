@@ -28,7 +28,11 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
     public const string HarvestedAttr = "underwaterhorrors:harvested";
     private const string PilesLeftAttr = "underwaterhorrors:bonePilesLeft";
 
-    private static readonly AssetLocation FishAsset = new("game", "fishfillet-raw");
+    // The vanilla fillet lives in itemtypes/food/fishfillet.json but its
+    // item code is "fish", not "fishfillet". SpawnStack skips items it
+    // cannot resolve, so the old "fishfillet-raw" meant serpents silently
+    // never dropped any fish at all.
+    private static readonly AssetLocation FishAsset = new("game", "fish-raw");
     private static readonly AssetLocation BoneAsset = new("game", "bone");
     private static readonly AssetLocation GearAsset = new("game", "gear-rusty");
     private static readonly AssetLocation BonePileAsset = new("game", "bonyremains-ribcage");
@@ -128,7 +132,14 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
         if (quantity <= 0) return;
 
         Item item = entity.World.GetItem(itemCode);
-        if (item == null) return;   // item missing in heavily modded worlds: skip quietly
+        if (item == null)
+        {
+            // Missing item: skip rather than crash the harvest, but say so.
+            // Silently swallowing this hid a typo'd fish code for months.
+            entity.Api.Logger.Warning(
+                "[underwaterhorrors] serpent loot item '{0}' does not exist, dropping nothing for it", itemCode);
+            return;
+        }
 
         var rand = entity.World.Rand;
         Vec3d pos = dropPos.AddCopy(

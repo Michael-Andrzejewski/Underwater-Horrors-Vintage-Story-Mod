@@ -20,6 +20,14 @@ public enum TentacleState
 
 public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 {
+    /// <summary>
+    /// Set by the kraken body when this tentacle was promoted because a
+    /// player was standing right next to it. Starts the state machine in
+    /// Reaching instead of Idle, so it lunges rather than performing the
+    /// full surface-and-loom routine at someone already in its face.
+    /// </summary>
+    public const string HuntImmediatelyAttr = "underwaterhorrors:huntImmediately";
+
     // Coverage = SegmentCount * SegmentVisualHeight. The kraken sits on the
     // sea floor and the tip rises to the surface (CreatureMaxY=110), so the
     // spline can be 50+ blocks of vertical chord plus arch. With 96 segments
@@ -43,14 +51,33 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     // chain renders the claw.
     private const double TipMidClawVisualHeight = 0.84;
 
+    // Server-tuning knob: scales every movement that goes through the
+    // base-class movers (rise, linger drift, pursuit, drag). The direct
+    // Motion writes for sinking and retreating are deliberately left
+    // alone, since those are despawn animations rather than hunting.
+    protected override double SpeedScale => config?.TentacleSpeedMultiplier ?? 1.0;
+
     private TentacleState state = TentacleState.Idle;
     private float stateTimer;
     private bool speedDebuffApplied;
 
+    // Seconds since this tentacle last hurt the player it is holding.
+    private float grabDamageAccum;
+
+    // Latches once this tentacle starts hunting; see SignalScatterOnce.
+    private bool scatterSignalled;
+
+    // Sink-to-floor bookkeeping, used while the kraken body is dead.
+    // -1 means "not scanned yet"; see TentacleRemains.TickSink.
+    private double sinkFloorY = -1;
+    private float sinkScanTimer;
+    private bool remainsLeft;
+
     // Kraken-death handling: once the body is dead, AI logic stops, no
     // new entities spawn, claws/lights are cleaned up, and the tentacle
-    // falls passively for TentacleKrakenDeathFallDuration seconds before
-    // calling Die. Latches via a flag so cleanup runs exactly once.
+    // sinks to the sea floor, leaves its remains and dies. Latches via a
+    // flag so cleanup runs exactly once; krakenDeathTimer is the elapsed
+    // counter TentacleRemains.TickSink uses for its give-up timeout.
     private bool krakenDeathHandled;
     private float krakenDeathTimer;
 
@@ -131,6 +158,15 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         base.Initialize(properties, attributes);
         isStatic = entity.WatchedAttributes.GetBool("underwaterhorrors:static", false);
 
+        if (entity.WatchedAttributes.GetBool(HuntImmediatelyAttr, false))
+        {
+            // Straight to the hunt. surfacePointPicked is latched so the
+            // Rising/Lingering surface point is never chosen; those states
+            // are skipped entirely for this tentacle's whole life.
+            state = TentacleState.Reaching;
+            surfacePointPicked = true;
+        }
+
         // Publish the server's grab offset so riding clients seat the player
         // at the same height the server puts the claws. TentacleGrabYOffset
         // is signed head-relative-to-player; the seat wants the inverse.
@@ -170,9 +206,12 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         // earlier tick) we run cleanup once, then this branch every tick:
         // skip ALL state logic, biolum spawning, claw spawning, respawn
         // signals, etc. The chain still updates so segments visibly fall
-        // with the tentacle. After TentacleKrakenDeathFallDuration the
-        // tentacle dies cleanly; the chain.Despawn in OnEntityDespawn
-        // takes the segments with it.
+        // with the tentacle.
+        //
+        // The tentacle now sinks all the way to the sea floor rather than
+        // falling for a fixed few seconds and vanishing mid-water, and
+        // leaves its remains where it touches down. TickSink's timeout is
+        // what guarantees this ends.
         Entity body = GetBody();
         if (body == null || !body.Alive)
         {
@@ -180,18 +219,23 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             {
                 krakenDeathHandled = true;
                 krakenDeathTimer = 0f;
+                Grip?.Release();
                 if (clawsSpawned) DespawnClaws();
                 RemoveSpeedDebuff();
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                        "Tentacle: kraken body dead, falling passively (no new spawns).");
+                        "Tentacle: kraken body dead, sinking to the sea floor.");
             }
-            krakenDeathTimer += deltaTime;
-            if (krakenDeathTimer > config.TentacleKrakenDeathFallDuration)
+
+            if (TentacleRemains.TickSink(entity, deltaTime, ref krakenDeathTimer,
+                    config.TentacleDeathSinkSpeed, config.TentacleSinkToFloorTimeout,
+                    ref sinkFloorY, ref sinkScanTimer))
             {
+                LeaveRemainsOnce();
                 entity.Die(EnumDespawnReason.Expire);
                 return;
             }
+
             UpdateChainPositions();
             UpdateHeadFacing();
             return;
@@ -258,6 +302,13 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
                         $"Tentacle: stalling (shallowWater={IsInShallowWater}, mounted={playerMounted})");
                 TransitionTo(TentacleState.Stalling);
             }
+        }
+
+        // Idempotent, and covers both routes into the hunt: the Lingering
+        // timeout and a proximity promotion that started here.
+        if (state == TentacleState.Reaching || state == TentacleState.Dragging)
+        {
+            SignalScatterOnce();
         }
 
         stateTimer += deltaTime;
@@ -346,7 +397,25 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         DespawnBiolumLights();
         chain?.Despawn();
         DespawnClaws();
+
+        // Killed outright rather than sinking with a dead body. The whole
+        // segment chain goes with it on this tick, so there is nothing left
+        // to animate downward; the remains go straight to the floor beneath
+        // where it died.
+        LeaveRemainsOnce();
+
         if (entity is EntityAgent agent) agent.AllowDespawn = true;
+    }
+
+    /// <summary>
+    /// Bone pile plus rusted machinery on the sea floor below. Latched, so
+    /// a tentacle that both sinks and then dies only leaves one set.
+    /// </summary>
+    private void LeaveRemainsOnce()
+    {
+        if (remainsLeft) return;
+        remainsLeft = true;
+        TentacleRemains.Leave(entity, config);
     }
 
     // --- Cached body lookup ---
@@ -668,6 +737,34 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: slowing player movement");
     }
 
+    /// <summary>
+    /// Crushes the held player on a timer. The kraken body's contact
+    /// damage explicitly skips mounted players, so without this a grabbed
+    /// player takes nothing until they drown; this makes the grab a clock
+    /// you have to beat by killing a claw.
+    /// </summary>
+    private void ApplyGrabDamage(float deltaTime)
+    {
+        if (!config.TentacleGrabDamageEnabled || config.TentacleGrabDamage <= 0) return;
+        if (targetPlayer?.Entity == null || !targetPlayer.Entity.Alive) return;
+
+        grabDamageAccum += deltaTime;
+        if (grabDamageAccum < config.TentacleGrabDamageIntervalSeconds) return;
+        grabDamageAccum = 0f;
+
+        targetPlayer.Entity.ReceiveDamage(new DamageSource
+        {
+            Source = EnumDamageSource.Entity,
+            SourceEntity = entity,
+            Type = EnumDamageType.PiercingAttack,
+            DamageTier = config.KrakenDamageTier
+        }, config.TentacleGrabDamage);
+
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                $"Tentacle crushed {targetPlayer.PlayerName} for {config.TentacleGrabDamage}");
+    }
+
     private void RemoveSpeedDebuff()
     {
         if (!speedDebuffApplied || targetPlayer?.Entity == null) return;
@@ -699,6 +796,11 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         if (newState == TentacleState.Dragging && oldState != TentacleState.Dragging
             && targetPlayer?.Entity != null)
         {
+            // Fresh grab, fresh crush clock: the player gets the full
+            // interval before the first hit rather than inheriting
+            // whatever was left over from a previous grab.
+            grabDamageAccum = 0f;
+
             entity.Pos.SetPos(
                 targetPlayer.Entity.Pos.X,
                 targetPlayer.Entity.Pos.Y + config.TentacleGrabYOffset,
@@ -821,21 +923,33 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
         if (stateTimer >= config.TentacleLingerDuration)
         {
-            // Signal ambient tentacles to scatter (fan out across the sea
-            // floor instead of sinking + despawning). The kraken body's
-            // ambient siblings poll this attribute every tick.
-            Entity body = GetBody();
-            if (body != null && body.Alive)
-            {
-                body.WatchedAttributes.SetBool("underwaterhorrors:scatterAmbient", true);
-                body.WatchedAttributes.MarkPathDirty("underwaterhorrors:scatterAmbient");
-
-                if (config.DebugLogging)
-                    UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Attack tentacle: signaled ambient tentacles to scatter");
-            }
-
             TransitionTo(TentacleState.Reaching);
         }
+    }
+
+    /// <summary>
+    /// Signal ambient tentacles to scatter (fan out across the sea floor
+    /// instead of sinking + despawning). The kraken body's ambient siblings
+    /// poll this attribute every tick.
+    ///
+    /// Fired once, when this tentacle first starts hunting, from wherever
+    /// that happens: normally the Lingering timeout, but a proximity-
+    /// promoted tentacle begins life in Reaching and would otherwise never
+    /// raise it, leaving its siblings orbiting through the whole fight.
+    /// </summary>
+    private void SignalScatterOnce()
+    {
+        if (scatterSignalled) return;
+        scatterSignalled = true;
+
+        Entity body = GetBody();
+        if (body == null || !body.Alive) return;
+
+        body.WatchedAttributes.SetBool("underwaterhorrors:scatterAmbient", true);
+        body.WatchedAttributes.MarkPathDirty("underwaterhorrors:scatterAmbient");
+
+        if (config.DebugLogging)
+            UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Attack tentacle: signaled ambient tentacles to scatter");
     }
 
     private void OnReaching(float deltaTime)
@@ -985,6 +1099,8 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             TransitionTo(TentacleState.Sinking);
             return;
         }
+
+        ApplyGrabDamage(deltaTime);
 
         // Spawn claws around the grab point on first drag tick
         if (!clawsSpawned)

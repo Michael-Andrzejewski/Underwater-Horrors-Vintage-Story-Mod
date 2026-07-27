@@ -30,6 +30,11 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
     private static readonly AssetLocation TipMidClawAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid_claw");
 
+    // Server-tuning knob shared with the attack tentacle, so raising it
+    // speeds up the whole kraken coherently instead of leaving the
+    // ambient arms drifting while the hunter races.
+    protected override double SpeedScale => config?.TentacleSpeedMultiplier ?? 1.0;
+
     private AmbientTentacleState state = AmbientTentacleState.Rising;
     private float stateTimer;
     private bool initialized;
@@ -67,6 +72,11 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     private bool krakenDeathHandled;
     private float krakenDeathTimer;
 
+    // Sink-to-floor bookkeeping. -1 means "not scanned yet".
+    private double sinkFloorY = -1;
+    private float sinkScanTimer;
+    private bool remainsLeft;
+
     // Static flag is set once at spawn and never changes; cache it to
     // avoid a per-tick WatchedAttributes dictionary lookup.
     private bool isStatic;
@@ -99,8 +109,11 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
             Initialize();
         }
 
-        // Kraken-death short-circuit — fall passively, don't despawn the
-        // chain immediately, no further state logic.
+        // Kraken-death short-circuit — sink to the sea floor, don't despawn
+        // the chain immediately, no further state logic. Matches the attack
+        // tentacle: when the body dies every arm goes limp and comes down,
+        // leaving its remains where it lands rather than blinking out of
+        // existence in open water.
         Entity body = GetBody();
         if (body == null || !body.Alive)
         {
@@ -110,14 +123,18 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
                 krakenDeathTimer = 0f;
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                        "Ambient tentacle: kraken body dead, falling passively.");
+                        "Ambient tentacle: kraken body dead, sinking to the sea floor.");
             }
-            krakenDeathTimer += deltaTime;
-            if (krakenDeathTimer > config.TentacleKrakenDeathFallDuration)
+
+            if (TentacleRemains.TickSink(entity, deltaTime, ref krakenDeathTimer,
+                    config.TentacleDeathSinkSpeed, config.TentacleSinkToFloorTimeout,
+                    ref sinkFloorY, ref sinkScanTimer))
             {
+                LeaveRemainsOnce();
                 entity.Die(EnumDespawnReason.Expire);
                 return;
             }
+
             UpdateChainPositions();
             UpdateHeadFacing();
             return;
@@ -186,7 +203,19 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     {
         base.OnEntityDeath(damageSourceForDeath);
         chain?.Despawn();
+        LeaveRemainsOnce();
         if (entity is EntityAgent agent) agent.AllowDespawn = true;
+    }
+
+    /// <summary>
+    /// Bone pile plus rusted machinery on the sea floor below. Latched, so
+    /// a tentacle that sinks and then dies only leaves one set.
+    /// </summary>
+    private void LeaveRemainsOnce()
+    {
+        if (remainsLeft) return;
+        remainsLeft = true;
+        TentacleRemains.Leave(entity, config);
     }
 
     private void EnsureChainCreated()
@@ -501,6 +530,12 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     /// </summary>
     private void StepTowardTeleport(double tx, double ty, double tz, double step)
     {
+        // Ambient tentacles move by teleport-stepping rather than through
+        // the base class's Motion movers, so the speed dial has to be
+        // applied here. Without this line TentacleSpeedMultiplier would
+        // silently do nothing for every tentacle except the hunter.
+        step *= SpeedScale;
+
         double dx = tx - entity.Pos.X;
         double dy = ty - entity.Pos.Y;
         double dz = tz - entity.Pos.Z;

@@ -199,7 +199,12 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         SpawnAttackTentacleAt(entity.Pos.X, entity.Pos.Y + 1, entity.Pos.Z);
     }
 
-    private void SpawnAttackTentacleAt(double x, double y, double z)
+    /// <summary>
+    /// Spawns the hunting tentacle. huntImmediately skips its Idle, Rising
+    /// and Lingering build-up: used when the player was close enough to
+    /// the promoted tentacle that a slow theatrical rise would look absurd.
+    /// </summary>
+    private void SpawnAttackTentacleAt(double x, double y, double z, bool huntImmediately = false)
     {
         string targetUid = entity.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid");
 
@@ -215,6 +220,10 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             tentacle.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", targetUid);
         }
         tentacle.WatchedAttributes.SetLong("underwaterhorrors:krakenBodyId", entity.EntityId);
+        if (huntImmediately)
+        {
+            tentacle.WatchedAttributes.SetBool(EntityBehaviorTentacle.HuntImmediatelyAttr, true);
+        }
         // Propagate bioluminescent flag (day vs night kraken).
         if (entity.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
         {
@@ -230,16 +239,29 @@ public class EntityBehaviorKrakenBody : EntityBehavior
     }
 
     /// <summary>
-    /// Picks a random surviving ambient tentacle, kills it, and spawns
-    /// a new attack tentacle at its position. If no ambients are alive,
-    /// falls back to spawning the attack at the body. Also resets the
-    /// scatter signal so the OTHER survivors stay in wandering mode
-    /// rather than instantly converting (only the new attack tentacle's
-    /// own Lingering→Reaching transition re-asserts the scatter signal).
+    /// Picks a surviving ambient tentacle, kills it, and spawns a new
+    /// attack tentacle at its position. Any ambient can be chosen, risers
+    /// and ground crawlers alike, so over a long fight every arm is a
+    /// potential grabber.
+    ///
+    /// The choice prefers whichever tentacle a player is standing closest
+    /// to, within TentacleProximityAggroRange; that one also skips the
+    /// rise and linger build-up and hunts straight away, so swimming into
+    /// a tentacle means that tentacle is the one that comes for you. With
+    /// nobody nearby it falls back to a random pick. If no ambients are
+    /// alive at all, the attack tentacle respawns at the body.
+    ///
+    /// Also resets the scatter signal so the OTHER survivors stay in
+    /// wandering mode rather than instantly converting (only the new
+    /// attack tentacle's own Lingering-to-Reaching transition re-asserts
+    /// the scatter signal).
     /// </summary>
     private void PromoteAmbientToAttack()
     {
-        Entity chosen = PickAlivePromotionCandidate();
+        Entity chosen = PickProximityCandidate();
+        bool byProximity = chosen != null;
+        chosen ??= PickAlivePromotionCandidate();
+
         if (chosen != null)
         {
             double x = chosen.Pos.X;
@@ -249,12 +271,13 @@ public class EntityBehaviorKrakenBody : EntityBehavior
             chosen.Die(EnumDespawnReason.Expire);
             if (config.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api,
-                    $"Kraken promoted ambient {chosen.EntityId} → new attack tentacle at ({x:F1}, {y:F1}, {z:F1})");
+                    $"Kraken promoted ambient {chosen.EntityId} to attack tentacle at ({x:F1}, {y:F1}, {z:F1})"
+                    + (byProximity ? " (player was right next to it)" : ""));
             // Reset scatter so the chosen ambient's siblings keep wandering;
             // they'll only re-scatter when the new attack tentacle finishes
             // its own rise/linger and starts Reaching.
             entity.WatchedAttributes.SetBool("underwaterhorrors:scatterAmbient", false);
-            SpawnAttackTentacleAt(x, y, z);
+            SpawnAttackTentacleAt(x, y, z, huntImmediately: byProximity);
         }
         else
         {
@@ -263,6 +286,54 @@ public class EntityBehaviorKrakenBody : EntityBehavior
                     "Kraken: no ambients alive to promote, falling back to body-spawn");
             SpawnAttackTentacle();
         }
+    }
+
+    /// <summary>
+    /// The ambient tentacle a living player is standing closest to, if any
+    /// is within TentacleProximityAggroRange. Null when the feature is off,
+    /// nobody is that close, or every candidate is dead.
+    /// </summary>
+    private Entity PickProximityCandidate()
+    {
+        if (!config.TentacleProximityAggroEnabled) return null;
+
+        double range = config.TentacleProximityAggroRange;
+        if (range <= 0) return null;
+
+        double bestSq = range * range;
+        Entity best = null;
+
+        for (int i = 0; i < ambientTentacleIds.Count; i++)
+        {
+            Entity amb = entity.World.GetEntityById(ambientTentacleIds[i]);
+            if (amb == null || !amb.Alive) continue;
+
+            foreach (IPlayer player in entity.World.AllOnlinePlayers)
+            {
+                if (player.Entity == null || !player.Entity.Alive) continue;
+
+                // Creative and spectator players are scenery, same rule the
+                // rest of the kraken follows.
+                if (config.IgnoreCreativePlayers)
+                {
+                    EnumGameMode mode = player.WorldData.CurrentGameMode;
+                    if (mode == EnumGameMode.Creative || mode == EnumGameMode.Spectator) continue;
+                }
+
+                double dx = amb.Pos.X - player.Entity.Pos.X;
+                double dy = amb.Pos.Y - player.Entity.Pos.Y;
+                double dz = amb.Pos.Z - player.Entity.Pos.Z;
+                double distSq = dx * dx + dy * dy + dz * dz;
+
+                if (distSq < bestSq)
+                {
+                    bestSq = distSq;
+                    best = amb;
+                }
+            }
+        }
+
+        return best;
     }
 
     private Entity PickAlivePromotionCandidate()

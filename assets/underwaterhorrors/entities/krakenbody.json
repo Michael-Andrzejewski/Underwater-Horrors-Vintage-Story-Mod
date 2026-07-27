@@ -11,6 +11,18 @@
     "attributes": {
         "handbook": { "disable": true }
     },
+    "drops": [
+        { "type": "item", "code": "game:fish-raw", "quantity": { "avg": 24, "var": 8 } },
+        { "type": "item", "code": "game:bone", "quantity": { "avg": 12, "var": 4 } },
+        { "type": "item", "code": "game:gear-rusty", "quantity": { "avg": 9, "var": 4 } },
+        { "type": "item", "code": "game:jonasparts-connector01", "quantity": { "avg": 0.6, "var": 0.5 } },
+        { "type": "item", "code": "game:jonasparts-cylinder01", "quantity": { "avg": 0.6, "var": 0.5 } },
+        { "type": "item", "code": "game:jonasparts-cylinder02", "quantity": { "avg": 0.6, "var": 0.5 } },
+        { "type": "item", "code": "game:jonasparts-tank01", "quantity": { "avg": 0.6, "var": 0.5 } },
+        { "type": "item", "code": "game:jonasparts-tank02", "quantity": { "avg": 0.6, "var": 0.5 } },
+        { "type": "item", "code": "game:jonasparts-valve01", "quantity": { "avg": 0.6, "var": 0.5 } },
+        { "type": "item", "code": "game:jonasparts-pumphead", "quantity": { "avg": 0.6, "var": 0.5 } }
+    ],
     "client": {
         "renderer": "Shape",
         "texture": { "base": "game:entity/lore/shiver/bellhead" },

@@ -382,13 +382,22 @@ public class UnderwaterHorrorsConfig
     public int KrakenGroundTentacleCount { get; set; } = 4;
     public float KrakenTentacleSpawnRadius { get; set; } = 5f;
 
-    // How long after the kraken body dies before each tentacle and its
-    // chain are removed. Zero state logic runs during this window — the
-    // tentacle just falls passively under whatever motion remains.
-    public float TentacleKrakenDeathFallDuration { get; set; } = 6f;
+    // (TentacleKrakenDeathFallDuration was removed here. Tentacles no
+    // longer vanish after a fixed fall when the body dies; they sink until
+    // they reach the sea floor, bounded by TentacleSinkToFloorTimeout.)
+
+    // Global speed dial for EVERY tentacle, attack and ambient alike:
+    // rising, orbiting, wandering, pursuing and dragging all scale by it.
+    // 2 makes the whole kraken twice as quick. Raise this rather than
+    // editing the individual speeds below if you just want a livelier
+    // kraken, since it keeps their relative pacing intact.
+    public float TentacleSpeedMultiplier { get; set; } = 1f;
 
     // Attack tentacle
     public float TentacleIdleDuration { get; set; } = 2f;
+    // Pursuit speed: how fast the attack tentacle closes on the player
+    // once it has surfaced and started hunting. Scaled by
+    // TentacleSpeedMultiplier on top of this.
     public float TentacleReachSpeed { get; set; } = 0.06f;
     public float TentacleGrabRange { get; set; } = 2f;
     public float TentacleDragSpeed { get; set; } = 2.0f;
@@ -396,6 +405,38 @@ public class UnderwaterHorrorsConfig
     public float TentacleSinkDuration { get; set; } = 30f;
     public float TentacleRespawnDelayMin { get; set; } = 30f;
     public float TentacleRespawnDelayMax { get; set; } = 60f;
+
+    // Damage dealt on a timer while the tentacle has hold of the player,
+    // so a grab is a countdown rather than just an inconvenience. The
+    // kraken body's own contact damage skips mounted players, so this is
+    // what hurts you while you are being dragged.
+    public bool TentacleGrabDamageEnabled { get; set; } = true;
+    public float TentacleGrabDamage { get; set; } = 1f;
+    public float TentacleGrabDamageIntervalSeconds { get; set; } = 2f;
+
+    // Proximity aggro. When the kraken picks its next attack tentacle, a
+    // player standing within this many blocks of a tentacle gets that one
+    // (nearest wins) instead of a random one, and it skips the rise and
+    // linger build-up to hunt immediately. Swim into a tentacle and it is
+    // the one that comes for you. The promotion cooldown below is still
+    // honoured first, so this changes WHICH tentacle moves in, not when.
+    public bool TentacleProximityAggroEnabled { get; set; } = true;
+    public float TentacleProximityAggroRange { get; set; } = 3f;
+
+    // Where a dead tentacle's remains land, and what it leaves. Tentacles
+    // sink to the sea floor when the kraken body dies; on touching down
+    // (or on being killed outright) they leave a bone pile and rusty
+    // gears or scrap where they fell.
+    public bool TentacleRemainsEnabled { get; set; } = true;
+    // Safety cap on the sink. If a tentacle somehow cannot reach the
+    // floor within this long it gives up, drops its remains on the floor
+    // beneath it anyway, and despawns.
+    public float TentacleSinkToFloorTimeout { get; set; } = 30f;
+    // Motion units, as with the other tentacle speeds: roughly 60x this
+    // many blocks per second, so 0.08 is a heavy limp arm coming down at
+    // about 5 blocks a second. From the surface to a deep floor that is
+    // ten to fifteen seconds, well inside the timeout above.
+    public float TentacleDeathSinkSpeed { get; set; } = 0.08f;
 
     // Tentacle spline rendering
     public float TentacleArchHeightFactor { get; set; } = 0.4f;
@@ -473,10 +514,16 @@ public class UnderwaterHorrorsConfig
     public float AmbientSurfaceWanderRangeMax { get; set; } = 30f;
     public float AmbientSurfaceWanderDepthMax { get; set; } = 20f;
     // Promotion: when the attack tentacle dies, kraken body waits this
-    // long, then picks a random surviving ambient tentacle and respawns
-    // a new attack tentacle at its position (killing the chosen ambient).
-    public float AmbientPromoteToAttackDelayMin { get; set; } = 30f;
-    public float AmbientPromoteToAttackDelayMax { get; set; } = 120f;
+    // long, then picks a surviving ambient tentacle (any of them, risers
+    // and ground crawlers alike) and respawns a new attack tentacle at
+    // its position, killing the chosen ambient. This is the breathing
+    // room you get after killing a grabber; TentacleProximityAggroRange
+    // decides which tentacle steps up once it elapses.
+    public float AmbientPromoteToAttackDelayMin { get; set; } = 5f;
+    public float AmbientPromoteToAttackDelayMax { get; set; } = 20f;
+    // One-shot migration: configs written with the old 30/120 defaults are
+    // moved to the new, much shorter ones on first load; see Validate().
+    public bool PromoteDelayMigrated { get; set; } = false;
 
     // Bioluminescence — pulsing glow that travels along tentacles
     public bool BiolumActive { get; set; } = false;
@@ -566,6 +613,29 @@ public class UnderwaterHorrorsConfig
         // Negative drag speed would push the player away / invert the grab.
         TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);
 
+        // Zero would freeze every tentacle; the cap keeps them from
+        // teleporting past their own collision checks.
+        TentacleSpeedMultiplier = Math.Clamp(TentacleSpeedMultiplier, 0.1f, 10f);
+
+        // A zero or negative interval would fire the grab damage every
+        // single tick, which is a very different creature than intended.
+        TentacleGrabDamage = Math.Max(0f, TentacleGrabDamage);
+        TentacleGrabDamageIntervalSeconds = Math.Max(0.1f, TentacleGrabDamageIntervalSeconds);
+
+        // Negative range would never match; zero simply disables it.
+        TentacleProximityAggroRange = Math.Max(0f, TentacleProximityAggroRange);
+
+        // A tentacle that cannot sink never leaves remains, so keep both
+        // the speed and the give-up timer positive.
+        TentacleDeathSinkSpeed = Math.Max(0.01f, TentacleDeathSinkSpeed);
+        TentacleSinkToFloorTimeout = Math.Max(1f, TentacleSinkToFloorTimeout);
+
+        // Promotion window must be a real range, and a negative wait would
+        // promote on the same tick the grabber died.
+        AmbientPromoteToAttackDelayMin = Math.Max(0f, AmbientPromoteToAttackDelayMin);
+        AmbientPromoteToAttackDelayMax =
+            Math.Max(AmbientPromoteToAttackDelayMin, AmbientPromoteToAttackDelayMax);
+
         // Zero or negative turn speed would freeze the serpent's heading.
         SerpentTurnSpeedDegPerSec = Math.Max(5f, SerpentTurnSpeedDegPerSec);
         SerpentAttackTurnSpeedDegPerSec = Math.Max(5f, SerpentAttackTurnSpeedDegPerSec);
@@ -620,6 +690,17 @@ public class UnderwaterHorrorsConfig
         {
             if (RuinRarity == 320) RuinRarity = 107;
             RuinRarityMigrated = true;
+        }
+
+        // One-shot: the old 30-120s wait meant a killed grabber was rarely
+        // replaced before the fight was over. Move configs still carrying
+        // those exact values to the new 5-20s window, leaving any
+        // hand-picked numbers alone.
+        if (!PromoteDelayMigrated)
+        {
+            if (AmbientPromoteToAttackDelayMin == 30f) AmbientPromoteToAttackDelayMin = 5f;
+            if (AmbientPromoteToAttackDelayMax == 120f) AmbientPromoteToAttackDelayMax = 20f;
+            PromoteDelayMigrated = true;
         }
     }
 }
