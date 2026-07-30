@@ -403,8 +403,9 @@ public class UnderwaterHorrorsConfig
     public float TentacleDragSpeed { get; set; } = 2.0f;
     public float TentacleGrabYOffset { get; set; } = -0.5f;
     public float TentacleSinkDuration { get; set; } = 30f;
-    public float TentacleRespawnDelayMin { get; set; } = 30f;
-    public float TentacleRespawnDelayMax { get; set; } = 60f;
+    // (TentacleRespawnDelayMin/Max were removed here. They read like the
+    // wait before a new attack tentacle appears, but nothing ever consulted
+    // them; that timing is AmbientPromoteToAttackDelayMin/Max further down.)
 
     // Damage dealt on a timer while the tentacle has hold of the player,
     // so a grab is a countdown rather than just an inconvenience. The

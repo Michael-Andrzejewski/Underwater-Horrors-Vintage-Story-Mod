@@ -560,12 +560,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
         new AssetLocation("underwaterhorrors", "krakententsegment"),
         new AssetLocation("underwaterhorrors", "krakententsegment_mid"),
         new AssetLocation("underwaterhorrors", "krakententsegment_outer"),
-        new AssetLocation("underwaterhorrors", "krakententbase"),
-        new AssetLocation("underwaterhorrors", "krakententmid"),
-        new AssetLocation("underwaterhorrors", "krakententtaper"),
-        new AssetLocation("underwaterhorrors", "krakententsnapper"),
-        new AssetLocation("underwaterhorrors", "krakententexamp"),
-        new AssetLocation("underwaterhorrors", "anglerfish"),
         new AssetLocation("underwaterhorrors", "giantshiver"),
     };
 
@@ -636,13 +630,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void RegisterCommands(ICoreServerAPI api)
     {
-        // Convenience top-level spawn command for the test creatures the user
-        // asked to eyeball in-game. Mirrors /uh spawn but with the short syntax
-        // /spawn anglerfish and /spawn giant-shiver.
+        // Convenience top-level spawn command for test creatures that are not
+        // part of the normal spawn flow. Mirrors /uh spawn but with the short
+        // syntax /spawn giant-shiver.
         api.ChatCommands.Create("spawn")
-            .WithDescription("Spawn an Underwater Horrors test creature on yourself (anglerfish, giant-shiver)")
+            .WithDescription("Spawn an Underwater Horrors test creature on yourself (giant-shiver)")
             .RequiresPrivilege(Privilege.controlserver)
-            .WithArgs(api.ChatCommands.Parsers.WordRange("type", "anglerfish", "giant-shiver"))
+            .WithArgs(api.ChatCommands.Parsers.WordRange("type", "giant-shiver"))
             .HandleWith(OnCmdSpawnTest);
 
         api.ChatCommands.Create("uh")
@@ -733,10 +727,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .EndSubCommand()
                 .BeginSubCommand("show")
                     .WithDescription("Spawn a single kraken model in front of you, frozen with no AI, for inspection")
-                    .WithArgs(api.ChatCommands.Parsers.Word("part", new[] {
-                        "body", "tentacle", "ambient", "segment", "segment_mid", "segment_outer", "claw",
-                        "base", "mid", "taper", "snapper", "examp"
-                    }))
+                    // WordRange validates; Word only autocompletes, so a typo
+                    // used to fall through to the handler's "Unknown part".
+                    .WithArgs(api.ChatCommands.Parsers.WordRange("part",
+                        "body", "tentacle", "ambient", "segment", "segment_mid", "segment_outer", "claw"))
                     .HandleWith(OnCmdKrakenShow)
                 .EndSubCommand()
             .EndSubCommand()
@@ -1019,7 +1013,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TextCommandResult.Success($"Spawned {creature.Code.Path} targeting {caller.PlayerName}");
     }
 
-    // /spawn anglerfish | giant-shiver : quick spawn of the two test creatures.
+    // /spawn giant-shiver : quick spawn of the test creature.
     private TextCommandResult OnCmdSpawnTest(TextCommandCallingArgs args)
     {
         string type = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
@@ -1029,9 +1023,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         Entity creature;
         switch (type)
         {
-            case "anglerfish": creature = SpawnTestEntity(caller, AnglerfishAsset, upOffset: 6, forwardOffset: 12); break;
             case "giant-shiver": creature = SpawnTestEntity(caller, GiantShiverAsset, upOffset: 0, forwardOffset: 9); break;
-            default: return TextCommandResult.Error("Unknown type. Use anglerfish or giant-shiver.");
+            default: return TextCommandResult.Error("Unknown type. Use giant-shiver.");
         }
 
         if (creature == null)
@@ -1041,8 +1034,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
     }
 
     // Spawn a mod entity a few blocks in front of the player (forwardOffset,
-    // along their look yaw) and optionally raised (upOffset, for the giant
-    // floating anglerfish). Health/size come from the entity JSON.
+    // along their look yaw) and optionally raised (upOffset, for creatures
+    // that should appear above eye level). Health/size come from the entity
+    // JSON.
     private Entity SpawnTestEntity(IServerPlayer player, AssetLocation asset, double upOffset, double forwardOffset)
     {
         EntityProperties props = sapi.World.GetEntityType(asset);
@@ -1473,11 +1467,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
             "segment_mid"   => "krakententsegment_mid",
             "segment_outer" => "krakententsegment_outer",
             "claw"          => "krakententacleclaw",
-            "base"          => "krakententbase",
-            "mid"           => "krakententmid",
-            "taper"         => "krakententtaper",
-            "snapper"       => "krakententsnapper",
-            "examp"         => "krakententexamp",
             _ => null,
         };
         if (code == null) return TextCommandResult.Error("Unknown part");
@@ -1996,7 +1985,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private static readonly AssetLocation DeepSerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent2");
     private static readonly AssetLocation Serpent3Asset = new AssetLocation("underwaterhorrors", "seaserpent3");
     private static readonly AssetLocation KrakenAsset = new AssetLocation("underwaterhorrors", "krakenbody");
-    private static readonly AssetLocation AnglerfishAsset = new AssetLocation("underwaterhorrors", "anglerfish");
     private static readonly AssetLocation GiantShiverAsset = new AssetLocation("underwaterhorrors", "giantshiver");
 
     private Entity SpawnSerpent(IServerPlayer player, bool? forceDeep = null)
