@@ -141,6 +141,20 @@ public class BlockEntityCreatureSpawner : BlockEntity
         else
         {
             spawnY = FindOpenWaterYAbove(sapi) + 0.5;
+
+            // Clearing the block's own column is not enough for a body that
+            // reaches 12 blocks out — these spawners live in sea-floor ruins,
+            // so the ruin's walls and the sand around it are what the tail
+            // ends up inside. Keep rising until the whole animal is clear.
+            // If the sea is too shallow for that we spawn at the best height
+            // the water column offers rather than not spawning at all: a
+            // partly-buried serpent still hunts, and the AI's own floor
+            // clamp will lift it as it swims.
+            if (!SerpentPlacement.TryClearSpawnY(sapi.World, props, spawnX, ref spawnY, spawnZ, Pos.dimension))
+            {
+                UnderwaterHorrorsModSystem.DebugLog(sapi,
+                    $"Creature spawner at {Pos}: no height within reach clears the sea floor for a serpent body, spawning at {spawnY:F1} anyway");
+            }
         }
 
         Entity creature = sapi.World.ClassRegistry.CreateEntity(props);

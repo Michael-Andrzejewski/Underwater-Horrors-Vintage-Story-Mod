@@ -75,6 +75,71 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         }
     }
 
+    // Floor-clamp scan cache. -1 means "nothing scanned yet".
+    private double floorClampX = double.NaN, floorClampZ;
+    private int floorClampY = -1;
+    private float floorClampTimer;
+
+    /// <summary>
+    /// The other half of <see cref="ClampHeight"/>: keeps the creature from
+    /// sinking into the sea floor.
+    ///
+    /// The serpent AIs pick their depth purely from the player's Y, with no
+    /// idea where the ground is, so a player wading over a sandbank or
+    /// standing in a shallow bay hands them a target depth that is inside
+    /// the terrain. They swim down to it, and because the serpents run
+    /// controlledphysics with a step height of 0 there is nothing to push
+    /// them back out — they simply stop, which is the "stuck in the sand"
+    /// failure. Clamping the center to the same margin the spawn placement
+    /// uses turns that into a floor they skim along instead.
+    ///
+    /// Only the center column is tested; scanning the whole body every tick
+    /// would be far too expensive, and the spawn check has already put the
+    /// body somewhere sane.
+    /// </summary>
+    protected void ClampAboveSeaFloor(float deltaTime)
+    {
+        double clearance = config.SerpentGroundClearance;
+        if (clearance <= 0) return;
+
+        // Scanning up to 80 blocks down every tick is wasteful for a value
+        // that only changes as the creature travels. Rescan four times a
+        // second, or immediately once it has moved off the scanned column.
+        floorClampTimer -= deltaTime;
+        if (floorClampTimer <= 0f
+            || double.IsNaN(floorClampX)
+            || Math.Abs(entity.Pos.X - floorClampX) > 2.0
+            || Math.Abs(entity.Pos.Z - floorClampZ) > 2.0)
+        {
+            floorClampTimer = 0.25f;
+            floorClampX = entity.Pos.X;
+            floorClampZ = entity.Pos.Z;
+
+            // Scan from just above the creature so a center that is already
+            // inside a block finds that block and gets lifted out of it,
+            // rather than scanning past it to the floor further down.
+            floorClampY = EntityBehaviorSerpentHarvest.FindRestingYBelow(
+                entity.World.BlockAccessor,
+                entity.Pos.X, entity.Pos.Y + 1, entity.Pos.Z, entity.Pos.Dimension);
+        }
+
+        // No floor within scan range: open water, nothing to clamp against.
+        if (floorClampY < 0) return;
+
+        double minY = floorClampY + clearance;
+
+        // In water too shallow to hold the margin, hugging the bottom beats
+        // being launched into the air. The serpents retreat from shallow
+        // water on their own anyway.
+        if (minY > config.CreatureMaxY) minY = config.CreatureMaxY;
+
+        if (entity.Pos.Y < minY)
+        {
+            entity.Pos.Y = minY;
+            if (entity.Pos.Motion.Y < 0) entity.Pos.Motion.Y = 0;
+        }
+    }
+
     // Movement speed scale applied inside MoveToward / MoveTowardDamped.
     // 1 for everything except the two serpent AIs, which override it with
     // the server-configurable SerpentSpeedMultiplier so a single config

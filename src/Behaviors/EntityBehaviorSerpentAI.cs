@@ -317,6 +317,11 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             case SerpentState.Retreating:OnRetreating(deltaTime); break;
         }
 
+        // After the state handlers, so the motion they just commanded is
+        // what gets cancelled. Clamping first would let the same tick
+        // command another dive straight back into the sea floor.
+        ClampAboveSeaFloor(deltaTime);
+
         UpdateFacing(deltaTime);
     }
 

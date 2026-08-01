@@ -2008,8 +2008,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
         // Retry horizontal position until we find one where the chosen
         // spawn Y is inside a water block (no spawning into terrain when
         // the random offset lands over a shore or shallow bottom).
+        int dimension = player.Entity.Pos.Dimension;
         double spawnX = 0, spawnZ = 0;
-        double spawnY = player.Entity.Pos.Y - depthOffset;
+        double baseY = player.Entity.Pos.Y - depthOffset;
+        double spawnY = baseY;
         bool found = false;
         for (int attempt = 0; attempt < 10; attempt++)
         {
@@ -2019,36 +2021,43 @@ public class UnderwaterHorrorsModSystem : ModSystem
             double tryX = player.Entity.Pos.X + Math.Cos(angle) * dist;
             double tryZ = player.Entity.Pos.Z + Math.Sin(angle) * dist;
 
-            reusableBlockPos.Set((int)tryX, (int)spawnY, (int)tryZ);
-            reusableBlockPos.dimension = player.Entity.Pos.Dimension;
+            reusableBlockPos.Set((int)tryX, (int)baseY, (int)tryZ);
+            reusableBlockPos.dimension = dimension;
             Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
-            if (block != null && WaterHelper.IsWaterBlock(block))
-            {
-                spawnX = tryX;
-                spawnZ = tryZ;
-                found = true;
-                break;
-            }
+            if (block == null || !WaterHelper.IsWaterBlock(block)) continue;
+
+            // Water at the center is not enough: the body reaches 12 blocks
+            // out, so raise the point until all of it clears the sea floor.
+            // A spot with no such height is discarded and the next attempt
+            // rolls a different XZ, which is exactly what the retries are for.
+            double tryY = baseY;
+            if (!SerpentPlacement.TryClearSpawnY(sapi.World, props, tryX, ref tryY, tryZ, dimension)) continue;
+
+            spawnX = tryX;
+            spawnZ = tryZ;
+            spawnY = tryY;
+            found = true;
+            break;
         }
 
         if (!found)
         {
             if (Config.DebugLogging)
-                DebugLog(sapi, $"Failed to find valid {label} spawn (no water within {Config.SerpentSpawnHorizontalRadiusMax} blocks of {player.PlayerName} at depth {depthOffset})");
+                DebugLog(sapi, $"Failed to find valid {label} spawn (no water with {Config.SerpentGroundClearance} blocks of body clearance within {Config.SerpentSpawnHorizontalRadiusMax} blocks of {player.PlayerName} at depth {depthOffset})");
             return null;
         }
 
         Entity serpent = sapi.World.ClassRegistry.CreateEntity(props);
 
         serpent.Pos.SetPos(spawnX, spawnY, spawnZ);
-        serpent.Pos.Dimension = player.Entity.Pos.Dimension;
+        serpent.Pos.Dimension = dimension;
         serpent.Pos.SetFrom(serpent.Pos);
         serpent.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
         sapi.World.SpawnEntity(serpent);
         ApplyConfiguredHealth(serpent);
 
         if (Config.DebugLogging)
-            DebugLog(sapi, $"SPAWNED {label} targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player");
+            DebugLog(sapi, $"SPAWNED {label} targeting {player.PlayerName} at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1}), {depthOffset} blocks below player, raised {spawnY - baseY:F0} for body clearance");
 
         return serpent;
     }
@@ -2104,6 +2113,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
         double spawnX = player.Entity.Pos.X + Math.Sin(yaw) * dist;
         double spawnZ = player.Entity.Pos.Z + Math.Cos(yaw) * dist;
         double spawnY = player.Entity.Pos.Y;
+
+        // Same body clearance as the real serpents. A prototype embedded in
+        // the sea floor cannot be inspected either, so this is worth the
+        // occasional lift away from the player's eye level.
+        SerpentPlacement.TryClearSpawnY(sapi.World, props, spawnX, ref spawnY, spawnZ, player.Entity.Pos.Dimension);
 
         Entity serpent = sapi.World.ClassRegistry.CreateEntity(props);
         serpent.Pos.SetPos(spawnX, spawnY, spawnZ);

@@ -117,6 +117,20 @@ public class UnderwaterHorrorsConfig
     public int SerpentSpawnDepthMax { get; set; } = 40;
     public int SerpentSpawnHorizontalRadiusMax { get; set; } = 50;
 
+    // How many blocks of clear water a serpent keeps under itself. A
+    // serpent is a single entity but its body reaches 12-17 blocks out
+    // along its facing axis, so a spawn point that merely happens to be
+    // water can still bury most of the animal in the sea floor. At spawn
+    // the whole body's footprint is checked and the point is raised until
+    // it clears; in flight the center is clamped so the AI cannot swim it
+    // back into the ground. Set to 0 to disable both.
+    public int SerpentGroundClearance { get; set; } = 2;
+
+    // How far a spawn point may be raised looking for that clearance.
+    // Spawner blocks sit in sea-floor ruins, so the lift is often most of
+    // the way to the surface; the search stops at the waterline regardless.
+    public int SerpentSpawnMaxRise { get; set; } = 40;
+
     // Kraken spawn horizontal radius. Spawns on the sea floor within
     // this radius of the player (vs always directly below).
     public int KrakenSpawnHorizontalRadiusMax { get; set; } = 20;
@@ -658,6 +672,13 @@ public class UnderwaterHorrorsConfig
         RustSerpentMaxHealth = Math.Max(1f, RustSerpentMaxHealth);
         DeepSerpentMaxHealth = Math.Max(1f, DeepSerpentMaxHealth);
         SerpentSpeedMultiplier = Math.Clamp(SerpentSpeedMultiplier, 0.1f, 10f);
+
+        // 0 disables the clearance entirely; the upper bound keeps the
+        // per-spawn footprint scan bounded. A rise of 0 would make the
+        // spawn search test exactly one height, which is a valid (if
+        // strict) choice, so only negatives are corrected.
+        SerpentGroundClearance = Math.Clamp(SerpentGroundClearance, 0, 16);
+        SerpentSpawnMaxRise = Math.Clamp(SerpentSpawnMaxRise, 0, 128);
         SerpentAggressionMultiplier = Math.Clamp(SerpentAggressionMultiplier, 0.1f, 10f);
         RuinSpawnerChance = Math.Clamp(RuinSpawnerChance, 0f, 1f);
         RuinKrakenVariantChance = Math.Clamp(RuinKrakenVariantChance, 0f, 1f);
