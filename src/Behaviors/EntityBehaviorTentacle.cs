@@ -29,7 +29,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     public const string HuntImmediatelyAttr = "underwaterhorrors:huntImmediately";
 
     // Coverage = SegmentCount * SegmentVisualHeight. The kraken sits on the
-    // sea floor and the tip rises to the surface (CreatureMaxY=110), so the
+    // sea floor and the tip rises to the surface (CreatureCeilingY), so the
     // spline can be 50+ blocks of vertical chord plus arch. With 96 segments
     // at 0.84 blocks each we cover ~80 blocks of arc length — enough for
     // even deep-ocean spawns.
@@ -853,7 +853,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             // point chases the player onto cliffs or deep underwater.
             // Dragging phase still tracks the player directly via a
             // separate code path, so grabs still work when diving.
-            surfaceY = Math.Min(targetPlayer.Entity.Pos.Y, config.CreatureMaxY);
+            surfaceY = Math.Min(targetPlayer.Entity.Pos.Y, CreatureCeilingY);
             surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
         }
         else
@@ -973,7 +973,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         // Stalling check at the top of OnGameTick — this state body
         // only runs when the player is actually chase-able.
 
-        double clampedY = Math.Min(targetPlayer.Entity.Pos.Y, config.CreatureMaxY);
+        double clampedY = Math.Min(targetPlayer.Entity.Pos.Y, CreatureCeilingY);
         MoveToward(targetPlayer.Entity.Pos.X, clampedY, targetPlayer.Entity.Pos.Z, config.TentacleReachSpeed);
 
         double dist = entity.Pos.DistanceTo(targetPlayer.Entity.Pos.XYZ);
@@ -1034,7 +1034,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             float orbitAngle = stateTimer * config.TentacleStallOrbitSpeed;
             double radius = config.TentacleStallOrbitRadius;
             double tx = targetPlayer.Entity.Pos.X + Math.Cos(orbitAngle) * radius;
-            double ty = Math.Min(targetPlayer.Entity.Pos.Y - 1.5, config.CreatureMaxY);
+            double ty = Math.Min(targetPlayer.Entity.Pos.Y - 1.5, CreatureCeilingY);
             double tz = targetPlayer.Entity.Pos.Z + Math.Sin(orbitAngle) * radius;
             MoveToward(tx, ty, tz, config.TentacleStallBoatSpeed);
         }

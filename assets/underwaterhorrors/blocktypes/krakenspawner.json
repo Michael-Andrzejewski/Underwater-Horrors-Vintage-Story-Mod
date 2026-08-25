@@ -12,6 +12,8 @@
 	},
 	"blockmaterial": "Metal",
 	"creativeinventory": { "general": ["*"], "decorative": ["*"] },
+	"_comment": "No drops: survival players were mining spawners out of shallow ruins and keeping them. Creative players pick it from the inventory as usual.",
+	"drops": [],
 	"replaceable": 300,
 	"resistance": 20,
 	"lightAbsorption": 0,

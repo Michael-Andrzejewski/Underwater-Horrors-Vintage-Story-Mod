@@ -696,6 +696,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
                 .HandleWith(OnCmdRuins)
             .EndSubCommand()
+            .BeginSubCommand("ghostlights")
+                .WithDescription("Toggle the glowing ghostlight orbs inside newly generated ruins. Existing ruins keep their lights. Saved to config. Optional on/off.")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("onoff"))
+                .HandleWith(OnCmdGhostlights)
+            .EndSubCommand()
             .BeginSubCommand("status")
                 .WithDescription("Show all toggle states and entity counts")
                 .HandleWith(OnCmdStatus)
@@ -866,6 +871,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         msg += $"  Creative observer: {(Config.IgnoreCreativePlayers ? "on" : "off")}" + nl;
         msg += $"  Monster sounds: {(Config.MonsterSoundsEnabled ? "on" : "off")}" + nl;
         msg += $"  Ruins worldgen: {(Config.UnderwaterRuinsEnabled ? "on" : "off")}" + nl;
+        msg += $"  Ruin ghostlights: {(Config.RuinGhostlightsEnabled ? "on" : "off")}" + nl;
         msg += $"  Kraken spawns: {(Config.KrakenNaturalSpawnEnabled ? "on" : "off")}" + nl;
 
         // Config values
@@ -1341,6 +1347,26 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TextCommandResult.Success(Config.UnderwaterRuinsEnabled
             ? "Underwater ruins worldgen: on. Newly generated ocean chunks can contain ruins."
             : "Underwater ruins worldgen: off. Newly generated ocean chunks stay empty. Ruins that already generated remain in the world.");
+    }
+
+    private TextCommandResult OnCmdGhostlights(TextCommandCallingArgs args)
+    {
+        string val = args.Parsers[0].GetValue() as string;
+        if (string.IsNullOrEmpty(val))
+        {
+            Config.RuinGhostlightsEnabled = !Config.RuinGhostlightsEnabled;
+        }
+        else
+        {
+            bool? parsed = ParseOnOff(val);
+            if (parsed == null) return TextCommandResult.Error("Expected on or off.");
+            Config.RuinGhostlightsEnabled = parsed.Value;
+        }
+
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        return TextCommandResult.Success(Config.RuinGhostlightsEnabled
+            ? "Ruin ghostlights: on. Newly generated ruins include the glowing orbs."
+            : "Ruin ghostlights: off. Newly generated ruins are dark. Lights in existing ruins remain; break the blocks to remove those.");
     }
 
     private TextCommandResult OnCmdKrakenSpawns(TextCommandCallingArgs args)

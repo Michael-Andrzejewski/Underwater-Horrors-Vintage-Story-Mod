@@ -269,7 +269,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         // height instead of climbing all the way to the surface, which
         // looked like a despawn.
         surfaceX = entity.Pos.X;
-        surfaceY = config.CreatureMaxY;
+        surfaceY = CreatureCeilingY;
         surfaceZ = entity.Pos.Z;
 
         // Randomize rise speed: base speed * random factor (0.8 to 1.3)
@@ -454,7 +454,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         double bz = body != null && body.Alive ? body.Pos.Z : entity.Pos.Z;
         // Aim for the bottom of the midwater band (deepest legal Y) so
         // the descent is unambiguous before the wander kicks in.
-        double midY = config.CreatureMaxY - config.AmbientSurfaceWanderDepthMax;
+        double midY = CreatureCeilingY - config.AmbientSurfaceWanderDepthMax;
         StepTowardTeleport(bx, midY, bz, riseSpeed);
 
         if (stateTimer >= config.AmbientScatterSinkDuration)
@@ -519,7 +519,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         // deeper, which is what the user described as "moving on the
         // surface or below it (20 blocks below)".
         double depth = rand.NextDouble() * config.AmbientSurfaceWanderDepthMax;
-        wanderY = config.CreatureMaxY - depth;
+        wanderY = CreatureCeilingY - depth;
     }
 
     /// <summary>

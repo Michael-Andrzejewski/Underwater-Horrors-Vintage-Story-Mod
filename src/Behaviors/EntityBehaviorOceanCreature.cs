@@ -65,9 +65,16 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         }
     }
 
+    /// <summary>
+    /// The highest Y this creature may swim to. Resolved against the live
+    /// world so the -1 config default tracks the actual sea level on any
+    /// map height, instead of assuming the default 256-tall world.
+    /// </summary>
+    protected double CreatureCeilingY => config.ResolveCreatureMaxY(entity.World.SeaLevel);
+
     protected void ClampHeight()
     {
-        double maxY = config.CreatureMaxY;
+        double maxY = CreatureCeilingY;
         if (entity.Pos.Y > maxY)
         {
             entity.Pos.Y = maxY;
@@ -131,7 +138,8 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         // In water too shallow to hold the margin, hugging the bottom beats
         // being launched into the air. The serpents retreat from shallow
         // water on their own anyway.
-        if (minY > config.CreatureMaxY) minY = config.CreatureMaxY;
+        double ceiling = CreatureCeilingY;
+        if (minY > ceiling) minY = ceiling;
 
         if (entity.Pos.Y < minY)
         {

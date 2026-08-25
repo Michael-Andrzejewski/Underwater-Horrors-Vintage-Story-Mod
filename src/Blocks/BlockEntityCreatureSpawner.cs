@@ -107,14 +107,43 @@ public class BlockEntityCreatureSpawner : BlockEntity
             double distSq = dx * dx + dy * dy + dz * dz;
             if (distSq > rangeSq || distSq >= bestDistSq) continue;
 
+            // In the water, or on a boat floating on it. Requiring feet in
+            // water let players row over a ruin and clean it out without
+            // the guardian ever spawning; a serpent handles boat targets
+            // fine (it circles and menaces them), so a mounted player over
+            // water arms the spawner too.
             Block feet = sapi.World.BlockAccessor.GetBlock(p.Entity.Pos.AsBlockPos);
-            if (feet == null || !WaterHelper.IsWaterBlock(feet)) continue;
+            bool inWater = feet != null && WaterHelper.IsWaterBlock(feet);
+            if (!inWater && !IsMountedOverWater(sapi, p)) continue;
 
             best = p;
             bestDistSq = distSq;
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// True for a player riding something (a boat) with water directly
+    /// below within a few blocks. Boats sit a block or two above the
+    /// surface, so their rider's own block is air.
+    /// </summary>
+    private static bool IsMountedOverWater(ICoreServerAPI sapi, IPlayer p)
+    {
+        if ((p.Entity as EntityAgent)?.MountedOn == null) return false;
+
+        BlockPos feet = p.Entity.Pos.AsBlockPos;
+        var probe = new BlockPos(feet.X, 0, feet.Z, feet.dimension);
+        int limit = Math.Max(0, feet.Y - 5);
+        for (int y = feet.Y; y >= limit; y--)
+        {
+            probe.Y = y;
+            Block b = sapi.World.BlockAccessor.GetBlock(probe);
+            if (b == null) continue;
+            if (WaterHelper.IsWaterBlock(b)) return true;
+            if (b.Id != 0) return false;   // solid ground before any water
+        }
+        return false;
     }
 
     private void SpawnCreature(ICoreServerAPI sapi, IPlayer target)
@@ -155,6 +184,28 @@ public class BlockEntityCreatureSpawner : BlockEntity
                 UnderwaterHorrorsModSystem.DebugLog(sapi,
                     $"Creature spawner at {Pos}: no height within reach clears the sea floor for a serpent body, spawning at {spawnY:F1} anyway");
             }
+        }
+
+        // Never spawn into air. A spawner can end up dry (a legacy ruin
+        // generated too shallow, or an exposed wreck on a shore bank); a
+        // creature spawned there flops in the open, retreats, and expires,
+        // which put the block back and made it spawn again — the "monster
+        // appears for a second and vanishes" loop players reported. Stay
+        // armed and silent until there is water to spawn into.
+        var spawnCell = new BlockPos(
+            (int)Math.Floor(spawnX), (int)Math.Floor(spawnY), (int)Math.Floor(spawnZ), Pos.dimension);
+        // At the spawner's own cell the solid layer is this block itself,
+        // so ask the fluid layer — that is what the cell becomes once the
+        // block removes itself.
+        bool ownCell = spawnCell.X == Pos.X && spawnCell.Y == Pos.Y && spawnCell.Z == Pos.Z;
+        Block cell = ownCell
+            ? sapi.World.BlockAccessor.GetBlock(spawnCell, BlockLayersAccess.Fluid)
+            : sapi.World.BlockAccessor.GetBlock(spawnCell);
+        if (cell == null || !WaterHelper.IsWaterBlock(cell))
+        {
+            UnderwaterHorrorsModSystem.DebugLog(sapi,
+                $"Creature spawner at {Pos}: spawn point {spawnCell} is not water, staying dormant");
+            return;
         }
 
         Entity creature = sapi.World.ClassRegistry.CreateEntity(props);

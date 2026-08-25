@@ -266,8 +266,17 @@ public class UnderwaterHorrorsConfig
     // are bumped to the new one on first load; see Validate().
     public bool RuinRarityMigrated { get; set; } = false;
     // The sea floor must be at least this many blocks below sea level for a
-    // ruin to place, so they only appear in genuinely deep water.
+    // ruin to place, so they only appear in genuinely deep water. Each
+    // structure additionally requires enough depth to fit fully underwater
+    // (tall structures like the city and the shipwrecks only generate where
+    // the ocean is deep enough to cover them), and the water around the
+    // structure's footprint is checked too, so ruins no longer generate on
+    // shore banks with their tops poking out of the waves.
     public int RuinMinOceanDepth { get; set; } = 12;
+    // The glowing ghostlight orbs placed inside generated ruins. Turn this
+    // off to generate ruins without any lights (existing ruins keep the
+    // lights they already have; remove those by breaking the blocks).
+    public bool RuinGhostlightsEnabled { get; set; } = true;
     // Loot amount per structure type. A target count is rolled between Min
     // and Max each time a structure generates and that many randomly chosen
     // scripted spots are used; the rest stay empty. Counts are capped at how
@@ -319,8 +328,17 @@ public class UnderwaterHorrorsConfig
     // auto spawner in it a kraken spawner instead of a serpent spawner.
     public float RuinKrakenVariantChance { get; set; } = 0.05f;
 
-    // Movement limits
-    public double CreatureMaxY { get; set; } = 110;
+    // Movement limits. The highest Y the creatures may swim to. -1 (the
+    // default) means the world's actual sea level, whatever the map height.
+    // Earlier versions hardcoded 110, which is sea level only on a default
+    // 256-tall world; on taller worlds it pinned every serpent far below
+    // the surface (or inside the sea floor), which is the "serpents won't
+    // rise / stuck at one depth / stuck underground" bug. Set an absolute
+    // Y here only if you deliberately want a different ceiling.
+    public double CreatureMaxY { get; set; } = -1;
+    // One-shot migration: configs still carrying the old hardcoded 110 are
+    // moved to the sea-level default on first load; see Validate().
+    public bool CreatureMaxYMigrated { get; set; } = false;
 
     // Despawn system
     public float DespawnCheckIntervalSeconds { get; set; } = 2f;
@@ -724,5 +742,25 @@ public class UnderwaterHorrorsConfig
             if (AmbientPromoteToAttackDelayMax == 120f) AmbientPromoteToAttackDelayMax = 20f;
             PromoteDelayMigrated = true;
         }
+
+        // One-shot: 110 was the old hardcoded ceiling, correct only on
+        // default-height worlds. Move configs still carrying it to the
+        // follow-sea-level default; any other value was hand-picked and
+        // stays. Negative values other than the -1 sentinel are noise.
+        if (!CreatureMaxYMigrated)
+        {
+            if (CreatureMaxY == 110) CreatureMaxY = -1;
+            CreatureMaxYMigrated = true;
+        }
+        if (CreatureMaxY < 0) CreatureMaxY = -1;
     }
+
+    /// <summary>
+    /// Resolves CreatureMaxY against the running world: the configured
+    /// absolute Y, or the world's sea level when left at the -1 default.
+    /// A method rather than a property so StoreModConfig does not write
+    /// the resolved value back into the config file.
+    /// </summary>
+    public double ResolveCreatureMaxY(int worldSeaLevel)
+        => CreatureMaxY >= 0 ? CreatureMaxY : worldSeaLevel;
 }

@@ -74,6 +74,26 @@ public class UnderwaterRuinsGen : ModSystem
     private static readonly string[] StructureNames =
         { "ruin", "portal", "shipwreck-small", "shipwreck-medium", "city", "shipwreck-huge" };
 
+    // Same relative frequencies the old cumulative pick used: small ruins
+    // common, the huge wreck and the city rare. Kept as explicit weights so
+    // the pick can be filtered by available ocean depth and renormalized.
+    private static readonly (string Name, double Weight)[] StructureWeights =
+    {
+        ("ruin", 0.34), ("portal", 0.22), ("shipwreck-small", 0.18),
+        ("shipwreck-medium", 0.14), ("city", 0.08), ("shipwreck-huge", 0.04),
+    };
+
+    // Measured from each script at load: how tall its solid blocks build
+    // above the origin, and how far its footprint reaches from the center.
+    // Drives the per-structure depth requirement (the whole structure must
+    // fit underwater) and the footprint ocean check.
+    private sealed class ScriptStats
+    {
+        public int SolidHeight;
+        public int Radius;
+    }
+    private readonly Dictionary<string, ScriptStats> scriptStats = new();
+
     // Ruin-appropriate stackrandomizer loot pools, matching Building Commands.
     private static readonly string[] RuinLootTypes =
     {
@@ -147,7 +167,10 @@ public class UnderwaterRuinsGen : ModSystem
             var bundle = asset.ToObject<Dictionary<string, string[]>>();
             foreach (string name in StructureNames)
                 if (bundle.TryGetValue(name, out string[] lines) && lines != null && lines.Length > 0)
+                {
                     scripts[name] = lines;
+                    scriptStats[name] = MeasureScript(lines);
+                }
         }
         catch (Exception e)
         {
@@ -175,8 +198,18 @@ public class UnderwaterRuinsGen : ModSystem
 
         if (!FindOceanFloor(wx, wz, out int floorY)) return;
 
-        string name = PickStructure(rnd);
+        // Only structures short enough to fit fully underwater here are
+        // candidates, so a city or a masted wreck can no longer stick out
+        // of the waves at a spot that only clears the base depth gate.
+        int depth = seaLevel - floorY;
+        string name = PickStructureForDepth(rnd, depth);
+        if (name == null) return;
         if (!scripts.TryGetValue(name, out string[] lines)) return;
+
+        // The structure's whole footprint must be open ocean too. The depth
+        // gate above only samples the center column, which is how ruins
+        // ended up straddling shore banks with their edges on the beach.
+        if (!FootprintIsOcean(wx, wz, scriptStats.TryGetValue(name, out ScriptStats st) ? st.Radius : 0)) return;
 
         wgba.BeginColumn();
         bool krakenMode = rnd.NextDouble() < Cfg.RuinKrakenVariantChance;
@@ -212,16 +245,146 @@ public class UnderwaterRuinsGen : ModSystem
         return false;
     }
 
-    // Weighted: small ruins common, the huge wreck and the city rare.
-    private static string PickStructure(Random rnd)
+    /// <summary>
+    /// Weighted structure pick among those that fit the available depth:
+    /// the structure's solid height plus a block of water above it must fit
+    /// between the floor and the surface. Mid-depth ocean gets the low
+    /// ruins and portals; the tall wrecks and the city only appear where
+    /// the ocean is deep enough to swallow them whole. Returns null when
+    /// nothing fits (the column is too shallow for any structure).
+    /// </summary>
+    private string PickStructureForDepth(Random rnd, int depth)
     {
-        double r = rnd.NextDouble();
-        if (r < 0.34) return "ruin";
-        if (r < 0.56) return "portal";
-        if (r < 0.74) return "shipwreck-small";
-        if (r < 0.88) return "shipwreck-medium";
-        if (r < 0.96) return "city";
-        return "shipwreck-huge";
+        double total = 0;
+        Span<double> weights = stackalloc double[StructureWeights.Length];
+        for (int i = 0; i < StructureWeights.Length; i++)
+        {
+            (string name, double weight) = StructureWeights[i];
+            bool fits = scripts.ContainsKey(name) && RequiredDepth(name) <= depth;
+            weights[i] = fits ? weight : 0;
+            total += weights[i];
+        }
+        if (total <= 0) return null;
+
+        double roll = rnd.NextDouble() * total;
+        for (int i = 0; i < StructureWeights.Length; i++)
+        {
+            roll -= weights[i];
+            if (weights[i] > 0 && roll <= 0) return StructureWeights[i].Name;
+        }
+        for (int i = StructureWeights.Length - 1; i >= 0; i--)
+            if (weights[i] > 0) return StructureWeights[i].Name;
+        return null;
+    }
+
+    /// <summary>
+    /// Ocean depth this structure needs: at least the configured minimum,
+    /// and always enough that its tallest solid block stays a block under
+    /// the surface.
+    /// </summary>
+    private int RequiredDepth(string name)
+    {
+        int minDepth = Math.Max(2, Cfg.RuinMinOceanDepth);
+        if (!scriptStats.TryGetValue(name, out ScriptStats st)) return minDepth;
+        return Math.Max(minDepth, st.SolidHeight + 2);
+    }
+
+    // How far out the footprint ring samples, at most. The huge wreck's
+    // debris field reaches ~57 blocks, but its hull is what matters, and
+    // reads too far outside the generating column get less reliable.
+    private const int FootprintCheckMaxRadius = 24;
+
+    /// <summary>
+    /// True when the water around the structure's footprint is still ocean:
+    /// eight points on a ring at the footprint radius each need saltwater
+    /// at the surface and a few blocks of water below it. Rejects the shore
+    /// bank placements where the center column is deep but the structure's
+    /// edge lands on the beach.
+    /// </summary>
+    private bool FootprintIsOcean(int wx, int wz, int radius)
+    {
+        int r = Math.Min(radius, FootprintCheckMaxRadius);
+        if (r <= 0) return true;
+
+        int minEdgeDepth = Math.Max(4, Math.Max(2, Cfg.RuinMinOceanDepth) / 2);
+        var probe = new BlockPos(0, 0, 0, 0);
+        for (int i = 0; i < 8; i++)
+        {
+            double angle = Math.PI * 2 * i / 8;
+            int x = wx + (int)Math.Round(Math.Cos(angle) * r);
+            int z = wz + (int)Math.Round(Math.Sin(angle) * r);
+
+            probe.Set(x, seaLevel - 1, z);
+            if (!WaterHelper.IsSaltwater(wgba.GetBlock(probe))) return false;
+
+            for (int y = seaLevel - 2; y >= seaLevel - minEdgeDepth; y--)
+            {
+                probe.Set(x, y, z);
+                Block b = wgba.GetBlock(probe);
+                if (b == null || !WaterHelper.IsWaterBlock(b)) return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Scans a script for how tall its solid blocks build above the origin
+    /// and how far its footprint reaches sideways. Air placements carve
+    /// decay and don't count toward height; loot, spawner and scatter spots
+    /// don't either (loot settles down onto support and worldgen clamps
+    /// spawners below the surface), but they all count toward the radius.
+    /// </summary>
+    private static ScriptStats MeasureScript(string[] lines)
+    {
+        var stats = new ScriptStats();
+        foreach (string raw in lines)
+        {
+            string line = raw.Trim();
+            if (line.Length == 0 || line[0] == '#' || line.StartsWith("//")) continue;
+            if (line[0] == '/') line = line.Substring(1);
+
+            string[] t = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (t.Length == 0) continue;
+
+            switch (t[0].ToLowerInvariant())
+            {
+                case "fill":
+                    if (t.Length < 8) break;
+                    Measure(stats, t[1], t[2], t[3], IsAirCode(t[7]));
+                    Measure(stats, t[4], t[5], t[6], IsAirCode(t[7]));
+                    break;
+                case "setblock":
+                case "cbsetblock":
+                    if (t.Length < 5) break;
+                    Measure(stats, t[1], t[2], t[3], IsAirCode(t[4]));
+                    break;
+                case "lootchest":
+                case "spawner":
+                case "ingots":
+                case "scatter":
+                    if (t.Length < 4) break;
+                    Measure(stats, t[1], t[2], t[3], airOnly: true);
+                    break;
+            }
+        }
+        return stats;
+    }
+
+    private static void Measure(ScriptStats stats, string xTok, string yTok, string zTok, bool airOnly)
+    {
+        int x = RelOffset(xTok), y = RelOffset(yTok), z = RelOffset(zTok);
+        stats.Radius = Math.Max(stats.Radius, Math.Max(Math.Abs(x), Math.Abs(z)));
+        if (!airOnly) stats.SolidHeight = Math.Max(stats.SolidHeight, y);
+    }
+
+    private static bool IsAirCode(string code) => code == "air" || code == "game:air";
+
+    // The tilde offset a script token encodes; absolute tokens measure 0
+    // (the scripts are generated fully tilde-relative).
+    private static int RelOffset(string tok)
+    {
+        if (tok.Length == 0 || tok[0] != '~') return 0;
+        return int.TryParse(tok.Substring(1), out int off) ? off : 0;
     }
 
     // ── script runner (works with worldgen OR normal accessor) ────────────
@@ -313,12 +476,18 @@ public class UnderwaterRuinsGen : ModSystem
         return saltwaterId;
     }
 
+    // RuinGhostlightsEnabled off turns every scripted ghostlight into air
+    // (which the runner substitutes with saltwater below the surface), so
+    // servers can generate the ruins dark.
+    private bool BlockSuppressed(string code)
+        => !Cfg.RuinGhostlightsEnabled && code.Contains("ghostlight");
+
     private int DoFill(IBlockAccessor acc, string[] t, BlockPos o)
     {
         if (t.Length < 8) return 0;
         int x1 = Rel(t[1], o.X), y1 = Rel(t[2], o.Y), z1 = Rel(t[3], o.Z);
         int x2 = Rel(t[4], o.X), y2 = Rel(t[5], o.Y), z2 = Rel(t[6], o.Z);
-        Block b = ResolveBlock(t[7]);
+        Block b = BlockSuppressed(t[7]) ? null : ResolveBlock(t[7]);
         int id = b?.BlockId ?? 0;
         if (x1 > x2) (x1, x2) = (x2, x1);
         if (y1 > y2) (y1, y2) = (y2, y1);
@@ -345,7 +514,7 @@ public class UnderwaterRuinsGen : ModSystem
     private int DoSet(IBlockAccessor acc, string[] t, BlockPos o)
     {
         if (t.Length < 5) return 0;
-        Block b = ResolveBlock(t[4]);
+        Block b = BlockSuppressed(t[4]) ? null : ResolveBlock(t[4]);
         int id = b?.BlockId ?? 0;
         var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
         acc.SetBlock(id == 0 ? AirIdFor(acc, pos.Y) : id, pos);
@@ -469,6 +638,7 @@ public class UnderwaterRuinsGen : ModSystem
     private int DoScatter(IBlockAccessor acc, string[] t, BlockPos o)
     {
         if (t.Length < 5) return 0;
+        if (BlockSuppressed(t[4])) return 0;
         Block b = ResolveBlock(t[4]);
         if (b == null) return 0;
         int count = 1;
