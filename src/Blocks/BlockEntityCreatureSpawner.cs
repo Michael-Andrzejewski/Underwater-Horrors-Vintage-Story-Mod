@@ -169,20 +169,30 @@ public class BlockEntityCreatureSpawner : BlockEntity
         }
         else
         {
-            spawnY = FindOpenWaterYAbove(sapi) + 0.5;
-
-            // Clearing the block's own column is not enough for a body that
-            // reaches 12 blocks out — these spawners live in sea-floor ruins,
-            // so the ruin's walls and the sand around it are what the tail
-            // ends up inside. Keep rising until the whole animal is clear.
-            // If the sea is too shallow for that we spawn at the best height
-            // the water column offers rather than not spawning at all: a
-            // partly-buried serpent still hunts, and the AI's own floor
-            // clamp will lift it as it swims.
-            if (!SerpentPlacement.TryClearSpawnY(sapi.World, props, spawnX, ref spawnY, spawnZ, Pos.dimension))
+            // Preferred spawn: raycast down from the sky for an open water
+            // column where the serpent's center has SerpentSpawnWaterClearance
+            // blocks of water on every side, as high above the floor as the
+            // water allows, so nothing can trap it in sand or ruin walls.
+            // The spawner's own column is tried first, then rings of nearby
+            // columns; only when every one is blocked does it fall back to
+            // the best the local water offers.
+            var config2 = UnderwaterHorrorsModSystem.Config;
+            int clearance = config2?.SerpentSpawnWaterClearance ?? 5;
+            if (TryFindSerpentSpawnPos(sapi, clearance, ref spawnX, ref spawnY, ref spawnZ))
             {
                 UnderwaterHorrorsModSystem.DebugLog(sapi,
-                    $"Creature spawner at {Pos}: no height within reach clears the sea floor for a serpent body, spawning at {spawnY:F1} anyway");
+                    $"Creature spawner at {Pos}: open-water spawn at ({spawnX:F1}, {spawnY:F1}, {spawnZ:F1})");
+            }
+            else
+            {
+                // Every nearby column is blocked (a very shallow or roofed
+                // ruin). Best effort in the spawner's own column: a partly
+                // buried serpent still hunts, and the AI's floor clamp
+                // lifts it as it swims.
+                spawnY = FindOpenWaterYAbove(sapi) + 0.5;
+                SerpentPlacement.TryClearSpawnY(sapi.World, props, spawnX, ref spawnY, spawnZ, Pos.dimension);
+                UnderwaterHorrorsModSystem.DebugLog(sapi,
+                    $"Creature spawner at {Pos}: no open-water column nearby, spawning best-effort at {spawnY:F1}");
             }
         }
 
@@ -242,6 +252,37 @@ public class BlockEntityCreatureSpawner : BlockEntity
         // becomes open water.
         sapi.World.BlockAccessor.SetBlock(0, Pos);
         sapi.World.BlockAccessor.MarkBlockDirty(Pos);
+    }
+
+    /// <summary>
+    /// Searches for an open-water serpent spawn near this spawner: its own
+    /// column first, then 8 directions at 6, 12, 18 and 24 blocks out.
+    /// The first column with enough all-around water wins, at the highest
+    /// valid center. Returns false when every candidate is blocked.
+    /// </summary>
+    private bool TryFindSerpentSpawnPos(ICoreServerAPI sapi, int clearance,
+        ref double spawnX, ref double spawnY, ref double spawnZ)
+    {
+        double baseX = Pos.X + 0.5, baseZ = Pos.Z + 0.5;
+        for (int ring = 0; ring <= 4; ring++)
+        {
+            int candidates = ring == 0 ? 1 : 8;
+            double radius = ring * 6.0;
+            for (int i = 0; i < candidates; i++)
+            {
+                double angle = Math.PI * 2 * i / candidates;
+                double cx = baseX + Math.Cos(angle) * radius;
+                double cz = baseZ + Math.Sin(angle) * radius;
+                if (!SerpentPlacement.TryFindOpenWaterColumn(
+                    sapi.World, cx, cz, Pos.dimension, clearance, out _, out int yMax)) continue;
+
+                spawnX = cx;
+                spawnZ = cz;
+                spawnY = yMax + 0.5;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>

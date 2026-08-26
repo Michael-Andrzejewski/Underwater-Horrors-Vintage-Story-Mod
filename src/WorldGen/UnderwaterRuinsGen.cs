@@ -566,8 +566,9 @@ public class UnderwaterRuinsGen : ModSystem
             // Spawner spots sit on pillars and mast tops so creatures spawn
             // in open water above the ruin. In a shallow-ish ocean a tall
             // structure could push that above the waves, so keep the spawner
-            // itself submerged (the mast blocks above it are just scenery).
-            int maxY = seaLevel - 3;
+            // itself at least 5 blocks under the surface (y 105 on a
+            // default-height world; the mast blocks above are just scenery).
+            int maxY = seaLevel - 5;
             if (pos.Y > maxY) pos.Y = maxY;
             lock (pendingLock)
                 pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsChest = false, Kraken = kraken });

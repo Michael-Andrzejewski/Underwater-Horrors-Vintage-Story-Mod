@@ -131,6 +131,15 @@ public class UnderwaterHorrorsConfig
     // the way to the surface; the search stops at the waterline regardless.
     public int SerpentSpawnMaxRise { get; set; } = 40;
 
+    // Open-water requirement at the spawn point: the serpent's center must
+    // have this many blocks of water on every side (above, below, and all
+    // around). Spawn placement raycasts down from the sky to find the water
+    // column and prefers the highest position that satisfies this, so a
+    // serpent starts well clear of any sand or ruin walls that could trap
+    // it. Spawner blocks try nearby columns when their own is blocked, and
+    // only fall back to a best-effort spawn when every one is.
+    public int SerpentSpawnWaterClearance { get; set; } = 5;
+
     // Kraken spawn horizontal radius. Spawns on the sea floor within
     // this radius of the player (vs always directly below).
     public int KrakenSpawnHorizontalRadiusMax { get; set; } = 20;
@@ -312,13 +321,16 @@ public class UnderwaterHorrorsConfig
         ["city"] = new MinMaxCount { Min = 18, Max = 18 },
     };
 
+    // No steel by default: finding worked steel in a pre-steel-age wreck
+    // upset the balance for several servers, so the rare small pile is iron
+    // now. Servers that want steel back just add a "steel" entry here.
     public static Dictionary<string, IngotPileType> DefaultIngotTypes() => new()
     {
         ["copper"] = new IngotPileType { Weight = 25, CountMin = 6, CountMax = 20 },
         ["silver"] = new IngotPileType { Weight = 25, CountMin = 6, CountMax = 20 },
         ["molybdochalkos"] = new IngotPileType { Weight = 26, CountMin = 6, CountMax = 20 },
         ["gold"] = new IngotPileType { Weight = 9, CountMin = 24, CountMax = 32 },
-        ["steel"] = new IngotPileType { Weight = 15, CountMin = 2, CountMax = 5 },
+        ["iron"] = new IngotPileType { Weight = 15, CountMin = 3, CountMax = 8 },
     };
     // Chance (0 to 1) that an auto spawner spot in a generated structure
     // gets a creature spawner block. Spots explicitly typed serpent or
@@ -379,6 +391,9 @@ public class UnderwaterHorrorsConfig
     // rebalance carry the old 0.75 weight; the first load raises it to
     // 0.9 and sets this flag, after which user tuning is left alone.
     public bool RustSerpentTuningApplied { get; set; } = false;
+    // One-shot migration flag: configs whose ingot map still carries the
+    // exact old default steel entry get it swapped for iron; see Validate().
+    public bool RuinIngotIronMigrated { get; set; } = false;
     public float DeepSerpentStalkDepthMin { get; set; } = 10f;      // 10 blocks below surface
     public float DeepSerpentStalkDepthMax { get; set; } = 30f;      // 30 blocks below surface
     public float DeepSerpentOrbitRadius { get; set; } = 15f;        // final approach radius
@@ -697,6 +712,7 @@ public class UnderwaterHorrorsConfig
         // strict) choice, so only negatives are corrected.
         SerpentGroundClearance = Math.Clamp(SerpentGroundClearance, 0, 16);
         SerpentSpawnMaxRise = Math.Clamp(SerpentSpawnMaxRise, 0, 128);
+        SerpentSpawnWaterClearance = Math.Clamp(SerpentSpawnWaterClearance, 1, 8);
         SerpentAggressionMultiplier = Math.Clamp(SerpentAggressionMultiplier, 0.1f, 10f);
         RuinSpawnerChance = Math.Clamp(RuinSpawnerChance, 0f, 1f);
         RuinKrakenVariantChance = Math.Clamp(RuinKrakenVariantChance, 0f, 1f);
@@ -753,6 +769,22 @@ public class UnderwaterHorrorsConfig
             CreatureMaxYMigrated = true;
         }
         if (CreatureMaxY < 0) CreatureMaxY = -1;
+
+        // One-shot: swap the exact old default steel pile for the iron
+        // default. A steel entry the server owner tuned themselves (any
+        // other weight or count) is deliberate and stays.
+        if (!RuinIngotIronMigrated)
+        {
+            if (RuinIngotTypes != null
+                && RuinIngotTypes.TryGetValue("steel", out IngotPileType steel)
+                && steel != null && steel.Weight == 15 && steel.CountMin == 2 && steel.CountMax == 5)
+            {
+                RuinIngotTypes.Remove("steel");
+                if (!RuinIngotTypes.ContainsKey("iron"))
+                    RuinIngotTypes["iron"] = new IngotPileType { Weight = 15, CountMin = 3, CountMax = 8 };
+            }
+            RuinIngotIronMigrated = true;
+        }
     }
 
     /// <summary>

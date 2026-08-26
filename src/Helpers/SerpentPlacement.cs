@@ -39,6 +39,75 @@ internal static class SerpentPlacement
     private const double SampleSpacing = 2.0;
 
     /// <summary>
+    /// Finds the range of Y positions at (x, z) where a serpent's center
+    /// would have <paramref name="clearance"/> blocks of water on every
+    /// side. Raycasts down FROM THE SKY: every column in the footprint must
+    /// be open to the surface (first non-air block from above is water) and
+    /// its water must run deep enough. Air pockets, ruin roofs, sand banks
+    /// and shore overhangs all shrink or empty the range. Returns false
+    /// when no Y qualifies. <paramref name="yMax"/> is the highest valid
+    /// center: spawning there puts the serpent as far above anything that
+    /// could trap it as the water allows.
+    /// </summary>
+    internal static bool TryFindOpenWaterColumn(IWorldAccessor world,
+        double x, double z, int dimension, int clearance, out int yMin, out int yMax)
+    {
+        yMin = 0;
+        yMax = 0;
+        var accessor = world.BlockAccessor;
+        // "The sky" in practice: comfortably above any wave or structure.
+        // Scanning from the true world ceiling would be hundreds of air
+        // reads per column for nothing.
+        int skyY = Math.Min(accessor.MapSizeY - 2, world.SeaLevel + 32);
+        var probe = new BlockPos(0, 0, 0, dimension);
+
+        int cx = Floor(x), cz = Floor(z);
+        int lowestSurface = int.MaxValue;
+        int highestFloor = int.MinValue;
+
+        for (int dx = -clearance; dx <= clearance; dx++)
+        {
+            for (int dz = -clearance; dz <= clearance; dz++)
+            {
+                // Raycast down from the sky: skip air, and require the first
+                // real block to be water. Anything else means this column is
+                // land, a structure, or roofed over.
+                int colX = cx + dx, colZ = cz + dz;
+                int surfaceY = -1;
+                for (int y = skyY; y > 0; y--)
+                {
+                    probe.Set(colX, y, colZ);
+                    Block block = accessor.GetBlock(probe);
+                    if (block == null || block.Id == 0) continue;
+                    if (WaterHelper.IsWaterBlock(block)) surfaceY = y;
+                    break;
+                }
+                if (surfaceY < 0) return false;
+
+                // Walk down through the water to the column's floor (or an
+                // air pocket, which ends the usable water just the same).
+                int bottomY = surfaceY;
+                for (int y = surfaceY - 1; y > 0; y--)
+                {
+                    probe.Set(colX, y, colZ);
+                    Block block = accessor.GetBlock(probe);
+                    if (block == null || !WaterHelper.IsWaterBlock(block)) break;
+                    bottomY = y;
+                }
+
+                if (surfaceY < lowestSurface) lowestSurface = surfaceY;
+                if (bottomY > highestFloor) highestFloor = bottomY;
+            }
+        }
+
+        // The center needs `clearance` water cells above and below in every
+        // column, so it must sit at least that far inside the shared span.
+        yMin = highestFloor + clearance;
+        yMax = lowestSurface - clearance;
+        return yMin <= yMax;
+    }
+
+    /// <summary>
     /// Raises <paramref name="y"/> until the whole body clears the sea floor
     /// by the configured margin, and returns true. Returns false and leaves
     /// <paramref name="y"/> alone when there is no such height within the

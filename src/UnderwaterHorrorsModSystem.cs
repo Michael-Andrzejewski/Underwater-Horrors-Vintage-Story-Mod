@@ -2047,21 +2047,19 @@ public class UnderwaterHorrorsModSystem : ModSystem
             double tryX = player.Entity.Pos.X + Math.Cos(angle) * dist;
             double tryZ = player.Entity.Pos.Z + Math.Sin(angle) * dist;
 
-            reusableBlockPos.Set((int)tryX, (int)baseY, (int)tryZ);
-            reusableBlockPos.dimension = dimension;
-            Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
-            if (block == null || !WaterHelper.IsWaterBlock(block)) continue;
-
-            // Water at the center is not enough: the body reaches 12 blocks
-            // out, so raise the point until all of it clears the sea floor.
-            // A spot with no such height is discarded and the next attempt
-            // rolls a different XZ, which is exactly what the retries are for.
-            double tryY = baseY;
-            if (!SerpentPlacement.TryClearSpawnY(sapi.World, props, tryX, ref tryY, tryZ, dimension)) continue;
+            // Raycast down from the sky at this XZ for the open-water band
+            // where the serpent's center has SerpentSpawnWaterClearance
+            // blocks of water on every side. A blocked column (land, a
+            // sand bank, a ruin roof) is discarded and the next attempt
+            // rolls a different XZ, which is exactly what the retries are
+            // for. Aim for the rolled stalking depth, but never leave the
+            // open-water band a trap could reach into.
+            if (!SerpentPlacement.TryFindOpenWaterColumn(sapi.World, tryX, tryZ, dimension,
+                Config.SerpentSpawnWaterClearance, out int yMin, out int yMax)) continue;
 
             spawnX = tryX;
             spawnZ = tryZ;
-            spawnY = tryY;
+            spawnY = Math.Clamp(baseY, yMin + 0.5, yMax + 0.5);
             found = true;
             break;
         }
@@ -2069,7 +2067,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         if (!found)
         {
             if (Config.DebugLogging)
-                DebugLog(sapi, $"Failed to find valid {label} spawn (no water with {Config.SerpentGroundClearance} blocks of body clearance within {Config.SerpentSpawnHorizontalRadiusMax} blocks of {player.PlayerName} at depth {depthOffset})");
+                DebugLog(sapi, $"Failed to find valid {label} spawn (no column with {Config.SerpentSpawnWaterClearance} blocks of all-around water within {Config.SerpentSpawnHorizontalRadiusMax} blocks of {player.PlayerName})");
             return null;
         }
 
