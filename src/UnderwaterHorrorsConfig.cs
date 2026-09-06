@@ -392,12 +392,11 @@ public class UnderwaterHorrorsConfig
     // death). A new creature can then spawn naturally near the player.
     public float DespawnMaxDistance { get; set; } = 500f;
 
-    // A killed serpent used to sink to the sea floor, which in a 50 block
-    // deep ocean put the loot out of reach of anyone without a lot of
-    // breath. On, the corpse rises to just under the surface instead so a
-    // kill from a boat can be harvested from the boat. Off restores the
-    // sink.
-    public bool SerpentCorpseFloats { get; set; } = true;
+    // Off (default): a killed serpent sinks to the sea floor and has to be
+    // dived for. On: the corpse rises to just under the surface so a kill
+    // from a boat can be harvested from the boat. The author prefers the
+    // sink; the switch is there for servers that do not.
+    public bool SerpentCorpseFloats { get; set; } = false;
 
     // Sea serpent
     public float SerpentOrbitRadius { get; set; } = 8f;

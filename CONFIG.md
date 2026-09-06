@@ -81,7 +81,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `DespawnCheckIntervalSeconds` | float | `2f` |  |
 | `DespawnAfterLandSeconds` | float | `30f` |  |
 | `DespawnMaxDistance` | float | `500f` | Despawn immediately if creature drifts farther than this from its target player (e.g. player escaped by boat, or respawned far after death). A new creature can then spawn naturally near the player. |
-| `SerpentCorpseFloats` | bool | `true` | A killed serpent used to sink to the sea floor, which in a 50 block deep ocean put the loot out of reach of anyone without a lot of breath. On, the corpse rises to just under the surface instead so a kill from a boat can be harvested from the boat. Off restores the sink. |
+| `SerpentCorpseFloats` | bool | `false` | Off (default): a killed serpent sinks to the sea floor and has to be dived for. On: the corpse rises to just under the surface so a kill from a boat can be harvested from the boat. The author prefers the sink; the switch is there for servers that do not. |
 | **Sea serpent** | | | |
 | `SerpentOrbitRadius` | float | `8f` |  |
 | `SerpentOrbitSpeed` | float | `0.5f` |  |

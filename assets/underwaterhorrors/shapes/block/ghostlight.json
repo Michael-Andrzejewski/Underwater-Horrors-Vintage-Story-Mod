@@ -6,16 +6,16 @@
 	},
 	"elements": [
 		{
-			"name": "orb",
-			"from": [5, 5, 5],
-			"to": [11, 11, 11],
+			"name": "cube",
+			"from": [0, 0, 0],
+			"to": [16, 16, 16],
 			"faces": {
-				"north": { "texture": "#glow", "uv": [5, 5, 11, 11] },
-				"east": { "texture": "#glow", "uv": [5, 5, 11, 11] },
-				"south": { "texture": "#glow", "uv": [5, 5, 11, 11] },
-				"west": { "texture": "#glow", "uv": [5, 5, 11, 11] },
-				"up": { "texture": "#glow", "uv": [5, 5, 11, 11] },
-				"down": { "texture": "#glow", "uv": [5, 5, 11, 11] }
+				"north": { "texture": "#glow", "uv": [0, 0, 16, 16] },
+				"east": { "texture": "#glow", "uv": [0, 0, 16, 16] },
+				"south": { "texture": "#glow", "uv": [0, 0, 16, 16] },
+				"west": { "texture": "#glow", "uv": [0, 0, 16, 16] },
+				"up": { "texture": "#glow", "uv": [0, 0, 16, 16] },
+				"down": { "texture": "#glow", "uv": [0, 0, 16, 16] }
 			}
 		}
 	]
