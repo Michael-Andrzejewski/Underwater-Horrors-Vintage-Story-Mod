@@ -76,6 +76,8 @@
 
     <!-- 1. Clean old bin zips (bin is never locked) and build the new zip -->
     <Delete Files="@(OldZipsBin)" />
+    <!-- Wipe the staging folder first so a deleted or renamed asset never lingers in the zip -->
+    <RemoveDir Directories="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" />
     <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" />
     <Copy SourceFiles="@(AssetFiles)" DestinationFiles="@(AssetFiles->'$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\%(Identity)')" />
     <ZipDirectory SourceDirectory="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\mod\" DestinationFile="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" Overwrite="true" />
