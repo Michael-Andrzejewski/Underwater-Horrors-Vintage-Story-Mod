@@ -8,9 +8,7 @@
     "weight": 500,
     "canClimb": false,
     "knockbackResistance": 1.0,
-    "attributes": {
-        "handbook": { "disable": true }
-    },
+    "attributes": {},
     "client": {
         "renderer": "Shape",
         "texture": { "base": "underwaterhorrors:entity/serpent2" },

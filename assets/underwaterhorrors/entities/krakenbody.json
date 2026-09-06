@@ -8,9 +8,7 @@
     "weight": 5000,
     "canClimb": false,
     "knockbackResistance": 1.0,
-    "attributes": {
-        "handbook": { "disable": true }
-    },
+    "attributes": {},
     "drops": [
         { "type": "item", "code": "game:fish-raw", "quantity": { "avg": 24, "var": 8 } },
         { "type": "item", "code": "game:bone", "quantity": { "avg": 12, "var": 4 } },

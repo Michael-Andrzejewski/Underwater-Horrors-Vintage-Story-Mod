@@ -38,8 +38,17 @@ public class UnderwaterHorrorsConfig
     public bool SpectralDebugActive { get; set; } = false;
 
     // Spawn system
+    // How often (seconds) each player in deep water is rolled for a spawn.
     public float SpawnCheckIntervalSeconds { get; set; } = 5f;
+    // Water under the player must be at least this deep for anything to
+    // spawn. Counted straight down from the surface; 50 is open ocean.
     public int MinSaltwaterDepth { get; set; } = 50;
+    // Normally only saltwater counts, so a big inland lake never grows a
+    // serpent. Turn this on and any water deep enough (MinSaltwaterDepth)
+    // qualifies, fresh or salt. Ruins still generate only in the ocean.
+    public bool AllowFreshwaterSpawns { get; set; } = false;
+    // Chance (0 to 1) that one spawn check produces a creature. At 0.1 and
+    // a 5 second interval a swimmer meets something within about a minute.
     public float SpawnChancePerCheck { get; set; } = 0.1f;
     // Global soft cap on living serpents/krakens. Once this many are alive in
     // the world, normal per-player spawning stops; instead at most ONE rare
@@ -238,10 +247,14 @@ public class UnderwaterHorrorsConfig
     // and its attack tentacle sways in place instead of chasing and
     // grabbing. Everything else stays natural: circling, surface
     // peeks, ambient tentacles, sounds, and the usual despawn rules
-    // when the player leaves the water. Off by default so switching
-    // an admin to creative mid-fight doesn't silently change behavior
-    // on servers that don't want this.
-    public bool IgnoreCreativePlayers { get; set; } = false;
+    // when the player leaves the water. On by default since 0.20.0 (the
+    // 0.12 changelog announced it as on, and every report since was a
+    // creative player who did not know it was a switch). Servers that
+    // want creative admins hunted can turn it off, or use /uh observer.
+    public bool IgnoreCreativePlayers { get; set; } = true;
+    // One-shot: configs written before 0.20.0 carry the old false default
+    // and are moved to true once; after that the value is never touched.
+    public bool IgnoreCreativePlayersMigrated { get; set; } = false;
 
     // Serpent spawner block. A creative-only block (looks like a vanilla
     // locust nest cage) that watches for a player who is in the water and
@@ -301,25 +314,44 @@ public class UnderwaterHorrorsConfig
     // freely; setting a structure's pile count to 0 disables its ingots.
     public Dictionary<string, IngotPileType> RuinIngotTypes { get; set; } = DefaultIngotTypes();
 
+    // 0.20.0 cut the big structures to about a third of the 0.15 counts.
+    // At the old numbers a single huge wreck averaged about two gold piles
+    // of 24 to 32 ingots plus 270 other ingots, which is where the "70
+    // gold from one ship" reports came from.
     public static Dictionary<string, MinMaxCount> DefaultChestCounts() => new()
     {
-        ["ruin"] = new MinMaxCount { Min = 14, Max = 14 },
-        ["portal"] = new MinMaxCount { Min = 13, Max = 13 },
-        ["shipwreck-small"] = new MinMaxCount { Min = 8, Max = 8 },
-        ["shipwreck-medium"] = new MinMaxCount { Min = 15, Max = 15 },
-        ["shipwreck-huge"] = new MinMaxCount { Min = 30, Max = 30 },
-        ["city"] = new MinMaxCount { Min = 49, Max = 49 },
+        ["ruin"] = new MinMaxCount { Min = 10, Max = 10 },
+        ["portal"] = new MinMaxCount { Min = 9, Max = 9 },
+        ["shipwreck-small"] = new MinMaxCount { Min = 6, Max = 6 },
+        ["shipwreck-medium"] = new MinMaxCount { Min = 8, Max = 8 },
+        ["shipwreck-huge"] = new MinMaxCount { Min = 10, Max = 10 },
+        ["city"] = new MinMaxCount { Min = 16, Max = 16 },
     };
 
     public static Dictionary<string, MinMaxCount> DefaultIngotPileCounts() => new()
     {
-        ["ruin"] = new MinMaxCount { Min = 5, Max = 5 },
-        ["portal"] = new MinMaxCount { Min = 4, Max = 4 },
-        ["shipwreck-small"] = new MinMaxCount { Min = 6, Max = 6 },
-        ["shipwreck-medium"] = new MinMaxCount { Min = 12, Max = 12 },
-        ["shipwreck-huge"] = new MinMaxCount { Min = 24, Max = 24 },
-        ["city"] = new MinMaxCount { Min = 18, Max = 18 },
+        ["ruin"] = new MinMaxCount { Min = 3, Max = 3 },
+        ["portal"] = new MinMaxCount { Min = 3, Max = 3 },
+        ["shipwreck-small"] = new MinMaxCount { Min = 4, Max = 4 },
+        ["shipwreck-medium"] = new MinMaxCount { Min = 5, Max = 5 },
+        ["shipwreck-huge"] = new MinMaxCount { Min = 8, Max = 8 },
+        ["city"] = new MinMaxCount { Min = 6, Max = 6 },
     };
+
+    // The counts every 0.15 to 0.19 config was written with. Validate()
+    // swaps an entry for the new default only when it still holds exactly
+    // this value, so a server owner's own numbers are left alone.
+    private static readonly Dictionary<string, int> OldChestCounts = new()
+    {
+        ["ruin"] = 14, ["portal"] = 13, ["shipwreck-small"] = 8,
+        ["shipwreck-medium"] = 15, ["shipwreck-huge"] = 30, ["city"] = 49,
+    };
+    private static readonly Dictionary<string, int> OldIngotPileCounts = new()
+    {
+        ["ruin"] = 5, ["portal"] = 4, ["shipwreck-small"] = 6,
+        ["shipwreck-medium"] = 12, ["shipwreck-huge"] = 24, ["city"] = 18,
+    };
+    public bool RuinLootRebalanceMigrated { get; set; } = false;
 
     // No steel by default: finding worked steel in a pre-steel-age wreck
     // upset the balance for several servers, so the rare small pile is iron
@@ -329,7 +361,7 @@ public class UnderwaterHorrorsConfig
         ["copper"] = new IngotPileType { Weight = 25, CountMin = 6, CountMax = 20 },
         ["silver"] = new IngotPileType { Weight = 25, CountMin = 6, CountMax = 20 },
         ["molybdochalkos"] = new IngotPileType { Weight = 26, CountMin = 6, CountMax = 20 },
-        ["gold"] = new IngotPileType { Weight = 9, CountMin = 24, CountMax = 32 },
+        ["gold"] = new IngotPileType { Weight = 9, CountMin = 6, CountMax = 12 },
         ["iron"] = new IngotPileType { Weight = 15, CountMin = 3, CountMax = 8 },
     };
     // Chance (0 to 1) that an auto spawner spot in a generated structure
@@ -359,6 +391,13 @@ public class UnderwaterHorrorsConfig
     // target player (e.g. player escaped by boat, or respawned far after
     // death). A new creature can then spawn naturally near the player.
     public float DespawnMaxDistance { get; set; } = 500f;
+
+    // A killed serpent used to sink to the sea floor, which in a 50 block
+    // deep ocean put the loot out of reach of anyone without a lot of
+    // breath. On, the corpse rises to just under the surface instead so a
+    // kill from a boat can be harvested from the boat. Off restores the
+    // sink.
+    public bool SerpentCorpseFloats { get; set; } = true;
 
     // Sea serpent
     public float SerpentOrbitRadius { get; set; } = 8f;
@@ -517,7 +556,10 @@ public class UnderwaterHorrorsConfig
     // tentacle resumes Reaching from where it stalled. Otherwise the
     // tentacle transitions to Retreating and despawns gracefully.
     public float TentacleStallDespawnSeconds { get; set; } = 30f;
-    public float TentacleStallOrbitRadius   { get; set; } = 4f;
+    // 7 keeps the orbiting tentacle clear of a boat's hull (4 had it
+    // grinding along the side of any boat the player was sitting in).
+    public float TentacleStallOrbitRadius   { get; set; } = 7f;
+    public bool TentacleStallOrbitMigrated  { get; set; } = false;
     public float TentacleStallOrbitSpeed    { get; set; } = 0.3f;
     // Drift speeds during Stalling. Slow on purpose so the visible
     // intent reads as "lurking" rather than "leaving".
@@ -601,9 +643,12 @@ public class UnderwaterHorrorsConfig
     // 2D sound (so it is clearly audible, not directional) for players within
     // MonsterSoundScreechRange. Volume is full at the creature and drops with
     // distance down to MonsterSoundScreechMinVolumeFactor of full at the edge.
-    public float MonsterSoundScreechVolume { get; set; } = 1.5f;
+    // 1.0 and 0.2 since 0.20.0 (was 1.5 and 0.5: "too loud and does not
+    // fade" was the most common sound complaint).
+    public float MonsterSoundScreechVolume { get; set; } = 1.0f;
     public float MonsterSoundScreechRange { get; set; } = 25f;
-    public float MonsterSoundScreechMinVolumeFactor { get; set; } = 0.5f;
+    public float MonsterSoundScreechMinVolumeFactor { get; set; } = 0.2f;
+    public bool ScreechVolumeMigrated { get; set; } = false;
     // Audible range (blocks) for the positional monster sounds. Players
     // within this range of the creature receive and hear them.
     public float MonsterSoundRange { get; set; } = 48f;
@@ -784,6 +829,47 @@ public class UnderwaterHorrorsConfig
                     RuinIngotTypes["iron"] = new IngotPileType { Weight = 15, CountMin = 3, CountMax = 8 };
             }
             RuinIngotIronMigrated = true;
+        }
+
+        // 0.20.0 one-shots. Each only moves a value that still sits at the
+        // exact old default, then never runs again.
+        if (!IgnoreCreativePlayersMigrated)
+        {
+            IgnoreCreativePlayers = true;
+            IgnoreCreativePlayersMigrated = true;
+        }
+        if (!ScreechVolumeMigrated)
+        {
+            if (MonsterSoundScreechVolume == 1.5f) MonsterSoundScreechVolume = 1.0f;
+            if (MonsterSoundScreechMinVolumeFactor == 0.5f) MonsterSoundScreechMinVolumeFactor = 0.2f;
+            ScreechVolumeMigrated = true;
+        }
+        if (!TentacleStallOrbitMigrated)
+        {
+            if (TentacleStallOrbitRadius == 4f) TentacleStallOrbitRadius = 7f;
+            TentacleStallOrbitMigrated = true;
+        }
+        if (!RuinLootRebalanceMigrated)
+        {
+            var newChests = DefaultChestCounts();
+            var newPiles = DefaultIngotPileCounts();
+            if (RuinLootChestsPerStructure != null)
+                foreach (var kv in OldChestCounts)
+                    if (RuinLootChestsPerStructure.TryGetValue(kv.Key, out MinMaxCount c) && c != null
+                        && c.Min == kv.Value && c.Max == kv.Value && newChests.ContainsKey(kv.Key))
+                        RuinLootChestsPerStructure[kv.Key] = newChests[kv.Key];
+            if (RuinIngotPilesPerStructure != null)
+                foreach (var kv in OldIngotPileCounts)
+                    if (RuinIngotPilesPerStructure.TryGetValue(kv.Key, out MinMaxCount c) && c != null
+                        && c.Min == kv.Value && c.Max == kv.Value && newPiles.ContainsKey(kv.Key))
+                        RuinIngotPilesPerStructure[kv.Key] = newPiles[kv.Key];
+            if (RuinIngotTypes != null && RuinIngotTypes.TryGetValue("gold", out IngotPileType gold)
+                && gold != null && gold.Weight == 9 && gold.CountMin == 24 && gold.CountMax == 32)
+            {
+                gold.CountMin = 6;
+                gold.CountMax = 12;
+            }
+            RuinLootRebalanceMigrated = true;
         }
     }
 

@@ -44,6 +44,7 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
     // Slow descent (blocks per second) and how often the floor scan
     // refreshes while sinking.
     private const float SinkSpeedPerSec = 0.4f;
+    private const float FloatSpeedPerSec = 0.8f;
     private const float FloorRescanInterval = 1f;
 
     private bool animsStopped;
@@ -120,6 +121,24 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
         pos.Pitch += (0f - pos.Pitch) * Math.Min(1f, deltaTime * 2f);
         pos.Roll += (0f - pos.Roll) * Math.Min(1f, deltaTime * 2f);
         pos.HeadPitch = 0f;
+
+        var cfg = UnderwaterHorrorsModSystem.Config;
+        if (cfg != null && cfg.SerpentCorpseFloats)
+        {
+            // Rise to just under the surface so a kill from a boat can be
+            // harvested from the boat. Stops under any solid ceiling.
+            pos.Motion.Set(0, 0, 0);
+            double surfaceY = entity.World.SeaLevel - 0.6;
+            if (pos.Y < surfaceY)
+            {
+                var above = new Vintagestory.API.MathTools.BlockPos(
+                    (int)Math.Floor(pos.X), (int)Math.Floor(pos.Y + 1.5), (int)Math.Floor(pos.Z), pos.Dimension);
+                Block roof = entity.World.BlockAccessor.GetBlock(above);
+                bool blocked = roof != null && roof.Id != 0 && !roof.IsLiquid() && roof.Replaceable < 6000;
+                if (!blocked) pos.Y = Math.Min(pos.Y + FloatSpeedPerSec * deltaTime, surfaceY);
+            }
+            return;
+        }
 
         // Sink to the sea floor. Rescan periodically so a corpse over a
         // ledge (or beyond the initial 80-block scan) still finds bottom.

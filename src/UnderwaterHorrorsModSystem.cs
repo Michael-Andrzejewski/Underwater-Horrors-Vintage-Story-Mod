@@ -560,7 +560,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
         new AssetLocation("underwaterhorrors", "krakententsegment"),
         new AssetLocation("underwaterhorrors", "krakententsegment_mid"),
         new AssetLocation("underwaterhorrors", "krakententsegment_outer"),
-        new AssetLocation("underwaterhorrors", "giantshiver"),
     };
 
     private void ApplyGlow(bool on)
@@ -630,15 +629,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     private void RegisterCommands(ICoreServerAPI api)
     {
-        // Convenience top-level spawn command for test creatures that are not
-        // part of the normal spawn flow. Mirrors /uh spawn but with the short
-        // syntax /spawn giant-shiver.
-        api.ChatCommands.Create("spawn")
-            .WithDescription("Spawn an Underwater Horrors test creature on yourself (giant-shiver)")
-            .RequiresPrivilege(Privilege.controlserver)
-            .WithArgs(api.ChatCommands.Parsers.WordRange("type", "giant-shiver"))
-            .HandleWith(OnCmdSpawnTest);
-
         api.ChatCommands.Create("uh")
             .WithDescription("Underwater Horrors settings")
             .RequiresPrivilege(Privilege.controlserver)
@@ -1017,56 +1007,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         activeCreatures[caller.PlayerUID] = creature.EntityId;
         return TextCommandResult.Success($"Spawned {creature.Code.Path} targeting {caller.PlayerName}");
-    }
-
-    // /spawn giant-shiver : quick spawn of the test creature.
-    private TextCommandResult OnCmdSpawnTest(TextCommandCallingArgs args)
-    {
-        string type = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
-        IServerPlayer caller = args.Caller.Player as IServerPlayer;
-        if (caller?.Entity == null) return TextCommandResult.Error("Must be called by a player");
-
-        Entity creature;
-        switch (type)
-        {
-            case "giant-shiver": creature = SpawnTestEntity(caller, GiantShiverAsset, upOffset: 0, forwardOffset: 9); break;
-            default: return TextCommandResult.Error("Unknown type. Use giant-shiver.");
-        }
-
-        if (creature == null)
-            return TextCommandResult.Error($"Failed to spawn '{type}' (entity type not found or invalid). Check the server log for load errors.");
-
-        return TextCommandResult.Success($"Spawned {creature.Code.Path} near {caller.PlayerName}");
-    }
-
-    // Spawn a mod entity a few blocks in front of the player (forwardOffset,
-    // along their look yaw) and optionally raised (upOffset, for creatures
-    // that should appear above eye level). Health/size come from the entity
-    // JSON.
-    private Entity SpawnTestEntity(IServerPlayer player, AssetLocation asset, double upOffset, double forwardOffset)
-    {
-        EntityProperties props = sapi.World.GetEntityType(asset);
-        if (props == null)
-        {
-            DebugLog(sapi, $"ERROR: entity type {asset} not found (spawn command)");
-            return null;
-        }
-
-        var pos = player.Entity.Pos;
-        double yaw = player.Entity.Pos.Yaw;
-        // VS yaw: forward horizontal vector is (-sin(yaw), 0, -cos(yaw)).
-        double fx = -Math.Sin(yaw) * forwardOffset;
-        double fz = -Math.Cos(yaw) * forwardOffset;
-
-        Entity ent = sapi.World.ClassRegistry.CreateEntity(props);
-        ent.Pos.SetPos(pos.X + fx, pos.Y + upOffset, pos.Z + fz);
-        ent.Pos.Dimension = pos.Dimension;
-        ent.Pos.SetFrom(ent.Pos);
-        sapi.World.SpawnEntity(ent);
-
-        activeCreatures[player.PlayerUID] = ent.EntityId;
-        DebugLog(sapi, $"SPAWNED {asset.Path} for {player.PlayerName} at ({ent.Pos.X:F1}, {ent.Pos.Y:F1}, {ent.Pos.Z:F1})");
-        return ent;
     }
 
     // Neon-green creative light (lightHsv hue 22), which shines fully even
@@ -1915,6 +1855,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // water for mounted players (boats sit 1-2 blocks above surface).
     private const int MountedWaterScanDownLimit = 5;
 
+    // The water test used by natural spawning and the despawn sweep.
+    // Saltwater only by default; AllowFreshwaterSpawns widens it to any
+    // water so deep lakes can host serpents too.
+    private bool IsSpawnWater(Block block)
+        => Config.AllowFreshwaterSpawns ? WaterHelper.IsWaterBlock(block) : WaterHelper.IsSaltwater(block);
+
     private int CountSaltwaterDepth(Entity playerEntity, int earlyExitThreshold)
     {
         if (playerEntity?.Pos == null) return 0;
@@ -1942,7 +1888,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             {
                 reusableBlockPos.Y = scanY;
                 Block block = accessor.GetBlock(reusableBlockPos);
-                if (block != null && WaterHelper.IsSaltwater(block)) break;
+                if (block != null && IsSpawnWater(block)) break;
                 scanY--;
             }
             // If we didn't find water, scanY will be at the limit with
@@ -1956,7 +1902,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
-            if (block == null || !WaterHelper.IsSaltwater(block)) break;
+            if (block == null || !IsSpawnWater(block)) break;
             count++;
             if (count >= earlyExitThreshold) return count;
         }
@@ -1968,7 +1914,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
-            if (block == null || !WaterHelper.IsSaltwater(block)) break;
+            if (block == null || !IsSpawnWater(block)) break;
             count++;
             if (count >= earlyExitThreshold) return count;
         }
@@ -2001,7 +1947,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             reusableBlockPos.Y = y;
             Block block = accessor.GetBlock(reusableBlockPos);
-            if (block != null && WaterHelper.IsSaltwater(block)) return true;
+            if (block != null && IsSpawnWater(block)) return true;
         }
         return false;
     }
@@ -2011,7 +1957,6 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private static readonly AssetLocation DeepSerpentAsset = new AssetLocation("underwaterhorrors", "seaserpent2");
     private static readonly AssetLocation Serpent3Asset = new AssetLocation("underwaterhorrors", "seaserpent3");
     private static readonly AssetLocation KrakenAsset = new AssetLocation("underwaterhorrors", "krakenbody");
-    private static readonly AssetLocation GiantShiverAsset = new AssetLocation("underwaterhorrors", "giantshiver");
 
     private Entity SpawnSerpent(IServerPlayer player, bool? forceDeep = null)
     {
@@ -2353,7 +2298,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 }
                 else
                 {
-                    engaged = feet != null && WaterHelper.IsSaltwater(feet);
+                    engaged = feet != null && IsSpawnWater(feet);
                     // Mounted players (on a boat) have AIR at their feet
                     // even over deep water. Don't start the timer if they
                     // are hovering over saltwater within a few blocks.

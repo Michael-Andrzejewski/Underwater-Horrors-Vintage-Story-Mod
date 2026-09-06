@@ -67,9 +67,25 @@ public class UnderwaterRuinsGen : ModSystem
         [ProtoBuf.ProtoMember(9)] public bool IsIngots;
         [ProtoBuf.ProtoMember(10)] public string Metal;
         [ProtoBuf.ProtoMember(11)] public int Count;
+        // A glowing block placed outside the generating chunk column. The
+        // worldgen light baker can only relight the column it is generating
+        // (scheduling a position in a chunk that does not exist yet is the
+        // NullReferenceException in ChunkIlluminator that aborted the whole
+        // TerrainFeatures pass), so those lights are re-set later with the
+        // normal accessor, which relights on its own.
+        [ProtoBuf.ProtoMember(12)] public bool IsRelight;
+        // Ingot piles queued since 0.20.0 carry only the script's fallback
+        // metal and count; the real pile is rolled from RuinIngotTypes when
+        // it is placed, so a config change applies to every ruin a player
+        // has not reached yet instead of only to chunks generated after it.
+        [ProtoBuf.ProtoMember(13)] public bool RerollLoot;
         // in-memory only: placement retries this session, not persisted
         [ProtoBuf.ProtoIgnore] public int Attempts;
     }
+
+    // Bounds of the chunk column currently being generated (world block
+    // coordinates, inclusive). Only valid while OnChunkColumnGen runs.
+    private int genMinX, genMaxX, genMinZ, genMaxZ;
 
     private static readonly string[] StructureNames =
         { "ruin", "portal", "shipwreck-small", "shipwreck-medium", "city", "shipwreck-huge" };
@@ -211,17 +227,54 @@ public class UnderwaterRuinsGen : ModSystem
         // ended up straddling shore banks with their edges on the beach.
         if (!FootprintIsOcean(wx, wz, scriptStats.TryGetValue(name, out ScriptStats st) ? st.Radius : 0)) return;
 
-        wgba.BeginColumn();
-        bool krakenMode = rnd.NextDouble() < Cfg.RuinKrakenVariantChance;
-        var origin = new BlockPos(wx, floorY + 1, wz, 0);
-        int before;
-        lock (pendingLock) before = pending.Count;
-        int placed = PlaceScript(wgba, lines, origin, rnd, krakenMode, name);
-        wgba.RunScheduledBlockLightUpdates(cx, cz);   // bake the creative lights
-        int queued;
-        lock (pendingLock) queued = pending.Count - before;
-        sapi.Logger.Notification("[UH ruins] generated {0} at {1},{2},{3}: {4} blocks, queued {5} features",
-            name, wx, floorY + 1, wz, placed, queued);
+        genMinX = cx * ChunkSize; genMaxX = genMinX + ChunkSize - 1;
+        genMinZ = cz * ChunkSize; genMaxZ = genMinZ + ChunkSize - 1;
+
+        // One bad ruin must never take the rest of the TerrainFeatures pass
+        // (every other mod's generator scheduled after this one) down with
+        // it. Everything from here on is guarded.
+        try
+        {
+            wgba.BeginColumn();
+            bool krakenMode = rnd.NextDouble() < Cfg.RuinKrakenVariantChance;
+            var origin = new BlockPos(wx, floorY + 1, wz, 0);
+            int before;
+            lock (pendingLock) before = pending.Count;
+            int placed = PlaceScript(wgba, lines, origin, rnd, krakenMode, name);
+            try
+            {
+                wgba.RunScheduledBlockLightUpdates(cx, cz);   // bake the ghostlights inside this column
+            }
+            catch (Exception e)
+            {
+                // The ruin is already placed; only the light bake failed.
+                // Lights fix themselves when a player loads the area.
+                sapi.Logger.Warning("[UH ruins] light bake failed for column {0},{1}: {2}", cx, cz, e.Message);
+            }
+            int queued;
+            lock (pendingLock) queued = pending.Count - before;
+            sapi.Logger.Notification("[UH ruins] generated {0} at {1},{2},{3}: {4} blocks, queued {5} features",
+                name, wx, floorY + 1, wz, placed, queued);
+        }
+        catch (Exception e)
+        {
+            sapi.Logger.Error("[UH ruins] failed to generate {0} at {1},{2}: {3}", name, wx, wz, e);
+        }
+    }
+
+    // Glowing blocks inside the generating column are baked by the worldgen
+    // light pass. Anything outside it (the huge wreck reaches about 57
+    // blocks from its origin, the column is 32 wide) is queued and re-set
+    // later with the normal accessor, which relights automatically.
+    private void ScheduleGlow(IWorldGenBlockAccessor wg, BlockPos pos, int blockId)
+    {
+        if (pos.X >= genMinX && pos.X <= genMaxX && pos.Z >= genMinZ && pos.Z <= genMaxZ)
+        {
+            wg.ScheduleBlockLightUpdate(pos.Copy(), 0, blockId);
+            return;
+        }
+        lock (pendingLock)
+            pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsRelight = true });
     }
 
     // Deep saltwater only: saltwater at sea level, a solid floor far enough
@@ -505,7 +558,7 @@ public class UnderwaterRuinsGen : ModSystem
                 {
                     p.Set(x, y, z);
                     acc.SetBlock(id == 0 ? AirIdFor(acc, y) : id, p);
-                    if (glows) wg.ScheduleBlockLightUpdate(p.Copy(), 0, id);
+                    if (glows) ScheduleGlow(wg, p, id);
                     n++;
                 }
         return n;
@@ -519,7 +572,7 @@ public class UnderwaterRuinsGen : ModSystem
         var pos = new BlockPos(Rel(t[1], o.X), Rel(t[2], o.Y), Rel(t[3], o.Z), o.dimension);
         acc.SetBlock(id == 0 ? AirIdFor(acc, pos.Y) : id, pos);
         if (id != 0 && b.LightHsv[2] > 0 && acc is IWorldGenBlockAccessor wg)
-            wg.ScheduleBlockLightUpdate(pos, 0, id);
+            ScheduleGlow(wg, pos, id);
         return 1;
     }
 
@@ -588,14 +641,18 @@ public class UnderwaterRuinsGen : ModSystem
         string metal = t.Length > 4 ? t[4].ToLowerInvariant() : "copper";
         int count = 8;
         if (t.Length > 5 && int.TryParse(t[5], out int c)) count = Math.Max(1, Math.Min(64, c));
-        RollIngotPile(rnd, ref metal, ref count);
 
         if (acc is IWorldGenBlockAccessor)
         {
+            // Not rolled here on purpose: the pile is rolled from the live
+            // RuinIngotTypes when a player gets close and it is placed, so
+            // a server owner who lowers the loot sees the change in every
+            // ruin nobody has visited yet, not only in brand new chunks.
             lock (pendingLock)
-                pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsIngots = true, Metal = metal, Count = count });
+                pending.Add(new PendingFeature { X = pos.X, Y = pos.Y, Z = pos.Z, Dim = pos.dimension, IsIngots = true, Metal = metal, Count = count, RerollLoot = true });
             return 1;
         }
+        RollIngotPile(rnd, ref metal, ref count);
         return PlaceIngotsNow(acc, pos, metal, count) ? 1 : 0;
     }
 
@@ -668,7 +725,7 @@ public class UnderwaterRuinsGen : ModSystem
         {
             p.Y = baseY + i;
             acc.SetBlock(b.BlockId, p);
-            if (glows) wg.ScheduleBlockLightUpdate(p.Copy(), 0, b.BlockId);
+            if (glows) ScheduleGlow(wg, p, b.BlockId);
             n++;
         }
         return n;
@@ -748,6 +805,19 @@ public class UnderwaterRuinsGen : ModSystem
             }
         }
         be.MarkDirty(true);
+        return true;
+    }
+
+    // Re-set a glowing block that worldgen could not relight because it sat
+    // outside the generating column. The normal accessor relights on
+    // SetBlock. A block that is no longer glowing (player removed it, or
+    // ghostlights were turned off) needs nothing and counts as done.
+    private bool RelightNow(IBlockAccessor acc, BlockPos pos)
+    {
+        Block b = acc.GetBlock(pos);
+        if (b == null || b.Id == 0 || b.LightHsv[2] == 0) return true;
+        acc.SetBlock(b.BlockId, pos);
+        acc.MarkBlockDirty(pos);
         return true;
     }
 
@@ -868,8 +938,15 @@ public class UnderwaterRuinsGen : ModSystem
                 {
                     chunkMissing = true;   // near a player but not served yet: retry, no penalty
                 }
+                else if (f.IsRelight) ok = RelightNow(acc, pos);
                 else if (f.IsChest) ok = PlaceChestNow(acc, pos, f.Variant, f.Side, rnd);
-                else if (f.IsIngots) ok = PlaceIngotsNow(acc, pos, f.Metal, f.Count);
+                else if (f.IsIngots)
+                {
+                    string metal = f.Metal;
+                    int count = f.Count;
+                    if (f.RerollLoot) RollIngotPile(rnd, ref metal, ref count);
+                    ok = PlaceIngotsNow(acc, pos, metal, count);
+                }
                 else ok = PlaceSpawnerNow(acc, pos, f.Kraken);
             }
             catch (Exception e)
