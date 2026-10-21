@@ -105,6 +105,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:spawnerreturn", typeof(EntityBehaviorSpawnerReturn));
 
         api.RegisterBlockEntityClass("UHCreatureSpawner", typeof(BlockEntityCreatureSpawner));
+        api.RegisterBlockClass("UHCreatureSpawnerBlock", typeof(BlockCreatureSpawner));
 
         api.RegisterEntity("EntityBioluminescentLight", typeof(EntityBioluminescentLight));
         api.RegisterEntity("SerpentEntity", typeof(SerpentEntity));
@@ -2315,6 +2316,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
             }
 
             float limit = fromSpawner ? Config.SpawnerDespawnAfterLeaveSeconds : Config.DespawnAfterLandSeconds;
+            // A spawner that set "stay while ashore" keeps its creature that
+            // long, as long as the target stays within its linger range.
+            float linger = fromSpawner ? creature.WatchedAttributes.GetFloat(BlockEntityCreatureSpawner.LingerSecondsAttr, 0f) : 0f;
+            if (linger > 0)
+            {
+                float lingerRange = creature.WatchedAttributes.GetFloat(BlockEntityCreatureSpawner.LingerRangeAttr, 0f);
+                bool inRange = target?.Entity != null && target.Entity.Alive
+                    && (lingerRange <= 0 || creature.Pos.DistanceTo(target.Entity.Pos) <= lingerRange);
+                limit = inRange ? Math.Max(limit, linger) : 0f;
+            }
             bool hadTimer = landTimers.TryGetValue(id, out float elapsed);
             float t = (hadTimer ? elapsed : 0f) + Config.DespawnCheckIntervalSeconds;
             if (t >= limit)

@@ -15,6 +15,10 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.21.0
+
+- Per-spawner settings for the serpent and kraken spawner blocks. In creative, shift + right click a spawner to edit them: trigger radius (0 = the config's `SpawnerTriggerRange`), whether the player must be in the water, and how long the serpent stays (instead of retreating) while its target stands in shallow water or on land, as long as they are within a given range. Looking at a spawner in creative shows its settings. They stay with the spawner through every spawn and return.
+
 ### 0.20.0
 
 - Fixed a worldgen crash. Ghostlights placed outside the chunk column being generated were scheduled for a light bake that chunk could not do, which threw inside the game's chunk illuminator and aborted the whole TerrainFeatures pass for that column, taking every other mod's features with it. Lights outside the column are now re-lit when a player arrives, and the ruin generator is guarded so a bad ruin can never stop the pass again.

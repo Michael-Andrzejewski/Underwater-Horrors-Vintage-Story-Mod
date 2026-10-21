@@ -1,5 +1,6 @@
 {
 	"code": "serpentspawner",
+	"class": "UHCreatureSpawnerBlock",
 	"entityClass": "UHCreatureSpawner",
 	"attributes": { "spawnEntity": "seaserpent" },
 	"drawtype": "json",

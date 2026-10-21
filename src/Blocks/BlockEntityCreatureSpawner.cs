@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -32,6 +36,25 @@ public class BlockEntityCreatureSpawner : BlockEntity
     public const string SpawnerZAttr = "underwaterhorrors:spawnerZ";
     public const string SpawnerDimAttr = "underwaterhorrors:spawnerDim";
     public const string SpawnerBlockCodeAttr = "underwaterhorrors:spawnerBlockCode";
+    // Per-spawner settings travel on the creature: the linger pair is read by
+    // the serpent AI and the despawn sweep, the whole set is written back
+    // onto the spawner block when the creature's despawn restores it.
+    public const string LingerSecondsAttr = "underwaterhorrors:spawnerLingerSeconds";
+    public const string LingerRangeAttr = "underwaterhorrors:spawnerLingerRange";
+    public const string SettingsAttr = "underwaterhorrors:spawnerSettings";
+
+    // ── Per-spawner settings (edit in creative: shift + right click) ──
+    /// <summary>Trigger radius in blocks; 0 uses the config's SpawnerTriggerRange.</summary>
+    public float TriggerRange;
+    /// <summary>Only a player in the water (or on a boat over it) sets the spawner off.</summary>
+    public bool RequireWater = true;
+    /// <summary>Seconds the serpent stays, instead of retreating, while its
+    /// target stands in shallow water or on land; 0 = retreat at once (the
+    /// old behaviour, despawn after SpawnerDespawnAfterLeaveSeconds).</summary>
+    public float LingerSeconds;
+    /// <summary>While lingering, the target must stay within this many
+    /// blocks of the serpent or it gives up at once; 0 = no limit.</summary>
+    public float LingerRange;
 
     private AssetLocation spawnAsset;
     private bool isKraken;
@@ -85,7 +108,8 @@ public class BlockEntityCreatureSpawner : BlockEntity
     private IPlayer FindEligiblePlayer(ICoreServerAPI sapi, UnderwaterHorrorsConfig config)
     {
         double cx = Pos.X + 0.5, cy = Pos.Y + 0.5, cz = Pos.Z + 0.5;
-        double rangeSq = config.SpawnerTriggerRange * config.SpawnerTriggerRange;
+        double range = TriggerRange > 0 ? TriggerRange : config.SpawnerTriggerRange;
+        double rangeSq = range * range;
 
         IPlayer best = null;
         double bestDistSq = double.MaxValue;
@@ -112,9 +136,12 @@ public class BlockEntityCreatureSpawner : BlockEntity
             // the guardian ever spawning; a serpent handles boat targets
             // fine (it circles and menaces them), so a mounted player over
             // water arms the spawner too.
-            Block feet = sapi.World.BlockAccessor.GetBlock(p.Entity.Pos.AsBlockPos);
-            bool inWater = feet != null && WaterHelper.IsWaterBlock(feet);
-            if (!inWater && !IsMountedOverWater(sapi, p)) continue;
+            if (RequireWater)
+            {
+                Block feet = sapi.World.BlockAccessor.GetBlock(p.Entity.Pos.AsBlockPos);
+                bool inWater = feet != null && WaterHelper.IsWaterBlock(feet);
+                if (!inWater && !IsMountedOverWater(sapi, p)) continue;
+            }
 
             best = p;
             bestDistSq = distSq;
@@ -229,6 +256,11 @@ public class BlockEntityCreatureSpawner : BlockEntity
         creature.WatchedAttributes.SetInt(SpawnerZAttr, Pos.Z);
         creature.WatchedAttributes.SetInt(SpawnerDimAttr, Pos.dimension);
         creature.WatchedAttributes.SetString(SpawnerBlockCodeAttr, Block.Code.ToString());
+        creature.WatchedAttributes.SetFloat(LingerSecondsAttr, LingerSeconds);
+        creature.WatchedAttributes.SetFloat(LingerRangeAttr, LingerRange);
+        var settings = new TreeAttribute();
+        WriteSettings(settings);
+        creature.WatchedAttributes[SettingsAttr] = settings;
 
         // Match the natural kraken: night spawns get the bioluminescent flag
         // the client renderer reads for the pulsing cyan glow.
@@ -252,6 +284,75 @@ public class BlockEntityCreatureSpawner : BlockEntity
         // becomes open water.
         sapi.World.BlockAccessor.SetBlock(0, Pos);
         sapi.World.BlockAccessor.MarkBlockDirty(Pos);
+    }
+
+    // ── settings: storage, sync, the creative editor ──
+
+    public void WriteSettings(ITreeAttribute tree)
+    {
+        tree.SetFloat("triggerRange", TriggerRange);
+        tree.SetBool("requireWater", RequireWater);
+        tree.SetFloat("lingerSeconds", LingerSeconds);
+        tree.SetFloat("lingerRange", LingerRange);
+    }
+
+    public void ApplySettings(ITreeAttribute tree)
+    {
+        TriggerRange = Math.Max(0f, tree.GetFloat("triggerRange", TriggerRange));
+        RequireWater = tree.GetBool("requireWater", RequireWater);
+        LingerSeconds = Math.Max(0f, tree.GetFloat("lingerSeconds", LingerSeconds));
+        LingerRange = Math.Max(0f, tree.GetFloat("lingerRange", LingerRange));
+    }
+
+    public override void ToTreeAttributes(ITreeAttribute tree)
+    {
+        base.ToTreeAttributes(tree);
+        WriteSettings(tree);
+    }
+
+    public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
+    {
+        base.FromTreeAttributes(tree, worldAccessForResolve);
+        ApplySettings(tree);
+    }
+
+    public override void OnReceivedClientPacket(IPlayer fromPlayer, int packetid, byte[] data)
+    {
+        base.OnReceivedClientPacket(fromPlayer, packetid, data);
+        if (packetid != GuiDialogSpawnerSettings.SavePacketId) return;
+        if (fromPlayer?.WorldData?.CurrentGameMode != EnumGameMode.Creative) return;
+        ApplySettings(TreeAttribute.CreateFromBytes(data));
+        MarkDirty(true);
+        UnderwaterHorrorsModSystem.DebugLog(Api, $"Creature spawner at {Pos}: settings changed by {fromPlayer.PlayerName}");
+    }
+
+    private GuiDialogSpawnerSettings dialog;
+
+    public void OpenSettings(ICoreClientAPI capi)
+    {
+        if (dialog?.IsOpened() == true) return;
+        float def = UnderwaterHorrorsModSystem.Config?.SpawnerTriggerRange ?? 40f;
+        var fields = new List<SpawnerSettingField>
+        {
+            new() { Key = "triggerRange", Label = "Trigger radius (blocks)", Number = TriggerRange },
+            new() { Key = "requireWater", Label = "Player must be in water", IsSwitch = true, Flag = RequireWater },
+            new() { Key = "lingerSeconds", Label = "Stay while player is ashore (s)", Number = LingerSeconds },
+            new() { Key = "lingerRange", Label = "...if within (blocks)", Number = LingerRange },
+        };
+        dialog = new GuiDialogSpawnerSettings("Creature spawner", Pos, fields,
+            $"0 = default: radius {def:0}; leave the moment the player is ashore; no range limit.", capi);
+        dialog.TryOpen();
+    }
+
+    public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
+    {
+        base.GetBlockInfo(forPlayer, dsc);
+        if (forPlayer?.WorldData?.CurrentGameMode != EnumGameMode.Creative) return;
+        float def = UnderwaterHorrorsModSystem.Config?.SpawnerTriggerRange ?? 40f;
+        dsc.AppendLine($"Trigger radius: {(TriggerRange > 0 ? TriggerRange : def):0} blocks{(TriggerRange > 0 ? "" : " (default)")}");
+        dsc.AppendLine(RequireWater ? "Player must be in water" : "Triggers on land too");
+        if (LingerSeconds > 0) dsc.AppendLine($"Stays {LingerSeconds:0} s while the player is ashore{(LingerRange > 0 ? $" within {LingerRange:0} blocks" : "")}");
+        dsc.AppendLine("Shift + right click to edit");
     }
 
     /// <summary>

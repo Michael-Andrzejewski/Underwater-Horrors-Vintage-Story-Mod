@@ -1,5 +1,6 @@
 {
 	"code": "krakenspawner",
+	"class": "UHCreatureSpawnerBlock",
 	"entityClass": "UHCreatureSpawner",
 	"attributes": { "spawnEntity": "krakenbody" },
 	"drawtype": "json",

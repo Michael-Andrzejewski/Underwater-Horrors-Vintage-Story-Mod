@@ -293,6 +293,31 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     /// <summary>
     /// Decrements the throttle timer and re-evaluates shallow water status when it expires.
     /// </summary>
+    // A spawner can tell its serpent to hold its ground for a while when
+    // the target steps into the shallows or onto land, instead of turning
+    // back at once (the spawner's "stay while ashore" setting).
+    private float lingerElapsed;
+
+    /// <summary>
+    /// True while a spawner serpent should keep hunting although its target
+    /// is in shallow water or ashore: it has linger seconds left and the
+    /// target is within its linger range. Call each tick the target is in
+    /// the shallows; call <see cref="ResetLinger"/> when they are back in
+    /// deep water.
+    /// </summary>
+    protected bool LingerInsteadOfRetreat(float deltaTime)
+    {
+        var wa = entity.WatchedAttributes;
+        float linger = wa.GetFloat(BlockEntityCreatureSpawner.LingerSecondsAttr, 0f);
+        if (linger <= 0 || targetPlayer?.Entity == null) return false;
+        float range = wa.GetFloat(BlockEntityCreatureSpawner.LingerRangeAttr, 0f);
+        if (range > 0 && entity.Pos.DistanceTo(targetPlayer.Entity.Pos) > range) return false;
+        lingerElapsed += deltaTime;
+        return lingerElapsed < linger;
+    }
+
+    protected void ResetLinger() => lingerElapsed = 0;
+
     protected void UpdateShallowWaterCheck(float deltaTime)
     {
         shallowWaterCheckTimer -= deltaTime;

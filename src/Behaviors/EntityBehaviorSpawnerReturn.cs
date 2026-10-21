@@ -1,5 +1,6 @@
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
 namespace UnderwaterHorrors;
@@ -60,6 +61,13 @@ public class EntityBehaviorSpawnerReturn : EntityBehavior
         if (current != null && current.Id != 0 && !current.IsReplacableBy(block)) return;
 
         accessor.SetBlock(block.BlockId, pos);
+        // The spawner keeps the settings it was given (radius, linger).
+        if (wa[BlockEntityCreatureSpawner.SettingsAttr] is ITreeAttribute settings
+            && accessor.GetBlockEntity(pos) is BlockEntityCreatureSpawner be)
+        {
+            be.ApplySettings(settings);
+            be.MarkDirty(true);
+        }
         accessor.MarkBlockDirty(pos);
     }
 }

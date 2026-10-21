@@ -223,7 +223,8 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             state != SerpentState.Retreating)
         {
             UpdateShallowWaterCheck(deltaTime);
-            if (IsInShallowWater)
+            if (!IsInShallowWater) ResetLinger();
+            if (IsInShallowWater && !LingerInsteadOfRetreat(deltaTime))
             {
                 if (config.DebugLogging)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
