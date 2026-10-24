@@ -80,6 +80,10 @@ public class AnglerfishModelSystem : ModSystem
 
 public class GiantAnglerfishEntity : EntityAgent
 {
+    // Its first ticks start a clip while the server writes its spawn packet
+    // on another thread; see ThreadSafeAnimationManager.
+    public GiantAnglerfishEntity() { AnimManager = new ThreadSafeAnimationManager(); }
+
     public override bool AlwaysActive => true;
     public override double FrustumSphereRadius => 45;
     public override bool CanStepPitch => false;
@@ -174,6 +178,16 @@ public class EntityBehaviorAnglerfishAnimation : EntityBehavior
         if (current == code && currentSpeed == speed)
         {
             if (restart) entity.AnimManager.ResetAnimation(code);
+            return;
+        }
+        // Same clip at a new speed (lying in wait vs. patrolling): change it in
+        // place. Stopping and restarting would jump the clip back to its start.
+        if (current == code && !restart
+            && entity.AnimManager.ActiveAnimationsByAnimCode.TryGetValue(code, out var running))
+        {
+            running.AnimationSpeed = speed;
+            currentSpeed = speed;
+            entity.AnimManager.AnimationsDirty = true;
             return;
         }
         if (current != null) entity.AnimManager.StopAnimation(current);

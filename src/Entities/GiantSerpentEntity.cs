@@ -23,6 +23,10 @@ public class GiantSerpentEntity : DeepSerpentEntity
 {
     private double reach = 450;
 
+    // Same as the giant anglerfish: clips start while the server writes the
+    // spawn packet on another thread.
+    public GiantSerpentEntity() { AnimManager = new ThreadSafeAnimationManager(); }
+
     public override double FrustumSphereRadius => reach + 20;
 
     public override bool AllowOutsideLoadedRange => true;

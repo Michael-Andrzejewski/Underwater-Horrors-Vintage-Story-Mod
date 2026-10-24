@@ -66,13 +66,22 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
   (`AnglerfishLurkDepthMin`, `AnglerfishLurkDepthMax`) and holds that depth
   while it waits, slowly turning its mouth toward its prey.
 - Its blue gear glides and sways toward the player on the kraken's spline
-  chain, aiming to stay 8–15 blocks ahead and gradually lead them deeper.
-  Extension and recall use acceleration-limited movement, with no position snaps.
+  chain, 8–15 blocks ahead of them. For a player at the surface (swimming or
+  in a boat) it hangs 2.5 blocks above the waves, between them and the fish,
+  and never past the fish, so following it leads them over its mouth. A
+  player who dives is led on down underwater. Extension and recall use
+  acceleration-limited movement, with no position snaps.
 - Once its prey is within 14 blocks of its mouth (`AnglerfishStrikeRange`),
-  it swoops forward at 28 blocks a second (`AnglerfishStrikeSpeed`) and
-  gulps for 50 base damage (`AnglerfishBiteDamage`), followed by a cooldown.
-  The swoop arrives as the bite clip snaps shut. It used to lunge at anyone
-  within 30 blocks of its body.
+  or within 14 sideways and up to 24 above it (`AnglerfishStrikeReachUp`),
+  it swoops at 28 blocks a second (`AnglerfishStrikeSpeed`) and gulps for 50
+  base damage (`AnglerfishBiteDamage`), followed by a cooldown. Prey on the
+  surface gets a swoop up from the deep. The swoop arrives as the bite clip
+  snaps shut. It used to lunge at anyone within 30 blocks of its body.
+- Fixed: the anglerfish and its gear could stay invisible while it still
+  bit. Its first ticks started a clip while the server wrote its spawn
+  packet on another thread; that threw "Collection was modified" and the
+  client never got the fish. Its animations now go through a locked manager
+  (`ThreadSafeAnimationManager`), as do the Rust Leviathan's.
 - The body dives immediately after a strike, instead of waiting at the surface.
   With no nearby targets it patrols submerged with the serpent's smooth turning.
 - New model: a gigantic whipnose angler, after MikeZilla_'s rough and

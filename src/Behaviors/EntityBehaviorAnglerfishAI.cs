@@ -66,7 +66,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
         {
             target=NearestTarget(out distance);
             cycle.TriggerRange=Config?.AnglerfishStrikeRange ?? AnglerfishAttackCycle.DefaultTriggerRange;
-            if (!IsRetreating && target != null && cycle.TryBegin(MouthDistance(target)))
+            if (!IsRetreating && target != null && cycle.TryBegin(StrikeDistance(target)))
             {
                 retreat.Set(entity.Pos.X,entity.Pos.Y,entity.Pos.Z);
                 entity.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid",target.PlayerUID);
@@ -142,6 +142,22 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
         double yaw=entity.Pos.Yaw;
         double dx=e.X-(entity.Pos.X+Math.Sin(yaw)*MouthForward),dy=e.Y+.6-(entity.Pos.Y+MouthUp),dz=e.Z-(entity.Pos.Z+Math.Cos(yaw)*MouthForward);
         return Math.Sqrt(dx*dx+dy*dy+dz*dz);
+    }
+
+    // The prey's distance as the strike sees it, compared with the strike
+    // range: a ball of that radius round the mouth, stretched upward into a
+    // column AnglerfishStrikeReachUp tall. Prey on the surface above the
+    // mouth, which is 10 to 20 blocks down, is within reach.
+    public double StrikeDistance(IPlayer p)
+    {
+        var e=p.Entity.Pos;
+        double yaw=entity.Pos.Yaw;
+        double dx=e.X-(entity.Pos.X+Math.Sin(yaw)*MouthForward),dy=e.Y+.6-(entity.Pos.Y+MouthUp),dz=e.Z-(entity.Pos.Z+Math.Cos(yaw)*MouthForward);
+        double sideways=Math.Sqrt(dx*dx+dz*dz);
+        if(dy<=0)return Math.Sqrt(sideways*sideways+dy*dy);
+        double range=Config?.AnglerfishStrikeRange ?? AnglerfishAttackCycle.DefaultTriggerRange;
+        double up=Config?.AnglerfishStrikeReachUp ?? 24;
+        return Math.Max(sideways,dy*range/up);
     }
 
     public bool ValidTarget(IPlayer p)

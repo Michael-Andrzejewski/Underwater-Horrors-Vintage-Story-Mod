@@ -63,12 +63,20 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         {
             targetUid=tracked.PlayerUID;
             owner.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid",targetUid);
-            goal=AnglerfishLureCycle.BaitGoal(tracked.Entity.Pos.XYZ,anchor,elapsed);
+            // Prey at the surface (swimming, or in a boat) sees the gear hang
+            // above the waves; prey that dives is led on down underwater.
+            goal=SurfaceUnder(tracked.Entity.Pos.XYZ,out double surface)
+                ?AnglerfishLureCycle.HoverGoal(tracked.Entity.Pos.XYZ,anchor,surface,elapsed)
+                :AnglerfishLureCycle.BaitGoal(tracked.Entity.Pos.XYZ,anchor,elapsed);
         }
-        // Correct the goal to submerged water, never the tip's actual position.
-        // Even a moving owner or lost target must be followed without teleporting.
-        for(int depth=0;depth<16 && !IsWater(goal);depth++)goal.Y-=.5;
-        if(!IsWater(goal))goal=entity.Pos.XYZ;
+        // Correct the goal to water, or to the air just over water, never the
+        // tip's actual position. Even a moving owner or lost target must be
+        // followed without teleporting.
+        if(!OverWater(goal))
+        {
+            for(int depth=0;depth<16 && !IsWater(goal);depth++)goal.Y-=.5;
+            if(!IsWater(goal))goal=entity.Pos.XYZ;
+        }
         if(entity.Pos.DistanceTo(anchor)>AnglerfishLureCycle.MaxReach)goal=anchor.Clone();
         var next=cycle.Step(entity.Pos.XYZ,goal,dt,engaging?AnglerfishLureCycle.MaxSpeed:AnglerfishLureCycle.CruiseSpeed);
         double dx=next.X-entity.Pos.X,dy=next.Y-entity.Pos.Y,dz=next.Z-entity.Pos.Z;
@@ -76,9 +84,9 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         for(int i=0;i<steps;i++)
         {
             var point=new Vec3d(entity.Pos.X+dx/steps,entity.Pos.Y+dy/steps,entity.Pos.Z+dz/steps);
-            // A surfaced anchor can leave the tip briefly in air. Permit a
-            // downward exit through air, but never through solid terrain.
-            if(!IsWater(point) && !(dy<0 && IsAir(point)))
+            // Through water, or air with water a few blocks under it; never
+            // through terrain, and never off over land.
+            if(!IsWater(point) && !OverWater(point))
             { cycle.Velocity.Set(0,0,0);break; }
             entity.Pos.SetPos(point.X,point.Y,point.Z);
         }
@@ -94,6 +102,36 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         return p.Y>0 && p.Y<entity.World.BlockAccessor.MapSizeY-1
             && WaterHelper.IsWaterBlock(entity.World.BlockAccessor.GetBlock(p));
     }
+    // Air with water within HoverHeight + 3 blocks below.
+    private bool OverWater(Vec3d point)
+    {
+        if(!IsAir(point))return false;
+        var below=point.Clone();
+        for(int i=0;i<(int)AnglerfishLureCycle.HoverHeight+4;i++)
+        {
+            below.Y-=1;
+            if(IsWater(below))return true;
+            if(!IsAir(below))return false;
+        }
+        return false;
+    }
+
+    // True when the prey is at the surface: feet no more than 3 blocks under
+    // it, or up to 4 above it (a boat). surface: the top of the top water block.
+    private bool SurfaceUnder(Vec3d feet,out double surface)
+    {
+        surface=0;
+        var p=new BlockPos((int)Math.Floor(feet.X),(int)Math.Floor(feet.Y)+4,(int)Math.Floor(feet.Z),entity.Pos.Dimension);
+        for(int i=0;i<9;i++,p.Y--)
+        {
+            if(p.Y<=0 || p.Y>=entity.World.BlockAccessor.MapSizeY-1)continue;
+            if(!WaterHelper.IsWaterBlock(entity.World.BlockAccessor.GetBlock(p)))continue;
+            surface=p.Y+1;
+            return feet.Y>=surface-3;
+        }
+        return false;
+    }
+
     private bool IsAir(Vec3d point)
     {
         var p=new BlockPos((int)Math.Floor(point.X),(int)Math.Floor(point.Y),(int)Math.Floor(point.Z),entity.Pos.Dimension);

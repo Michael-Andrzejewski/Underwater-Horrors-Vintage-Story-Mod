@@ -521,8 +521,11 @@ public class UnderwaterHorrorsConfig
     // body. Each anglerfish picks a depth in this range.
     public float AnglerfishLurkDepthMin { get; set; } = 10f;
     public float AnglerfishLurkDepthMax { get; set; } = 20f;
-    // It swoops once its prey is this close to its mouth, in blocks.
+    // It swoops once its prey is this close to its mouth, in blocks, or
+    // within that range sideways and up to AnglerfishStrikeReachUp blocks
+    // above its mouth: it rises from the deep at prey on the surface.
     public float AnglerfishStrikeRange { get; set; } = 14f;
+    public float AnglerfishStrikeReachUp { get; set; } = 24f;
     // Speed of the swoop in blocks per second, and the damage of the gulp.
     public float AnglerfishStrikeSpeed { get; set; } = 28f;
     public float AnglerfishBiteDamage { get; set; } = 50f;
@@ -851,6 +854,7 @@ public class UnderwaterHorrorsConfig
         AnglerfishLurkDepthMin = Math.Clamp(AnglerfishLurkDepthMin, 7f, 120f);
         AnglerfishLurkDepthMax = Math.Clamp(AnglerfishLurkDepthMax, AnglerfishLurkDepthMin, 120f);
         AnglerfishStrikeRange = Math.Clamp(AnglerfishStrikeRange, 3f, 40f);
+        AnglerfishStrikeReachUp = Math.Clamp(AnglerfishStrikeReachUp, AnglerfishStrikeRange, 60f);
         AnglerfishStrikeSpeed = Math.Clamp(AnglerfishStrikeSpeed, 4f, 80f);
         AnglerfishBiteDamage = Math.Max(0f, AnglerfishBiteDamage);
 

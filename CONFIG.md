@@ -143,7 +143,8 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `AnglerfishMinWaterDepth` | int | `32` |  |
 | `AnglerfishLurkDepthMin` | float | `10f` | How deep it lurks, in blocks from the surface to the middle of its body. Each anglerfish picks a depth in this range. |
 | `AnglerfishLurkDepthMax` | float | `20f` |  |
-| `AnglerfishStrikeRange` | float | `14f` | It swoops once its prey is this close to its mouth, in blocks. |
+| `AnglerfishStrikeRange` | float | `14f` | It swoops once its prey is this close to its mouth, in blocks, or within that range sideways and up to AnglerfishStrikeReachUp blocks above its mouth: it rises from the deep at prey on the surface. |
+| `AnglerfishStrikeReachUp` | float | `24f` |  |
 | `AnglerfishStrikeSpeed` | float | `28f` | Speed of the swoop in blocks per second, and the damage of the gulp. |
 | `AnglerfishBiteDamage` | float | `50f` |  |
 | **Kraken body** | | | |
