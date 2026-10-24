@@ -136,6 +136,10 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private double StrikeDepth => 4.2 * size;     // depth it dives to before a strike
     private double MinDepthBelowSurface => Showcase ? 0.3 * size : 2.4 * size;  // keeps the dorsal spikes under
     private bool Showcase => entity.WatchedAttributes.GetBool(ShowcaseAttr);
+
+    // A deeper voice that carries further, for an animal this size.
+    protected override float SoundPitch => config?.GiantSerpentSoundPitch ?? 0.6f;
+    protected override float SoundReach => 24f;
     private double FloorClearance => 1.3 * size;  // belly clear of the sea floor
     private double GulpRange => 0.9 * size;
     private double OuterOrbit => 14 * size;
@@ -523,6 +527,8 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         if (past || stateTimer > 20f)
         {
             Log(past ? "strike went past" : "strike timed out");
+            // The jaws still snap shut on a near miss.
+            if (dist < 3 * GulpRange) PlayBite();
             TransitionTo(GiantSerpentState.Breach);
         }
     }

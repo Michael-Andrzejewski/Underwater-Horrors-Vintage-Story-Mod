@@ -353,6 +353,14 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     /// dread sounds spaced by a random gap. Sounds are positional (anyone nearby
     /// hears them) and the director's per-creature channel rule prevents overlap.
     /// </summary>
+    /// <summary>
+    /// Playback pitch of this creature's sounds (1 as recorded), and how far
+    /// they carry at full volume, in blocks. The giant serpent sounds deeper
+    /// and carries further.
+    /// </summary>
+    protected virtual float SoundPitch => 1f;
+    protected virtual float SoundReach => 8f;
+
     protected void UpdateAmbientSound(float deltaTime)
     {
         var mod = UnderwaterHorrorsModSystem.ServerInstance;
@@ -376,15 +384,17 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         if (dist <= cfg.MonsterSoundNearbyRange && atSurface)
         {
             mod.PlayMonsterSound(entity, UnderwaterHorrorsModSystem.SndNearbySurface,
-                UnderwaterHorrorsModSystem.DurNearbySurface, volumeMul: cfg.MonsterSoundNearbyVolume);
+                UnderwaterHorrorsModSystem.DurNearbySurface / SoundPitch, volumeMul: cfg.MonsterSoundNearbyVolume,
+                refDistance: SoundReach, pitch: SoundPitch);
         }
         else if (dist > cfg.MonsterSoundBelowMinRange)
         {
             bool one = entity.World.Rand.NextDouble() < 0.5;
             mod.PlayMonsterSound(entity,
                 one ? UnderwaterHorrorsModSystem.SndAmbientBelow1 : UnderwaterHorrorsModSystem.SndAmbientBelow2,
-                one ? UnderwaterHorrorsModSystem.DurAmbientBelow1 : UnderwaterHorrorsModSystem.DurAmbientBelow2,
-                volumeMul: one ? cfg.MonsterSoundBelow1Volume : cfg.MonsterSoundBelow2Volume);
+                (one ? UnderwaterHorrorsModSystem.DurAmbientBelow1 : UnderwaterHorrorsModSystem.DurAmbientBelow2) / SoundPitch,
+                volumeMul: one ? cfg.MonsterSoundBelow1Volume : cfg.MonsterSoundBelow2Volume,
+                refDistance: SoundReach, pitch: SoundPitch);
         }
         // Within MonsterSoundBelowMinRange but below the surface: stay silent.
     }
@@ -404,7 +414,7 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     {
         if (hasScreeched) return;
         hasScreeched = true;
-        UnderwaterHorrorsModSystem.ServerInstance?.PlayScreech(entity);
+        UnderwaterHorrorsModSystem.ServerInstance?.PlayScreech(entity, SoundPitch);
     }
 
     /// <summary>Plays the dive sound as the creature retreats below the surface.</summary>
@@ -413,8 +423,8 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         var cfg = UnderwaterHorrorsModSystem.Config;
         UnderwaterHorrorsModSystem.ServerInstance?.PlayMonsterSound(
             entity, UnderwaterHorrorsModSystem.SndDive,
-            UnderwaterHorrorsModSystem.DurDive,
-            volumeMul: cfg?.MonsterSoundDiveVolume ?? 1f);
+            UnderwaterHorrorsModSystem.DurDive / SoundPitch,
+            volumeMul: cfg?.MonsterSoundDiveVolume ?? 1f, refDistance: SoundReach, pitch: SoundPitch);
     }
 
     /// <summary>Plays the bite sound, overriding whatever this creature was playing.</summary>
@@ -423,8 +433,8 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         var cfg = UnderwaterHorrorsModSystem.Config;
         UnderwaterHorrorsModSystem.ServerInstance?.PlayMonsterSound(
             entity, UnderwaterHorrorsModSystem.SndBite,
-            UnderwaterHorrorsModSystem.DurBite, bite: true,
-            volumeMul: cfg?.MonsterSoundBiteVolume ?? 1f);
+            UnderwaterHorrorsModSystem.DurBite / SoundPitch, bite: true,
+            volumeMul: cfg?.MonsterSoundBiteVolume ?? 1f, refDistance: SoundReach, pitch: SoundPitch);
     }
 
     // ═══════════════════════════════════════════════════════════════════

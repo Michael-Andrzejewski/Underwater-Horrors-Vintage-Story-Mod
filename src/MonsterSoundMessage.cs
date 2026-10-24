@@ -51,4 +51,8 @@ public class MonsterSoundMessage
     /// </summary>
     [ProtoMember(10)]
     public bool TwoD;
+
+    /// <summary>Playback pitch; 1 is the sound as recorded. The giant serpent's is lower.</summary>
+    [ProtoMember(11)]
+    public float Pitch = 1f;
 }

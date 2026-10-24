@@ -497,6 +497,9 @@ public class UnderwaterHorrorsConfig
     public float GiantSerpentDespawnAfterLandSeconds { get; set; } = 120f;
     // It swims off after this many seconds even if its prey is still at sea.
     public float GiantSerpentMaxStaySeconds { get; set; } = 480f;
+    // Pitch of its bite and other sounds: the rust serpent's, played slower
+    // and deeper. 1 is the rust serpent's own pitch.
+    public float GiantSerpentSoundPitch { get; set; } = 0.6f;
 
     // Kraken body
     public float KrakenContactDamage { get; set; } = 25f;
@@ -812,6 +815,7 @@ public class UnderwaterHorrorsConfig
         GiantSerpentMinStrikeDepth = Math.Max(1, GiantSerpentMinStrikeDepth);
         GiantSerpentDespawnAfterLandSeconds = Math.Max(0f, GiantSerpentDespawnAfterLandSeconds);
         GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
+        GiantSerpentSoundPitch = Math.Clamp(GiantSerpentSoundPitch, 0.25f, 2f);
 
         // 0 disables the clearance entirely; the upper bound keeps the
         // per-spawn footprint scan bounded. A rise of 0 would make the

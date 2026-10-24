@@ -148,8 +148,65 @@ public sealed class GiantSerpentGlow : IDisposable
     //  Dots
     // ═══════════════════════════════════════════════════════════════════
 
-    // Picks the patches from the giant's mesh: triangles at random, by area,
-    // and a little cluster of dots around a point on each.
+    // The hide's texture, read once per game: dots only go where it is
+    // opaque. The fins and whiskers are mostly see-through texels, and a dot
+    // there floats in the water beside the body.
+    private static int[] texPixels;
+    private static int texW, texH;
+    private static ICoreClientAPI texApi;
+
+    /// <summary>Candidate dots dropped because the hide is see-through there.</summary>
+    public int TransparentRejects { get; private set; }
+    /// <summary>True when the texture was read and dots were checked against it.</summary>
+    public bool AlphaChecked { get; private set; }
+    /// <summary>
+    /// Share of the mesh's surface whose face centers are opaque in the
+    /// texture: a check that UVs map onto the texture the right way round.
+    /// </summary>
+    public double OpaqueAreaShare { get; private set; }
+
+    private TextureAtlasPosition LoadHideAlpha(Shape shape, EntityShapeRenderer esr)
+    {
+        if (shape.Textures == null || shape.Textures.Count != 1) return null;
+        string code = null;
+        AssetLocation loc = null;
+        foreach (var kv in shape.Textures) { code = kv.Key; loc = kv.Value; }
+        TextureAtlasPosition atlas = esr[code];
+        if (atlas == null || loc == null) return null;
+        if (texApi != capi)
+        {
+            texApi = capi;
+            texPixels = null;
+            IAsset asset = capi.Assets.TryGet(loc.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png"));
+            if (asset == null) return null;
+            BitmapExternal bmp = capi.Render.BitmapCreateFromPng(asset.Data);
+            try
+            {
+                texPixels = bmp.Pixels;
+                texW = bmp.Width;
+                texH = bmp.Height;
+            }
+            finally
+            {
+                bmp.Dispose();
+            }
+        }
+        return texPixels == null ? null : atlas;
+    }
+
+    // Alpha (0 to 255) of the hide at an atlas UV.
+    private static int AlphaAt(TextureAtlasPosition atlas, double u, double v)
+    {
+        double lu = (u - atlas.x1) / (atlas.x2 - atlas.x1);
+        double lv = (v - atlas.y1) / (atlas.y2 - atlas.y1);
+        int x = GameMath.Clamp((int)(lu * texW), 0, texW - 1);
+        int y = GameMath.Clamp((int)(lv * texH), 0, texH - 1);
+        return (texPixels[y * texW + x] >> 24) & 0xFF;
+    }
+
+    // Picks the patches from the giant's mesh: a face at random, by area, a
+    // point on it, and a little cluster of dots around that point on the
+    // same face. Every dot lies on its face, where the hide is opaque.
     private void BuildDots(EntityShapeRenderer esr)
     {
         built = true;
@@ -166,23 +223,43 @@ public sealed class GiantSerpentGlow : IDisposable
             return;
         }
         int[] joints = md?.CustomInts?.Values;
-        if (md == null || joints == null || md.Flags == null) return;
+        if (md == null || joints == null || md.Flags == null || md.Uv == null) return;
 
-        int tris = md.IndicesCount / 3;
-        var cum = new double[tris];
-        double total = 0;
-        float[] xyz = md.xyz;
+        TextureAtlasPosition atlas = LoadHideAlpha(shape, esr);
+        AlphaChecked = atlas != null;
+        if (!AlphaChecked)
+            capi.Logger.Warning("[underwaterhorrors] giant serpent glow: could not read the hide texture; dots are not kept off see-through parts");
+
+        // Each box face is a quad: indices (0, 1, 2) and (0, 2, 3), so its
+        // corners are i0, i1, i2 (opposite i0) and i3, with edges i0-i1 and
+        // i0-i3 spanning it.
+        float[] xyz = md.xyz, uvs = md.Uv;
         int[] idx = md.Indices;
-        for (int t = 0; t < tris; t++)
+        int faces = md.IndicesCount / 6;
+        var cum = new double[faces];
+        double total = 0, opaqueArea = 0;
+        for (int f = 0; f < faces; f++)
         {
-            int a = idx[3 * t] * 3, b = idx[3 * t + 1] * 3, c = idx[3 * t + 2] * 3;
-            double ux = xyz[b] - xyz[a], uy = xyz[b + 1] - xyz[a + 1], uz = xyz[b + 2] - xyz[a + 2];
-            double vx = xyz[c] - xyz[a], vy = xyz[c + 1] - xyz[a + 1], vz = xyz[c + 2] - xyz[a + 2];
-            double cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
-            total += 0.5 * Math.Sqrt(cx * cx + cy * cy + cz * cz);
-            cum[t] = total;
+            int i0 = idx[6 * f], i1 = idx[6 * f + 1], i3 = idx[6 * f + 5];
+            bool quad = idx[6 * f + 3] == i0 && idx[6 * f + 4] == idx[6 * f + 2];
+            double area = 0;
+            if (quad)
+            {
+                double ux = xyz[i1 * 3] - xyz[i0 * 3], uy = xyz[i1 * 3 + 1] - xyz[i0 * 3 + 1], uz = xyz[i1 * 3 + 2] - xyz[i0 * 3 + 2];
+                double vx = xyz[i3 * 3] - xyz[i0 * 3], vy = xyz[i3 * 3 + 1] - xyz[i0 * 3 + 1], vz = xyz[i3 * 3 + 2] - xyz[i0 * 3 + 2];
+                double cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+                area = Math.Sqrt(cx * cx + cy * cy + cz * cz);
+            }
+            total += area;
+            cum[f] = total;
+            if (atlas != null && area > 0)
+            {
+                double u = (uvs[i0 * 2] + uvs[idx[6 * f + 2] * 2]) / 2, v = (uvs[i0 * 2 + 1] + uvs[idx[6 * f + 2] * 2 + 1]) / 2;
+                if (AlphaAt(atlas, u, v) >= 128) opaqueArea += area;
+            }
         }
         if (total <= 0) return;
+        OpaqueAreaShare = opaqueArea / total;
 
         var rand = new Random(unchecked((int)(entity.EntityId * 2654435761L)));
         var pos = new List<float>();
@@ -193,56 +270,87 @@ public sealed class GiantSerpentGlow : IDisposable
         var pha = new List<float>();
         var col = new List<byte>();
         var n = new float[3];
+        int rejects = 0;
 
-        for (int p = 0; p < Patches; p++)
+        bool Opaque(int i0, int i1, int i3, double fs, double ft)
         {
-            int t = Array.BinarySearch(cum, rand.NextDouble() * total);
-            if (t < 0) t = ~t;
-            t = Math.Min(t, tris - 1);
-            int ia = idx[3 * t], ib = idx[3 * t + 1], ic = idx[3 * t + 2];
+            if (atlas == null) return true;
+            double u = uvs[i0 * 2] + fs * (uvs[i1 * 2] - uvs[i0 * 2]) + ft * (uvs[i3 * 2] - uvs[i0 * 2]);
+            double v = uvs[i0 * 2 + 1] + fs * (uvs[i1 * 2 + 1] - uvs[i0 * 2 + 1]) + ft * (uvs[i3 * 2 + 1] - uvs[i0 * 2 + 1]);
+            if (AlphaAt(atlas, u, v) >= 128) return true;
+            rejects++;
+            return false;
+        }
 
-            // A random point on the triangle, and its face normal.
-            double r1 = rand.NextDouble(), r2 = rand.NextDouble();
-            if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
-            double px = xyz[ia * 3] + r1 * (xyz[ib * 3] - xyz[ia * 3]) + r2 * (xyz[ic * 3] - xyz[ia * 3]);
-            double py = xyz[ia * 3 + 1] + r1 * (xyz[ib * 3 + 1] - xyz[ia * 3 + 1]) + r2 * (xyz[ic * 3 + 1] - xyz[ia * 3 + 1]);
-            double pz = xyz[ia * 3 + 2] + r1 * (xyz[ib * 3 + 2] - xyz[ia * 3 + 2]) + r2 * (xyz[ic * 3 + 2] - xyz[ia * 3 + 2]);
-            VertexFlags.UnpackNormal(md.Flags[ia], n);
+        int patches = 0;
+        for (int attempt = 0; attempt < Patches * 8 && patches < Patches; attempt++)
+        {
+            int f = Array.BinarySearch(cum, rand.NextDouble() * total);
+            if (f < 0) f = ~f;
+            f = Math.Min(f, faces - 1);
+            int i0 = idx[6 * f], i1 = idx[6 * f + 1], i3 = idx[6 * f + 5];
+
+            double e1x = xyz[i1 * 3] - xyz[i0 * 3], e1y = xyz[i1 * 3 + 1] - xyz[i0 * 3 + 1], e1z = xyz[i1 * 3 + 2] - xyz[i0 * 3 + 2];
+            double e2x = xyz[i3 * 3] - xyz[i0 * 3], e2y = xyz[i3 * 3 + 1] - xyz[i0 * 3 + 1], e2z = xyz[i3 * 3 + 2] - xyz[i0 * 3 + 2];
+            double l1 = Math.Sqrt(e1x * e1x + e1y * e1y + e1z * e1z), l2 = Math.Sqrt(e2x * e2x + e2y * e2y + e2z * e2z);
+            if (l1 < 1e-4 || l2 < 1e-4) continue;
+
+            // A point on an opaque part of the face.
+            double s0 = 0, t0 = 0;
+            bool found = false;
+            for (int k = 0; k < 12 && !found; k++)
+            {
+                s0 = 0.08 + rand.NextDouble() * 0.84;
+                t0 = 0.08 + rand.NextDouble() * 0.84;
+                found = Opaque(i0, i1, i3, s0, t0);
+            }
+            if (!found) continue;
+
+            VertexFlags.UnpackNormal(md.Flags[i0], n);
             double nl = Math.Sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
             if (nl < 1e-6) continue;
             double nx = n[0] / nl, ny = n[1] / nl, nz = n[2] / nl;
-
-            // Two directions along the surface, for spreading the cluster.
-            double ax = Math.Abs(nx) < 0.9 ? 1 : 0, ay = Math.Abs(nx) < 0.9 ? 0 : 1;
-            double t1x = ny * 0 - nz * ay, t1y = nz * ax - nx * 0, t1z = nx * ay - ny * ax;
-            double t1l = Math.Sqrt(t1x * t1x + t1y * t1y + t1z * t1z);
-            t1x /= t1l; t1y /= t1l; t1z /= t1l;
-            double t2x = ny * t1z - nz * t1y, t2y = nz * t1x - nx * t1z, t2z = nx * t1y - ny * t1x;
+            patches++;
 
             int dots = 3 + rand.Next(6);
             double spread = 0.12 + rand.NextDouble() * 0.3;
+            // No dot wider than the face it sits on.
+            double maxRadius = Math.Max(0.02, 0.6 * Math.Min(l1, l2));
             float patchBright = 0.6f + (float)rand.NextDouble() * 0.4f;
             // From a greener to a bluer cyan.
             float lean = (float)rand.NextDouble() * 2 - 1;
             byte cr = (byte)(255 * R), cg = (byte)(255 * (G - 0.15f * Math.Max(0, lean))), cb = (byte)(255 * (B - 0.3f * Math.Max(0, -lean)));
             for (int d = 0; d < dots; d++)
             {
-                double ang = rand.NextDouble() * Math.PI * 2;
-                double dist = d == 0 ? 0 : spread * Math.Sqrt(rand.NextDouble());
-                double ox = Math.Cos(ang) * dist, oy = Math.Sin(ang) * dist;
-                // Sit a hair above the surface.
-                pos.Add((float)(px + t1x * ox + t2x * oy + nx * 0.02));
-                pos.Add((float)(py + t1y * ox + t2y * oy + ny * 0.02));
-                pos.Add((float)(pz + t1z * ox + t2z * oy + nz * 0.02));
+                double fs = s0, ft = t0;
+                if (d > 0)
+                {
+                    bool placed = false;
+                    for (int k = 0; k < 8 && !placed; k++)
+                    {
+                        double ang = rand.NextDouble() * Math.PI * 2;
+                        double dist = spread * Math.Sqrt(rand.NextDouble());
+                        fs = s0 + Math.Cos(ang) * dist / l1;
+                        ft = t0 + Math.Sin(ang) * dist / l2;
+                        placed = fs > 0.03 && fs < 0.97 && ft > 0.03 && ft < 0.97 && Opaque(i0, i1, i3, fs, ft);
+                    }
+                    if (!placed) continue;
+                }
+                // On the face, a hair above it.
+                pos.Add((float)(xyz[i0 * 3] + fs * e1x + ft * e2x + nx * 0.02));
+                pos.Add((float)(xyz[i0 * 3 + 1] + fs * e1y + ft * e2y + ny * 0.02));
+                pos.Add((float)(xyz[i0 * 3 + 2] + fs * e1z + ft * e2z + nz * 0.02));
                 nrm.Add((float)nx); nrm.Add((float)ny); nrm.Add((float)nz);
-                jnt.Add(joints[ia]);
-                rad.Add((float)(d == 0 ? 0.07 + rand.NextDouble() * 0.05 : 0.035 + rand.NextDouble() * 0.045));
+                jnt.Add(joints[i0]);
+                double r = d == 0 ? 0.07 + rand.NextDouble() * 0.05 : 0.035 + rand.NextDouble() * 0.045;
+                rad.Add((float)Math.Min(r, maxRadius));
                 bri.Add(patchBright * (0.7f + 0.3f * (float)rand.NextDouble()));
                 pha.Add((float)(rand.NextDouble() * Math.PI * 2));
                 col.Add(cr); col.Add(cg); col.Add(cb);
             }
         }
 
+        TransparentRejects = rejects;
         dotPos = pos.ToArray();
         dotNormal = nrm.ToArray();
         dotJoint = jnt.ToArray();

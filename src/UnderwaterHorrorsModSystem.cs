@@ -278,7 +278,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // Non-positional 2D playback at the server-computed volume. Always
             // overrides this creature's current sound (dramatic screech).
             StopMonsterSound(id);
-            ILoadedSound flat = LoadFlat2D(loc, msg.Volume);
+            ILoadedSound flat = LoadFlat2D(loc, msg.Volume, msg.Pitch);
             if (flat != null) { monsterSounds[id] = flat; flat.Start(); }
             return;
         }
@@ -288,7 +288,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // Bite overrides everything: cut this creature's current sound and
             // play the bite from its position.
             StopMonsterSound(id);
-            ILoadedSound bite = LoadPositional(loc, pos, msg.Volume, msg.RefDistance);
+            ILoadedSound bite = LoadPositional(loc, pos, msg.Volume, msg.RefDistance, msg.Pitch);
             if (bite != null) { monsterSounds[id] = bite; bite.Start(); }
             return;
         }
@@ -299,11 +299,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
         if (monsterSounds.TryGetValue(id, out var cur) && cur != null && cur.IsPlaying) return;
 
         StopMonsterSound(id);
-        ILoadedSound snd = LoadPositional(loc, pos, msg.Volume, msg.RefDistance);
+        ILoadedSound snd = LoadPositional(loc, pos, msg.Volume, msg.RefDistance, msg.Pitch);
         if (snd != null) { monsterSounds[id] = snd; snd.Start(); }
     }
 
-    private ILoadedSound LoadPositional(AssetLocation loc, Vec3f pos, float volume, float refDistance)
+    private ILoadedSound LoadPositional(AssetLocation loc, Vec3f pos, float volume, float refDistance, float pitch)
     {
         try
         {
@@ -315,6 +315,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 RelativePosition = false,   // pos is in world coordinates
                 DisposeOnFinish = false,    // we manage disposal so bite can cut it
                 Volume = volume,
+                Pitch = pitch > 0f ? pitch : 1f,
                 ReferenceDistance = refDistance > 0f ? refDistance : 8f, // full volume out to this, then falls off
                 Range = Config?.MonsterSoundRange ?? 48f,
                 SoundType = EnumSoundType.Entity
@@ -332,7 +333,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
     // 2D (non-positional) playback at a pre-computed volume, with the same
     // crash-proof guard as LoadPositional.
-    private ILoadedSound LoadFlat2D(AssetLocation loc, float volume)
+    private ILoadedSound LoadFlat2D(AssetLocation loc, float volume, float pitch)
     {
         try
         {
@@ -344,6 +345,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 RelativePosition = true,    // relative to listener = 2D, centered
                 DisposeOnFinish = false,
                 Volume = volume,
+                Pitch = pitch > 0f ? pitch : 1f,
                 ReferenceDistance = 100f,   // no positional falloff (volume is pre-computed)
                 Range = 100f,
                 SoundType = EnumSoundType.Sound
@@ -393,7 +395,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     /// bite always plays and resets the busy timer (overriding). Server only.
     /// </summary>
     public void PlayMonsterSound(Entity source, string soundPath, float durationSeconds, bool bite = false,
-        float volumeMul = 1f, float refDistance = 8f)
+        float volumeMul = 1f, float refDistance = 8f, float pitch = 1f)
     {
         if (sapi == null || source == null || soundPath == null) return;
         if (Config == null || !Config.MonsterSoundsEnabled) return;
@@ -421,7 +423,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
             X = source.Pos.X,
             Y = source.Pos.Y + 0.5,   // lift toward the body/head
             Z = source.Pos.Z,
-            RefDistance = refDistance
+            RefDistance = refDistance,
+            Pitch = pitch
         };
 
         // Send only to players within audible range of the creature.
@@ -448,7 +451,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     /// the creature to MonsterSoundScreechMinVolumeFactor of full at the edge.
     /// Always overrides whatever that creature was playing. Server only.
     /// </summary>
-    public void PlayScreech(Entity source)
+    public void PlayScreech(Entity source, float pitch = 1f)
     {
         if (sapi == null || source == null) return;
         if (Config == null || !Config.MonsterSoundsEnabled) return;
@@ -482,7 +485,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     Volume = vol,
                     TwoD = true,
                     Stop = false,
-                    EntityId = id
+                    EntityId = id,
+                    Pitch = pitch
                 }, sp);
             }
         }

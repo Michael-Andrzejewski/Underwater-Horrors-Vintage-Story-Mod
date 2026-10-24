@@ -72,6 +72,10 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
     public int GlowDots => glow?.DotCount ?? 0;
     /// <summary>Point lights a glowing giant has shining right now.</summary>
     public int GlowLights => glow?.LightsShining ?? 0;
+    /// <summary>The glow's checks against the hide texture, for tests.</summary>
+    public bool GlowAlphaChecked => glow?.AlphaChecked ?? false;
+    public int GlowTransparentRejects => glow?.TransparentRejects ?? 0;
+    public double GlowOpaqueAreaShare => glow?.OpaqueAreaShare ?? 0;
 
     public EntityBehaviorGiantSerpentBody(Entity entity) : base(entity) { }
 

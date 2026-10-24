@@ -15,6 +15,11 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.22.4
+
+- The Glowing Rust Leviathan's patches sit only on opaque parts of its hide. Dots used to land on see-through texels of the fins and whiskers, and on the edges past a face, and floated in the water beside the body. Each dot is now placed on its own face and checked against the texture.
+- The Rust Leviathan's bite and other sounds play deeper and carry further (`GiantSerpentSoundPitch`, default 0.6). Its jaws also snap audibly on a near miss, such as the deliberate miss a creative player gets.
+
 ### 0.22.3
 
 - New variant: the Glowing Rust Leviathan. Some 150 patches of cyan bioluminescence grow over its hide like coral on a wreck. They bend with the body, show through the murk and the dark, and four real lights along its spine light the water around it. Three natural giants in ten glow (`GiantSerpentGlowChance`); `/uh spawn giantserpentglow` brings one. A dead one goes dark over 40 seconds.

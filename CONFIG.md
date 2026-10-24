@@ -136,6 +136,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentMinStrikeDepth` | int | `20` | It only strikes prey over water at least this deep. When its prey is over shallower water or ashore, it swims off into the deep, and comes back if its prey returns to deep water. |
 | `GiantSerpentDespawnAfterLandSeconds` | float | `120f` | Seconds its prey can stay ashore before the giant is removed. It is also removed once it has swum out of sight of every player. |
 | `GiantSerpentMaxStaySeconds` | float | `480f` | It swims off after this many seconds even if its prey is still at sea. |
+| `GiantSerpentSoundPitch` | float | `0.6f` | Pitch of its bite and other sounds: the rust serpent's, played slower and deeper. 1 is the rust serpent's own pitch. |
 | **Kraken body** | | | |
 | `KrakenContactDamage` | float | `25f` |  |
 | `KrakenContactRange` | float | `3f` |  |
