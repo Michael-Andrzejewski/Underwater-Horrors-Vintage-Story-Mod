@@ -15,6 +15,11 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.22.3
+
+- New variant: the Glowing Rust Leviathan. Some 150 patches of cyan bioluminescence grow over its hide like coral on a wreck. They bend with the body, show through the murk and the dark, and four real lights along its spine light the water around it. Three natural giants in ten glow (`GiantSerpentGlowChance`); `/uh spawn giantserpentglow` brings one. A dead one goes dark over 40 seconds.
+- The Rust Leviathan's deep shape is lighter: a murky outline a little darker than the water, like a far wreck, instead of a near-black cutout.
+
 ### 0.22.2
 
 - The Rust Leviathan's deep shape is its own model now, posed exactly as it is drawn: head, jaws, spikes, fins and tail, in one even dark layer. It used to be a rough tube along the spine.

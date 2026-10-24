@@ -66,6 +66,12 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
     public int JointCount { get; private set; }
 
     private GiantSerpentSilhouette silhouette;
+    private GiantSerpentGlow glow;
+
+    /// <summary>Bioluminescent dots on a glowing giant (0 on a plain one).</summary>
+    public int GlowDots => glow?.DotCount ?? 0;
+    /// <summary>Point lights a glowing giant has shining right now.</summary>
+    public int GlowLights => glow?.LightsShining ?? 0;
 
     public EntityBehaviorGiantSerpentBody(Entity entity) : base(entity) { }
 
@@ -96,6 +102,8 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
         if (lighting != null) capi?.Event.UnregisterRenderer(lighting, EnumRenderStage.Before);
         silhouette?.Dispose();
         silhouette = null;
+        glow?.Dispose();
+        glow = null;
         base.OnEntityDespawn(despawn);
     }
 
@@ -149,6 +157,15 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
+        // A glowing giant's flag comes with its spawn; make its glow on
+        // first sight. The corpse's glow keeps fading after death.
+        if (glow == null && silhouette != null && entity.WatchedAttributes.GetBool(GiantSerpentGlow.BiolumAttr))
+        {
+            glow = new GiantSerpentGlow(capi, entity, this);
+            silhouette.Glow = glow;
+        }
+        glow?.Update(deltaTime);
+
         if (!entity.Alive) return;
         if (!ResolveRig()) return;
 

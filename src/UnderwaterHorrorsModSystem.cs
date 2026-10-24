@@ -649,8 +649,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .HandleWith(OnCmdNatural)
             .EndSubCommand()
             .BeginSubCommand("spawn")
-                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant; giantserpent starts 100 to 140 blocks out.")
-                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "giantserpent"))
+                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant; giantserpent starts 100 to 140 blocks out, giantserpentglow the glowing one.")
+                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "giantserpent", "giantserpentglow"))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dungeon")
@@ -1001,8 +1001,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
             case "deepserpent": creature = SpawnSerpent(caller, forceDeep: true); break;
             case "serpent3": creature = SpawnSerpent3(caller); break;
             case "kraken": creature = SpawnKraken(caller); break;
-            case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140); break;
-            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken or giantserpent.");
+            case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140, glow: false); break;
+            case "giantserpentglow": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140, glow: true); break;
+            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken, giantserpent or giantserpentglow.");
         }
 
         if (creature == null) return TextCommandResult.Error("Failed to spawn creature (no valid water position found nearby). Try deeper water.");

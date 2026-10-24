@@ -967,10 +967,11 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
 
     /// <summary>
     /// Spawns a giant serpent in open water between minDist and maxDist
-    /// blocks from the player, facing them, at its cruising depth. Returns
-    /// null when no column that far out is open deep water.
+    /// blocks from the player, facing them, at its cruising depth. glow
+    /// picks the bioluminescent variant; null rolls GiantSerpentGlowChance.
+    /// Returns null when no column that far out is open deep water.
     /// </summary>
-    public static Entity SpawnNear(ICoreServerAPI sapi, IServerPlayer player, double minDist, double maxDist)
+    public static Entity SpawnNear(ICoreServerAPI sapi, IServerPlayer player, double minDist, double maxDist, bool? glow = null)
     {
         var cfg = UnderwaterHorrorsModSystem.Config;
         EntityProperties props = sapi.World.GetEntityType(EntityCode);
@@ -999,12 +1000,14 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             giant.Pos.Yaw = (float)Math.Atan2(ppos.X - x, ppos.Z - z);
             giant.Pos.SetFrom(giant.Pos);
             giant.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
+            bool glowing = glow ?? rand.NextDouble() < cfg.GiantSerpentGlowChance;
+            if (glowing) giant.WatchedAttributes.SetBool(GiantSerpentGlow.BiolumAttr, true);
             sapi.World.SpawnEntity(giant);
             UnderwaterHorrorsModSystem.ApplyConfiguredHealth(giant);
 
             if (cfg.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(sapi,
-                    $"SPAWNED giant serpent targeting {player.PlayerName} at ({x:F0}, {y:F0}, {z:F0}), {dist:F0} blocks out");
+                    $"SPAWNED {(glowing ? "glowing " : "")}giant serpent targeting {player.PlayerName} at ({x:F0}, {y:F0}, {z:F0}), {dist:F0} blocks out");
             return giant;
         }
         return null;

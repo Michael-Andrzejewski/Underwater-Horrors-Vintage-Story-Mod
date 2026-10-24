@@ -19,6 +19,7 @@ uniform float maxAlpha;
 uniform float depthPull;     // blocks the shape is moved toward the camera for depth testing
 uniform float depthPullPerBlock;   // plus this much per block of distance
 uniform float nearerBy;      // then this much nearer, in depth buffer units
+uniform int depthOnly;       // 1 in the depth pass: every fragment of the shape counts
 uniform float fadeStart;     // distance where the shape starts to fade out
 uniform float fadeEnd;       // and where it is gone
 
@@ -27,10 +28,12 @@ void main() {
     if (texture(entityTex, uv).a < 0.05) discard;
 
     float a;
-    if (camUnderwater == 1) {
+    if (depthOnly == 1) {
+        a = 1.0;
+    } else if (camUnderwater == 1) {
         // The water fog swallows the model a couple of dozen blocks out;
-        // the shape takes over from there.
-        a = smoothstep(10.0, 34.0, dist);
+        // the shape takes over from there, fainter further into the murk.
+        a = smoothstep(10.0, 34.0, dist) * mix(1.0, 0.6, smoothstep(40.0, 160.0, dist));
     } else {
         // From above, the water hides anything a dozen blocks down. Show
         // the shape below that, a little fainter the deeper it goes.

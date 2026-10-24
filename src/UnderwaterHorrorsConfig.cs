@@ -465,6 +465,10 @@ public class UnderwaterHorrorsConfig
     // serpent spawn in fifty. 0 turns natural giants off; /uh spawn
     // giantserpent always works.
     public float GiantSerpentSpawnChance { get; set; } = 0.02f;
+    // Chance that a natural giant is the glowing variant: patches of cyan
+    // bioluminescence over its hide that light the water around it. /uh
+    // spawn giantserpentglow always brings one.
+    public float GiantSerpentGlowChance { get; set; } = 0.3f;
     public float GiantSerpentMaxHealth { get; set; } = 1500f;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
@@ -794,6 +798,7 @@ public class UnderwaterHorrorsConfig
         // windows must be real ranges, and a giant that cannot move or
         // never breaks a boat is not the creature described above.
         GiantSerpentSpawnChance = Math.Clamp(GiantSerpentSpawnChance, 0f, 1f);
+        GiantSerpentGlowChance = Math.Clamp(GiantSerpentGlowChance, 0f, 1f);
         GiantSerpentMaxHealth = Math.Max(1f, GiantSerpentMaxHealth);
         GiantSerpentBiteDamage = Math.Max(0f, GiantSerpentBiteDamage);
         GiantSerpentRiderDamage = Math.Max(0f, GiantSerpentRiderDamage);

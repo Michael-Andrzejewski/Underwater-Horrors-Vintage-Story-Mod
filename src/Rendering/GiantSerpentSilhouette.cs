@@ -45,8 +45,9 @@ public sealed class GiantSerpentSilhouette : IRenderer
     public const float FadeEndBlocks = 230f;
     private const float FadeStartBlocks = 170f;
 
-    // How dark the shape gets where it is fully shown.
-    private const float MaxAlpha = 0.7f;
+    // How dark the shape gets where it is fully shown: a murky outline, a
+    // little darker than the water around it, like a far wreck.
+    private const float MaxAlpha = 0.3f;
     // How far the shape is pulled toward the camera for the depth test, as
     // a multiple of the entity size, plus a little per block of distance.
     private const float DepthPull = 0.6f;
@@ -78,6 +79,9 @@ public sealed class GiantSerpentSilhouette : IRenderer
     private readonly float[] opaqueView = new float[16];
     private readonly float[] opaqueModel = new float[16];
     private bool haveOpaqueMatrices;
+
+    /// <summary>The glowing variant's dots, drawn right after the shape.</summary>
+    public GiantSerpentGlow Glow { get; set; }
 
     public double RenderOrder => 0.5;
     public int RenderRange => 9999;
@@ -181,15 +185,20 @@ public sealed class GiantSerpentSilhouette : IRenderer
         animUbo.Update(animator.Matrices, 0, Math.Min(animator.MaxJointId, GlobalConstants.MaxAnimatedElements) * 16 * 4);
 
         shader.Uniform("depthPull", DepthPull * size);
-        // Pass 1: the nearest surface's depth, no color.
+        // Pass 1: the nearest surface's depth, no color. It covers the whole
+        // shape, faded or not, so the glow can test against it everywhere.
         render.GlColorMask(false, false, false, false);
+        shader.Uniform("depthOnly", 1);
         shader.Uniform("nearerBy", 0f);
         render.RenderMultiTextureMesh(mesh, "entityTex", 0);
         // Pass 2: color, only where a fragment is that nearest surface.
         render.GlColorMask(true, true, true, true);
+        shader.Uniform("depthOnly", 0);
         shader.Uniform("nearerBy", ColorPassNearer);
         render.RenderMultiTextureMesh(mesh, "entityTex", 0);
         shader.Stop();
+
+        Glow?.Draw(esr, opaqueProjection, opaqueView, opaqueModel, animator.Matrices, DepthPull * size, DepthPullPerBlock);
 
         render.GlEnableCullFace();
     }
