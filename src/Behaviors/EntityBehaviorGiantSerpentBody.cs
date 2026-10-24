@@ -58,7 +58,7 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
     /// Spine joints as last posed, relative to the mouth (the entity
     /// position): the mouth, each bone's pivot, and the end of the last
     /// link. A dead serpent keeps its last set, which moves with the sinking
-    /// corpse. Read by the deep silhouette and the lighting.
+    /// corpse. Read by the lighting.
     /// </summary>
     public double[] RelX { get; private set; }
     public double[] RelY { get; private set; }
@@ -86,7 +86,7 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
             lighting = new BodyLighting(this);
             capi.Event.RegisterRenderer(this, EnumRenderStage.Before, "underwaterhorrors-giantserpentbody");
             capi.Event.RegisterRenderer(lighting, EnumRenderStage.Before, "underwaterhorrors-giantserpentlight");
-            silhouette = new GiantSerpentSilhouette(capi, entity, this, GiantSerpentRig.BodyRadii(properties));
+            silhouette = new GiantSerpentSilhouette(capi, entity);
         }
     }
 

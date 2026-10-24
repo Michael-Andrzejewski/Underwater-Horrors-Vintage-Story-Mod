@@ -120,7 +120,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `DeepSerpentPitchInterpRate` | float | `0.3f` | very slow tilt lerp |
 | `DeepSerpentMaxVerticalSpeed` | float | `0.012f` | Vertical-motion smoothing for the damped controller. DeepSerpentMaxVerticalSpeed: hard cap on \|Motion.Y\| (blocks/tick units that VS physics uses).  Much smaller than horizontal speed so the body glides up/down very slowly even when dy is large. DeepSerpentVerticalSlewPerSec: max change in Motion.Y per second. Prevents snap from e.g. +0.01 to -0.01 between ticks, smoothing the moment where the serpent crosses through its target depth. |
 | `DeepSerpentVerticalSlewPerSec` | float | `0.04f` |  |
-| `GiantSerpentSpawnChance` | float | `0.02f` | ─── Giant serpent ─────────────────────────────────────────────────── A very rare rust serpent five times the size (the entity size in giantserpent.json). It never surfaces to hiss like the rust serpent: it circles far below its prey, then rises mouth first from the deep. It bites swimmers, swallows rafts whole and breaks bigger boats in a few bites. The only time it leaves the water is the breach after a strike. Chance that a natural serpent spawn is the giant instead. 0.02 is one serpent spawn in fifty. 0 turns natural giants off; /uh spawn giantserpent always works. |
+| `GiantSerpentSpawnChance` | float | `0.02f` | ─── Giant serpent ─────────────────────────────────────────────────── A very rare rust serpent five times the size (the entity size in giantserpent.json). It never surfaces to hiss like the rust serpent: it circles far below its prey, then rises mouth first from the deep. It bites swimmers, swallows rafts whole and breaks bigger boats in a few bites. It never leaves the water: when it strikes, only its head and the arch of its back break the surface. Chance that a natural serpent spawn is the giant instead. 0.02 is one serpent spawn in fifty. 0 turns natural giants off; /uh spawn giantserpent always works. |
 | `GiantSerpentMaxHealth` | float | `1500f` |  |
 | `GiantSerpentBiteDamage` | float | `20f` | Damage of a bite on a swimmer, and its armor piercing tier. |
 | `GiantSerpentDamageTier` | int | `4` |  |
@@ -132,7 +132,8 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentStalkSecondsMax` | float | `50f` |  |
 | `GiantSerpentStrikeCooldownMin` | float | `15f` |  |
 | `GiantSerpentStrikeCooldownMax` | float | `30f` |  |
-| `GiantSerpentMinStrikeDepth` | int | `20` | It only strikes prey over water at least this deep. Over shallower water it keeps circling, and gives up after half a minute. |
+| `GiantSerpentMinStrikeDepth` | int | `20` | It only strikes prey over water at least this deep. When its prey is over shallower water or ashore, it swims off into the deep, and comes back if its prey returns to deep water. |
+| `GiantSerpentDespawnAfterLandSeconds` | float | `120f` | Seconds its prey can stay ashore before the giant is removed. It is also removed once it has swum out of sight of every player. |
 | `GiantSerpentMaxStaySeconds` | float | `480f` | It swims off after this many seconds even if its prey is still at sea. |
 | **Kraken body** | | | |
 | `KrakenContactDamage` | float | `25f` |  |

@@ -16,7 +16,8 @@ public enum GiantSerpentState
     Setup,
     Strike,
     Breach,
-    Retreat
+    Retreat,
+    Withdraw
 }
 
 /// <summary>
@@ -34,10 +35,18 @@ public enum GiantSerpentState
 /// (Setup), then rushes up at it mouth first (Strike). A boat is the prey
 /// when its player sits in one: a raft goes in one gulp, a sailboat breaks
 /// after a few bites, and the riders land in the water. Swimmers are bitten.
-/// After every strike it carries on up out of the water and arcs back down
-/// (Breach), then circles again. It leaves (Retreat) when its prey is gone,
-/// stays over shallow water, or after GiantSerpentMaxStaySeconds, and when
-/// badly hurt.
+/// After every strike its head breaks the surface, and it rolls straight
+/// over and dives (Breach), then circles again. It never leaves the water:
+/// the mouth stops at the surface, and it turns away from shallows and
+/// coasts before it reaches them.
+///
+/// When its prey goes ashore or over shallow water, it swims off into the
+/// deep (Withdraw), and comes back if the prey returns to deep water. It
+/// leaves for good (Retreat) when its prey is gone, after
+/// GiantSerpentMaxStaySeconds, and when badly hurt. Either way it is only
+/// removed once its whole body is out of sight of every player; the
+/// creature sweep also removes it after its prey has been ashore for
+/// GiantSerpentDespawnAfterLandSeconds.
 /// </summary>
 public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
 {
@@ -51,8 +60,17 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     // Seconds between server copies of the trail for newly watching clients.
     private const float SeedInterval = 3f;
 
-    // How long the head keeps climbing out of the water after a strike.
-    private const float BreachClimbSeconds = 1.0f;
+    // Seconds its prey must be out of reach before it swims off, and back in
+    // reach before it returns.
+    private const float WithdrawAfterSeconds = 5f;
+    private const float ReturnAfterSeconds = 3f;
+
+    // A leaving giant is removed once no player is this close to any part
+    // of its body: just past where its deep silhouette has faded out.
+    private const double OutOfSightBlocks = GiantSerpentSilhouette.FadeEndBlocks + 10;
+    // A retreat that cannot get out of sight (a player chasing it by boat,
+    // or a bay it cannot find its way out of) ends after this long anyway.
+    private const float RetreatGiveUpSeconds = 300f;
 
     /// <summary>
     /// Set on a giant for screenshots and model inspection: it circles its
@@ -81,7 +99,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private double orbitStart, orbitEnd;
     private double circleDuration;
     private bool firstCircle = true;
-    private float unstrikeableTimer;
+    private float unreachableTimer, reachableTimer;
 
     // Setup and strike
     private bool setupGainingRoom;
@@ -102,6 +120,14 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private int floorY = -1, floorAheadY = -1, floorFarY = -1;
     private double smoothLowY = double.NaN;
     private float floorScanTimer;
+
+    // Shore avoidance: turn added to the wanted heading, re-picked twice a second.
+    private double avoidTurn;
+    private float avoidTimer;
+
+    // Points along the body, for the out-of-sight check.
+    private double[] sightArcs, sightX, sightY, sightZ, sightOdo, sightTx, sightTz;
+    private float sightTimer;
 
     public EntityBehaviorGiantSerpentAI(Entity entity) : base(entity) { }
 
@@ -159,7 +185,8 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
                 TransitionTo(GiantSerpentState.Retreat);
             }
             else if (lifeTimer > config.GiantSerpentMaxStaySeconds && !Showcase &&
-                     (state == GiantSerpentState.Circle || state == GiantSerpentState.Approach))
+                     (state == GiantSerpentState.Circle || state == GiantSerpentState.Approach ||
+                      state == GiantSerpentState.Withdraw))
             {
                 Log($"stayed {lifeTimer:F0}s, retreating");
                 TransitionTo(GiantSerpentState.Retreat);
@@ -168,6 +195,18 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             {
                 Log("badly hurt, retreating");
                 TransitionTo(GiantSerpentState.Retreat);
+            }
+            else if (!Showcase && (state == GiantSerpentState.Approach ||
+                     state == GiantSerpentState.Circle || state == GiantSerpentState.Setup))
+            {
+                // Prey ashore or over shallow water: give it a few seconds,
+                // then swim off into the deep rather than circle the shallows.
+                unreachableTimer = PreyStrikeable() ? 0 : unreachableTimer + dt;
+                if (unreachableTimer > WithdrawAfterSeconds)
+                {
+                    Log("prey out of reach, withdrawing");
+                    TransitionTo(GiantSerpentState.Withdraw);
+                }
             }
         }
 
@@ -179,6 +218,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             case GiantSerpentState.Strike: OnStrike(dt); break;
             case GiantSerpentState.Breach: OnBreach(dt); break;
             case GiantSerpentState.Retreat: OnRetreat(dt); break;
+            case GiantSerpentState.Withdraw: OnWithdraw(dt); break;
         }
         if (!entity.Alive) return;
 
@@ -347,7 +387,6 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
                     ? Rand(config.GiantSerpentStalkSecondsMin, config.GiantSerpentStalkSecondsMax)
                     : Rand(config.GiantSerpentStrikeCooldownMin, config.GiantSerpentStrikeCooldownMax);
                 firstCircle = false;
-                unstrikeableTimer = 0;
                 break;
             }
             case GiantSerpentState.Setup:
@@ -364,6 +403,13 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             case GiantSerpentState.Retreat:
                 StopAnim(AnimGape);
                 PlayDive();
+                break;
+            case GiantSerpentState.Withdraw:
+                StopAnim(AnimGape);
+                reachableTimer = 0;
+                break;
+            case GiantSerpentState.Approach:
+                unreachableTimer = 0;
                 break;
         }
     }
@@ -397,15 +443,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         double tz = prey.Pos.Z + Math.Sin(ang) * radius;
         Steer(tx, CruiseY(CruiseDepth), tz, config.GiantSerpentCruiseSpeed, 14, 10, 25, dt);
 
-        bool strikeable = PreyStrikeable();
-        unstrikeableTimer = strikeable ? 0 : unstrikeableTimer + dt;
-        if (unstrikeableTimer > 30f && !Showcase)
-        {
-            Log("prey out of reach for 30s, retreating");
-            TransitionTo(GiantSerpentState.Retreat);
-            return;
-        }
-        if (t >= 1 && strikeable && !Showcase) TransitionTo(GiantSerpentState.Setup);
+        if (t >= 1 && PreyStrikeable() && !Showcase) TransitionTo(GiantSerpentState.Setup);
     }
 
     private void OnSetup(float dt)
@@ -491,24 +529,16 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
 
     private void OnBreach(float dt)
     {
-        // Climb on for a second so the head rears well clear of the water,
-        // then arc over and dive back down ahead. The body follows the
-        // mouth's path, so it rises out of the sea in one long arch.
+        // The head has broken the surface at its prey. Roll straight over and
+        // dive back down ahead. Move holds the mouth at the surface while the
+        // nose comes down, and the body follows the mouth's path, so it
+        // passes through the waves in one low arch.
         double cruiseY = CruiseY(CruiseDepth);
-        if (stateTimer < BreachClimbSeconds)
-        {
-            double up = Math.Max(pitch, 45 * GameMath.DEG2RAD);
-            Steer(entity.Pos.X + Math.Sin(yaw) * 100, entity.Pos.Y + Math.Tan(up) * 100,
-                entity.Pos.Z + Math.Cos(yaw) * 100, config.GiantSerpentStrikeSpeed * 0.85, 5, 40, 70, dt);
-        }
-        else
-        {
-            double ahead = 8 * size;
-            Steer(entity.Pos.X + Math.Sin(yaw) * ahead, cruiseY - 2 * size, entity.Pos.Z + Math.Cos(yaw) * ahead,
-                config.GiantSerpentCruiseSpeed * 1.5, 10, 45, 70, dt);
-        }
+        double ahead = 8 * size;
+        Steer(entity.Pos.X + Math.Sin(yaw) * ahead, cruiseY - 2 * size, entity.Pos.Z + Math.Cos(yaw) * ahead,
+            config.GiantSerpentCruiseSpeed * 1.5, 10, 90, 70, dt);
 
-        bool backDown = stateTimer > BreachClimbSeconds && entity.Pos.Y < cruiseY + 0.5 * size && pitch <= 0;
+        bool backDown = entity.Pos.Y < cruiseY + 0.5 * size && pitch <= 0;
         if (backDown || stateTimer > 15f)
         {
             StopAnim(AnimGulp);
@@ -533,12 +563,72 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         Steer(entity.Pos.X + ax / h * 100, LowestY, entity.Pos.Z + az / h * 100,
             config.GiantSerpentCruiseSpeed * 1.4, 12, 12, 30, dt);
 
-        double far = prey == null ? 0 : Math.Sqrt(Sq(entity.Pos.X - prey.Pos.X) + Sq(entity.Pos.Z - prey.Pos.Z));
-        if (stateTimer > 45f || far > 30 * size)
+        if (OutOfEverySight(dt) || stateTimer > RetreatGiveUpSeconds)
         {
-            Log("gone");
+            Log(stateTimer > RetreatGiveUpSeconds ? "retreated too long, gone" : "out of sight, gone");
             entity.Die(EnumDespawnReason.Expire);
         }
+    }
+
+    private void OnWithdraw(float dt)
+    {
+        if (prey == null) return;
+        // Away from the prey, deep. Steer's shore avoidance finds the way
+        // out to open water when the prey stands on a beach.
+        double ax = entity.Pos.X - prey.Pos.X, az = entity.Pos.Z - prey.Pos.Z;
+        double h = Math.Max(1e-3, Math.Sqrt(ax * ax + az * az));
+        Steer(entity.Pos.X + ax / h * 100, CruiseY(StrikeDepth), entity.Pos.Z + az / h * 100,
+            config.GiantSerpentCruiseSpeed * 1.2, 12, 12, 30, dt);
+
+        reachableTimer = PreyStrikeable() ? reachableTimer + dt : 0;
+        if (reachableTimer > ReturnAfterSeconds)
+        {
+            Log("prey back over deep water, returning");
+            TransitionTo(GiantSerpentState.Approach);
+            return;
+        }
+
+        if (OutOfEverySight(dt))
+        {
+            Log("out of sight, gone");
+            entity.Die(EnumDespawnReason.Expire);
+        }
+    }
+
+    /// <summary>
+    /// True when no player is within OutOfSightBlocks of any part of the
+    /// body. The body trails up to 220 blocks behind the mouth, toward
+    /// whoever it is swimming away from, so the mouth alone says little.
+    /// Checked once a second; false in between.
+    /// </summary>
+    private bool OutOfEverySight(float dt)
+    {
+        sightTimer -= dt;
+        if (sightTimer > 0) return false;
+        sightTimer = 1f;
+
+        double length = bodyLength * size;
+        int n = (int)Math.Ceiling(length / 8) + 1;
+        if (sightArcs == null || sightArcs.Length != n)
+        {
+            sightArcs = new double[n];
+            sightX = new double[n]; sightY = new double[n]; sightZ = new double[n];
+            sightOdo = new double[n]; sightTx = new double[n]; sightTz = new double[n];
+            for (int i = 0; i < n; i++) sightArcs[i] = Math.Min(length, i * 8.0);
+        }
+        Trail.SampleMany(sightArcs, n, sightX, sightY, sightZ, sightOdo, sightTx, sightTz);
+
+        double limitSq = OutOfSightBlocks * OutOfSightBlocks;
+        foreach (IPlayer player in entity.World.AllOnlinePlayers)
+        {
+            var p = player.Entity?.Pos;
+            if (p == null || p.Dimension != entity.Pos.Dimension) continue;
+            for (int i = 0; i < n; i++)
+            {
+                if (Sq(sightX[i] - p.X) + Sq(sightY[i] - p.Y) + Sq(sightZ[i] - p.Z) < limitSq) return false;
+            }
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -661,6 +751,11 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         if (h > 1e-3)
         {
             double wantYaw = Math.Atan2(dx, dz);
+            // A strike goes straight for prey that is over deep water anyway.
+            if (state != GiantSerpentState.Strike && state != GiantSerpentState.Breach)
+            {
+                wantYaw = AvoidShallows(wantYaw, dt);
+            }
             double turn = GameMath.AngleRadDistance((float)yaw, (float)wantYaw);
             double maxTurn = yawRateDeg * GameMath.DEG2RAD * dt;
             yaw = GameMath.Mod(yaw + Math.Clamp(turn, -maxTurn, maxTurn), GameMath.TWOPI);
@@ -677,6 +772,71 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         speed += Math.Clamp(wantSpeed - speed, -accel, accel);
     }
 
+    // Turns tried away from the wanted heading, in degrees, nearest first.
+    private static readonly double[] AvoidTurnsDeg = { 0, 25, 50, 75, 100, 130, 160, 180 };
+    // How far ahead the water is checked, as multiples of the size: about
+    // twice its turning circle at cruising speed.
+    private static readonly double[] AvoidProbes = { 2, 5, 8, 12 };
+
+    /// <summary>
+    /// The wanted heading, turned as little as possible to keep clear of
+    /// shallows and coasts. Without this, following the sea floor up a
+    /// beach carried the giant right out of the water. Re-picked twice a
+    /// second; it tries the side it turned to last first, so it does not
+    /// dither between two ways around a headland.
+    /// </summary>
+    private double AvoidShallows(double wantYaw, float dt)
+    {
+        avoidTimer -= dt;
+        if (avoidTimer <= 0)
+        {
+            avoidTimer = 0.5f;
+            double need = 3.0 * size;
+            double side = avoidTurn < 0 ? -1 : 1;
+            double best = 0, bestDepth = double.NegativeInfinity;
+            bool found = false;
+            foreach (double deg in AvoidTurnsDeg)
+            {
+                int tries = deg == 0 || deg == 180 ? 1 : 2;
+                for (int k = 0; k < tries && !found; k++)
+                {
+                    double turn = (k == 0 ? side : -side) * deg * GameMath.DEG2RAD;
+                    double depth = ShallowestAlong(wantYaw + turn, need);
+                    if (depth >= need) { best = turn; found = true; }
+                    else if (depth > bestDepth) { bestDepth = depth; best = turn; }
+                }
+                if (found) break;
+            }
+            if (Math.Abs(best - avoidTurn) > 1e-6)
+                Log($"shore ahead, now {best * GameMath.RAD2DEG:F0} degrees off course");
+            avoidTurn = best;
+        }
+        return wantYaw + avoidTurn;
+    }
+
+    // The shallowest water along a heading, at the probe distances. Stops
+    // early once it is shallower than `need`.
+    private double ShallowestAlong(double heading, double need)
+    {
+        double sx = Math.Sin(heading), sz = Math.Cos(heading);
+        double least = double.PositiveInfinity;
+        foreach (double k in AvoidProbes)
+        {
+            least = Math.Min(least, WaterDepthAt(entity.Pos.X + sx * k * size, entity.Pos.Z + sz * k * size));
+            if (least < need) break;
+        }
+        return least;
+    }
+
+    // Surface to sea floor at a column; negative on land. Columns with no
+    // floor in range, or not loaded, count as open ocean.
+    private double WaterDepthAt(double x, double z)
+    {
+        int floor = EntityBehaviorSerpentHarvest.FindRestingYBelow(
+            entity.World.BlockAccessor, x, surfaceY, z, entity.Pos.Dimension);
+        return floor < 0 ? 80 : surfaceY - floor;
+    }
+
     private void Move(float dt)
     {
         var pos = entity.Pos;
@@ -689,14 +849,17 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         pos.Y += vy * dt;
         pos.Z += vz * dt;
 
-        // Between the sea floor and, outside a strike, under the surface.
-        // Out of bounds it is eased back over a second or so and levels
-        // out, rather than snapped back: a snap kinks the mouth's path, and
-        // the body would carry every kink along behind it.
+        // Between the sea floor and under the surface; in a strike the mouth
+        // may come up to the surface itself, no further. Out of bounds it is
+        // eased back over a second or so and levels out, rather than snapped
+        // back: a snap kinks the mouth's path, and the body would carry
+        // every kink along behind it.
         bool striking = state == GiantSerpentState.Strike || state == GiantSerpentState.Breach;
         double low = LowestY;
-        double high = striking ? surfaceY + 2.5 * size : surfaceY - MinDepthBelowSurface;
-        if (high < low) high = low;
+        double high = striking ? surfaceY : surfaceY - MinDepthBelowSurface;
+        // Water too shallow for both margins: stay under and skim the floor
+        // (the hard floor guard below still applies) rather than rise out.
+        if (high < low) low = high;
         double ease = 0.5 * size * dt;
         double level = 25 * GameMath.DEG2RAD * dt;
         if (pos.Y < low)

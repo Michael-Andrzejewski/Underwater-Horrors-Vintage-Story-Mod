@@ -2322,7 +2322,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 continue;
             }
 
-            float limit = fromSpawner ? Config.SpawnerDespawnAfterLeaveSeconds : Config.DespawnAfterLandSeconds;
+            float limit = fromSpawner ? Config.SpawnerDespawnAfterLeaveSeconds
+                : path == "giantserpent" ? Config.GiantSerpentDespawnAfterLandSeconds
+                : Config.DespawnAfterLandSeconds;
             // A spawner that set "stay while ashore" keeps its creature that
             // long, as long as the target stays within its linger range.
             float linger = fromSpawner ? creature.WatchedAttributes.GetFloat(BlockEntityCreatureSpawner.LingerSecondsAttr, 0f) : 0f;

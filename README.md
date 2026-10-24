@@ -15,6 +15,12 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.22.2
+
+- The Rust Leviathan's deep shape is its own model now, posed exactly as it is drawn: head, jaws, spikes, fins and tail, in one even dark layer. It used to be a rough tube along the spine.
+- It stays in the water. In a strike the mouth comes up to the surface and no further, then it rolls straight over and dives; only the head and the arch of its back break the waves. It looks up to 60 blocks ahead and turns away from shallows and coasts, instead of following the sea floor up a beach.
+- When its prey goes ashore or over shallow water, it swims off into the deep, and comes back if they return to deep water. It is only removed once its whole body is out of sight of every player, or after its prey has been ashore for two minutes (`GiantSerpentDespawnAfterLandSeconds`, default 120). It used to vanish 30 seconds after you stepped ashore.
+
 ### 0.22.1
 
 - The Rust Leviathan is five times a rust serpent's size now (about 220 blocks), not ten.

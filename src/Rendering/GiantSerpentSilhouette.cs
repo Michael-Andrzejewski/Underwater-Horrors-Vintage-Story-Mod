@@ -1,76 +1,100 @@
 using System;
+using System.Reflection;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
 
 /// <summary>
-/// The giant serpent's deep silhouette: a dark, soft-edged shape that shows
-/// where the serpent is, even where its real model cannot be seen.
+/// The giant serpent's deep silhouette: its own model, posed exactly as it
+/// is drawn this frame, laid over the finished scene as a flat dark shape.
 ///
 /// Water hides a deep entity completely. From above, the water surface is
 /// drawn over everything a dozen blocks down; underwater, the fog swallows
 /// the model a couple of dozen blocks out. So the serpent, which spends its
-/// time 15 to 30 blocks down, could not be seen at all. This draws a tube
-/// around its spine (built every frame from the joints the body behavior
-/// just posed, sized from the trunk at each bone) after the scene is
-/// finished, so neither the water surface nor the fog covers it. It still
-/// depth-tests against terrain and the serpent's own model, and the shader
-/// fades it out where the real model is visible: near the surface when
-/// looking down from above, and near the camera underwater.
+/// time 15 to 30 blocks down, could not be seen at all. This draws the
+/// entity's mesh a second time after the scene is finished, so neither the
+/// water surface nor the fog covers it, with the same bone matrices the
+/// game just used for the real model: fins, spikes and the swimming curve
+/// all match. The shader fades it out where the real model is visible: near
+/// the surface when looking down from above, and near the camera underwater.
+///
+/// Each pixel gets one even layer of darkness, from two passes over the
+/// mesh. The first writes only depth: the nearest surface of the shape at
+/// every pixel, pulled a few blocks toward the camera so the real model's
+/// own surfaces never hide it (terrain further in front still does). The
+/// second draws the color a hair nearer still, with depth writes on, so only
+/// that nearest surface passes, once: the far side, inner faces and the
+/// second face of a flat fin all fail. A single pass tested against the real
+/// model's depth instead broke up into shards at a distance.
+///
+/// The matrices are copied during the Opaque stage, where the real model
+/// was drawn.
 /// </summary>
 public sealed class GiantSerpentSilhouette : IRenderer
 {
-    private const int RingVerts = 10;
-    // A little larger than the trunk so it is not buried inside the model,
-    // and taller on top where the spines stand up.
-    private const double Inflate = 1.15;
-    private const double TopBoost = 1.4;
-    // Per layer: the tube's near and far sides both draw, so the middle of
-    // the shape reaches about 1 - (1 - 0.5)^2 = 0.75.
-    private const float MaxAlpha = 0.5f;
-    // How far the shape is pulled toward the camera for depth testing, as a
-    // multiple of the entity size: enough to clear the fins and spikes.
-    private const float DepthPull = 1.5f;
+    /// <summary>
+    /// Past this distance from the camera the shape has faded out entirely.
+    /// The AI only removes a leaving serpent once its whole body is beyond
+    /// this from every player, so it never vanishes in plain view.
+    /// </summary>
+    public const float FadeEndBlocks = 230f;
+    private const float FadeStartBlocks = 170f;
+
+    // How dark the shape gets where it is fully shown.
+    private const float MaxAlpha = 0.7f;
+    // How far the shape is pulled toward the camera for the depth test, as
+    // a multiple of the entity size, plus a little per block of distance.
+    private const float DepthPull = 0.6f;
+    private const float DepthPullPerBlock = 0.002f;
+    // How much nearer the color pass is than the depth pass, in depth buffer
+    // units: about sixteen steps of a 24-bit buffer. Far away a fraction of
+    // a block is only a few steps, and a margin in blocks was lost to
+    // rounding there; this one is under a block of depth out to 230 blocks,
+    // far less than the body is thick.
+    private const float ColorPassNearer = 1e-6f;
+
+    private static readonly FieldInfo MeshField =
+        typeof(EntityShapeRenderer).GetField("meshRefOpaque", BindingFlags.Instance | BindingFlags.NonPublic);
 
     private static IShaderProgram shader;
+    private static UBORef animUbo;
     private static ICoreClientAPI shaderApi;
     private static bool shaderFailed;
 
     private readonly ICoreClientAPI capi;
     private readonly Entity entity;
-    private readonly EntityBehaviorGiantSerpentBody body;
-    private readonly double[][] radii;
-
-    private MeshData mesh;
-    private MeshRef meshRef;
-    private int rings;
-    private double[] cx, cy, cz, rw, rh;
 
     private double surfaceY;
     private float surfaceTimer;
     private readonly BlockPos probe = new(0);
 
+    // The matrices of this frame's Opaque stage, where the model was drawn.
+    private readonly float[] opaqueProjection = new float[16];
+    private readonly float[] opaqueView = new float[16];
+    private readonly float[] opaqueModel = new float[16];
+    private bool haveOpaqueMatrices;
+
     public double RenderOrder => 0.5;
     public int RenderRange => 9999;
 
-    public GiantSerpentSilhouette(ICoreClientAPI capi, Entity entity, EntityBehaviorGiantSerpentBody body, double[][] radii)
+    public GiantSerpentSilhouette(ICoreClientAPI capi, Entity entity)
     {
         this.capi = capi;
         this.entity = entity;
-        this.body = body;
-        this.radii = radii;
         surfaceY = capi.World.SeaLevel;
+        capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "underwaterhorrors-giantsilhouette");
         capi.Event.RegisterRenderer(this, EnumRenderStage.AfterFinalComposition, "underwaterhorrors-giantsilhouette");
     }
 
     public void Dispose()
     {
+        capi.Event.UnregisterRenderer(this, EnumRenderStage.Opaque);
         capi.Event.UnregisterRenderer(this, EnumRenderStage.AfterFinalComposition);
-        meshRef?.Dispose();
-        meshRef = null;
     }
 
     private bool EnsureShader()
@@ -87,6 +111,9 @@ public sealed class GiantSerpentSilhouette : IRenderer
             shader.FragmentShader = capi.Shader.NewShader(EnumShaderType.FragmentShader);
             capi.Shader.RegisterFileShaderProgram("giantsilhouette", shader);
             if (!shader.Compile()) throw new Exception("compile failed");
+            // The bone matrices, laid out as the game's entity shader has them.
+            animUbo = capi.Render.CreateUBO(shader, 0, "Animation", GlobalConstants.MaxAnimatedElements * 16 * 4);
+            shader.UBOs["Animation"] = animUbo;
             return true;
         }
         catch (Exception e)
@@ -100,47 +127,70 @@ public sealed class GiantSerpentSilhouette : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
-        int joints = body.JointCount;
-        if (joints < 3 || radii.Length < joints - 1) return;
+        var render = capi.Render;
+        if (stage == EnumRenderStage.Opaque)
+        {
+            if (entity.Properties.Client.Renderer is not EntityShapeRenderer er || er.ModelMat == null) return;
+            Array.Copy(render.CurrentProjectionMatrix, opaqueProjection, 16);
+            Array.Copy(render.CameraMatrixOriginf, opaqueView, 16);
+            Array.Copy(er.ModelMat, opaqueModel, 16);
+            haveOpaqueMatrices = true;
+            return;
+        }
+        if (!haveOpaqueMatrices) return;
+        haveOpaqueMatrices = false;
+
+        // Only when the game drew the model this frame: its bone matrices
+        // are then this frame's.
+        if (!entity.IsRendered) return;
+        if (entity.Properties.Client.Renderer is not EntityShapeRenderer esr || esr.ModelMat == null) return;
+        if (MeshField?.GetValue(esr) is not MultiTextureMeshRef mesh || mesh.Disposed || !mesh.Initialized) return;
+        IAnimator animator = entity.AnimManager?.Animator;
+        if (animator?.Matrices == null) return;
         EntityPlayer player = capi.World.Player?.Entity;
         if (player == null || !EnsureShader()) return;
 
-        double size = entity.Properties.Client.Size;
         var pos = entity.Pos;
-        double ox = pos.X, oy = pos.InternalY, oz = pos.Z;
         Vec3d cam = player.CameraPos;
-
-        UpdateSurface(deltaTime, ox, oy, oz);
-        BuildRings(joints, size);
-        WriteMesh(cam.X - ox, cam.Y - oy, cam.Z - oz);
-
-        if (meshRef == null) meshRef = capi.Render.UploadMesh(mesh);
-        else capi.Render.UpdateMesh(meshRef, mesh);
+        UpdateSurface(deltaTime, pos.X, pos.InternalY, pos.Z);
 
         probe.Set((int)Math.Floor(cam.X), (int)Math.Floor(cam.Y), (int)Math.Floor(cam.Z));
         probe.dimension = pos.Dimension;
         bool camUnderwater = WaterHelper.IsWaterBlock(capi.World.BlockAccessor.GetBlock(probe, BlockLayersAccess.Fluid));
 
-        var render = capi.Render;
+        float size = entity.Properties.Client.Size;
         render.GLEnableDepthTest();
-        render.GLDepthMask(false);
+        render.GLDepthMask(true);
         render.GlToggleBlend(true, EnumBlendMode.Standard);
+        // Entities are drawn without face culling; so is this, or flat fins
+        // seen from their back would be missing.
         render.GlDisableCullFace();
 
         shader.Use();
-        shader.UniformMatrix("projectionMatrix", render.CurrentProjectionMatrix);
-        shader.UniformMatrix("viewMatrix", render.CameraMatrixOriginf);
-        shader.Uniform("originRel", (float)(ox - cam.X), (float)(oy - cam.Y), (float)(oz - cam.Z));
-        shader.Uniform("originY", (float)oy);
+        shader.UniformMatrix("projectionMatrix", opaqueProjection);
+        shader.UniformMatrix("viewMatrix", opaqueView);
+        shader.UniformMatrix("modelMatrix", opaqueModel);
+        shader.Uniform("cameraY", (float)cam.Y);
         shader.Uniform("surfaceY", (float)surfaceY);
         shader.Uniform("camUnderwater", camUnderwater ? 1 : 0);
         shader.Uniform("tint", 0.015f, 0.03f, 0.045f);
         shader.Uniform("maxAlpha", MaxAlpha);
-        shader.Uniform("depthPull", (float)(DepthPull * size));
-        render.RenderMesh(meshRef);
+        shader.Uniform("depthPullPerBlock", DepthPullPerBlock);
+        shader.Uniform("fadeStart", FadeStartBlocks);
+        shader.Uniform("fadeEnd", FadeEndBlocks);
+        animUbo.Update(animator.Matrices, 0, Math.Min(animator.MaxJointId, GlobalConstants.MaxAnimatedElements) * 16 * 4);
+
+        shader.Uniform("depthPull", DepthPull * size);
+        // Pass 1: the nearest surface's depth, no color.
+        render.GlColorMask(false, false, false, false);
+        shader.Uniform("nearerBy", 0f);
+        render.RenderMultiTextureMesh(mesh, "entityTex", 0);
+        // Pass 2: color, only where a fragment is that nearest surface.
+        render.GlColorMask(true, true, true, true);
+        shader.Uniform("nearerBy", ColorPassNearer);
+        render.RenderMultiTextureMesh(mesh, "entityTex", 0);
         shader.Stop();
 
-        render.GLDepthMask(true);
         render.GlEnableCullFace();
     }
 
@@ -172,114 +222,6 @@ public sealed class GiantSerpentSilhouette : IRenderer
             {
                 surfaceY = probe.Y + 1;
                 return;
-            }
-        }
-    }
-
-    // Ring centers (relative to the mouth) and radii: a narrow snout ahead
-    // of the mouth, one ring per spine joint, and a tall thin tail fin.
-    private void BuildRings(int joints, double size)
-    {
-        int needed = joints + 2;
-        if (rings != needed)
-        {
-            rings = needed;
-            cx = new double[rings]; cy = new double[rings]; cz = new double[rings];
-            rw = new double[rings]; rh = new double[rings];
-            mesh = null;
-            meshRef?.Dispose();
-            meshRef = null;
-        }
-
-        double[] jx = body.RelX, jy = body.RelY, jz = body.RelZ;
-        double s = Inflate * size;
-        for (int i = 0; i < joints; i++)
-        {
-            double[] r = radii[Math.Min(i, radii.Length - 1)];
-            double shrink = i == joints - 1 ? 0.85 : 1.0;
-            cx[i + 1] = jx[i]; cy[i + 1] = jy[i]; cz[i + 1] = jz[i];
-            rw[i + 1] = r[0] * s * shrink;
-            rh[i + 1] = r[1] * s * shrink;
-        }
-
-        Extend(0, 1, 2, 1.6 * size, 0.22 * s, 0.2 * s);
-        Extend(rings - 1, rings - 2, rings - 3, 3.0 * size, 0.08 * s, 0.55 * s);
-    }
-
-    // Ring `at` placed `length` beyond ring `from`, continuing the line from `back`.
-    private void Extend(int at, int from, int back, double length, double w, double h)
-    {
-        double dx = cx[from] - cx[back], dy = cy[from] - cy[back], dz = cz[from] - cz[back];
-        double l = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-        if (l < 1e-6) { dx = 1; dy = 0; dz = 0; l = 1; }
-        cx[at] = cx[from] + dx / l * length;
-        cy[at] = cy[from] + dy / l * length;
-        cz[at] = cz[from] + dz / l * length;
-        rw[at] = w;
-        rh[at] = h;
-    }
-
-    private void WriteMesh(double camX, double camY, double camZ)
-    {
-        int verts = rings * RingVerts;
-        if (mesh == null)
-        {
-            mesh = new MeshData(verts, (rings - 1) * RingVerts * 6, false, true, false, false);
-            for (int k = 0; k < rings - 1; k++)
-            {
-                for (int j = 0; j < RingVerts; j++)
-                {
-                    int a = k * RingVerts + j, b = k * RingVerts + (j + 1) % RingVerts;
-                    int c = a + RingVerts, d = b + RingVerts;
-                    mesh.AddIndex(a); mesh.AddIndex(c); mesh.AddIndex(b);
-                    mesh.AddIndex(b); mesh.AddIndex(c); mesh.AddIndex(d);
-                }
-            }
-        }
-        mesh.VerticesCount = verts;
-        float[] xyz = mesh.xyz, uv = mesh.Uv;
-
-        double sideX = 1, sideZ = 0;
-        for (int k = 0; k < rings; k++)
-        {
-            int prev = Math.Max(0, k - 1), next = Math.Min(rings - 1, k + 1);
-            double tx = cx[prev] - cx[next], ty = cy[prev] - cy[next], tz = cz[prev] - cz[next];
-            double tl = Math.Sqrt(tx * tx + ty * ty + tz * tz);
-            if (tl < 1e-6) { tx = 1; ty = 0; tz = 0; tl = 1; }
-            tx /= tl; ty /= tl; tz /= tl;
-
-            // Sideways is horizontal and square to the body; up completes
-            // the frame and is kept pointing skyward.
-            double sx = -tz, sz = tx, sl = Math.Sqrt(sx * sx + sz * sz);
-            if (sl > 1e-4) { sideX = sx / sl; sideZ = sz / sl; }
-            // up = side x tangent, with side = (sideX, 0, sideZ)
-            double ux = -sideZ * ty;
-            double uy = sideZ * tx - sideX * tz;
-            double uz = sideX * ty;
-            if (uy < 0) { ux = -ux; uy = -uy; uz = -uz; }
-
-            for (int j = 0; j < RingVerts; j++)
-            {
-                double ang = 2 * Math.PI * j / RingVerts;
-                double cs = Math.Cos(ang), sn = Math.Sin(ang);
-                double w = rw[k], h = sn > 0 ? rh[k] * TopBoost : rh[k];
-                double px = cx[k] + sideX * cs * w + ux * sn * h;
-                double py = cy[k] + uy * sn * h;
-                double pz = cz[k] + sideZ * cs * w + uz * sn * h;
-
-                // How squarely this point faces the camera, for the soft edge.
-                double nx = sideX * cs / w + ux * sn / h, ny = uy * sn / h, nz = sideZ * cs / w + uz * sn / h;
-                double nl = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-                double vx = camX - px, vy = camY - py, vz = camZ - pz;
-                double vl = Math.Sqrt(vx * vx + vy * vy + vz * vz);
-                double facing = nl > 1e-9 && vl > 1e-9 ? Math.Abs((nx * vx + ny * vy + nz * vz) / (nl * vl)) : 1;
-
-                int v = k * RingVerts + j;
-                xyz[v * 3] = (float)px;
-                xyz[v * 3 + 1] = (float)py;
-                xyz[v * 3 + 2] = (float)pz;
-                uv[v * 2] = (float)facing;
-                uv[v * 2 + 1] = 0;
             }
         }
     }

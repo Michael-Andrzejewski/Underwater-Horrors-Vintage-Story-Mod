@@ -459,8 +459,8 @@ public class UnderwaterHorrorsConfig
     // giantserpent.json). It never surfaces to hiss like the rust serpent:
     // it circles far below its prey, then rises mouth first from the deep.
     // It bites swimmers, swallows rafts whole and breaks bigger boats in a
-    // few bites. The only time it leaves the water is the breach after a
-    // strike.
+    // few bites. It never leaves the water: when it strikes, only its head
+    // and the arch of its back break the surface.
     // Chance that a natural serpent spawn is the giant instead. 0.02 is one
     // serpent spawn in fifty. 0 turns natural giants off; /uh spawn
     // giantserpent always works.
@@ -484,9 +484,13 @@ public class UnderwaterHorrorsConfig
     public float GiantSerpentStalkSecondsMax { get; set; } = 50f;
     public float GiantSerpentStrikeCooldownMin { get; set; } = 15f;
     public float GiantSerpentStrikeCooldownMax { get; set; } = 30f;
-    // It only strikes prey over water at least this deep. Over shallower
-    // water it keeps circling, and gives up after half a minute.
+    // It only strikes prey over water at least this deep. When its prey is
+    // over shallower water or ashore, it swims off into the deep, and comes
+    // back if its prey returns to deep water.
     public int GiantSerpentMinStrikeDepth { get; set; } = 20;
+    // Seconds its prey can stay ashore before the giant is removed. It is
+    // also removed once it has swum out of sight of every player.
+    public float GiantSerpentDespawnAfterLandSeconds { get; set; } = 120f;
     // It swims off after this many seconds even if its prey is still at sea.
     public float GiantSerpentMaxStaySeconds { get; set; } = 480f;
 
@@ -801,6 +805,7 @@ public class UnderwaterHorrorsConfig
         GiantSerpentStrikeCooldownMin = Math.Max(0f, GiantSerpentStrikeCooldownMin);
         GiantSerpentStrikeCooldownMax = Math.Max(GiantSerpentStrikeCooldownMin, GiantSerpentStrikeCooldownMax);
         GiantSerpentMinStrikeDepth = Math.Max(1, GiantSerpentMinStrikeDepth);
+        GiantSerpentDespawnAfterLandSeconds = Math.Max(0f, GiantSerpentDespawnAfterLandSeconds);
         GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
 
         // 0 disables the clearance entirely; the upper bound keeps the

@@ -14,8 +14,10 @@ namespace UnderwaterHorrors;
 /// - AllowOutsideLoadedRange lets clients keep drawing it when the mouth is
 ///   beyond their view distance or in a chunk they have not drawn, while
 ///   its body is right next to them (the Erel does the same);
-/// - its tracking range is raised so clients learn of it from as far away
-///   as its body reaches.
+/// - its tracking range is raised so clients keep it while any part of its
+///   body could still be seen: a giant swimming away trails its whole body
+///   back toward the player, and is only removed once that is out of sight
+///   (EntityBehaviorGiantSerpentAI).
 /// </summary>
 public class GiantSerpentEntity : DeepSerpentEntity
 {
@@ -29,7 +31,7 @@ public class GiantSerpentEntity : DeepSerpentEntity
     {
         base.Initialize(properties, api, InChunkIndex3d);
         reach = GiantSerpentRig.BodyLength(properties) * (properties.Client?.Size ?? 10);
-        SimulationRange = (int)Math.Max(SimulationRange, reach + 64);
+        SimulationRange = (int)Math.Max(SimulationRange, reach + GiantSerpentSilhouette.FadeEndBlocks + 40);
     }
 }
 
@@ -54,21 +56,4 @@ public static class GiantSerpentRig
     /// <summary>Spine bones from the head back, as named in the shape.</summary>
     public static string[] SpineBones(EntityProperties p) =>
         Rig(p)?["spineBones"].AsArray<string>(Array.Empty<string>()) ?? Array.Empty<string>();
-
-    /// <summary>
-    /// Half width and half height of the trunk at each spine bone, in the
-    /// same order as SpineBones, for the deep silhouette. Measured from the
-    /// shape's largest cube per bone.
-    /// </summary>
-    public static double[][] BodyRadii(EntityProperties p)
-    {
-        JsonObject[] rows = Rig(p)?["bodyRadii"].AsArray() ?? Array.Empty<JsonObject>();
-        var radii = new double[rows.Length][];
-        for (int i = 0; i < rows.Length; i++)
-        {
-            double[] wh = rows[i].AsArray<double>(new[] { 0.8, 0.8 });
-            radii[i] = new[] { wh[0], wh.Length > 1 ? wh[1] : wh[0] };
-        }
-        return radii;
-    }
 }
