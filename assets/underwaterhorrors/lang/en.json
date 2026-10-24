@@ -17,5 +17,9 @@
     "block-krakenspawner": "Kraken Spawner",
     "blockhelp-krakenspawner": "Spawns a kraken when a player enters the water nearby, then vanishes until that kraken despawns.",
     "block-ghostlight-green": "Ghostlight",
-    "block-ghostlight-blue": "Ghostlight"
+    "block-ghostlight-blue": "Ghostlight",
+    "item-creature-giantanglerfish": "Giant Anglerfish",
+    "entity-giantanglerfish": "Giant Anglerfish",
+    "item-creature-giantanglerfish-display": "Giant Anglerfish (Display)",
+    "item-handbooktext-creature-giantanglerfish": "A gigantic angler that hunts the open sea at night. It lurks 10 to 20 blocks down, a dark shape with faint blue patches on its hide, and casts a glowing gear on a long line to lead swimmers in. Follow the light too close to its mouth and it swoops up and swallows you in one gulp. It sinks back into the deep at daybreak. Admins can summon it with /uh spawn anglerfish."
 }

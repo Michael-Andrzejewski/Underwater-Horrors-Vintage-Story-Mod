@@ -26,3 +26,6 @@ packages/
 
 # Mod packaging artifacts
 *.zip
+
+# Python
+__pycache__/

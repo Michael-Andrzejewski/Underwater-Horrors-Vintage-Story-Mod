@@ -653,8 +653,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .HandleWith(OnCmdNatural)
             .EndSubCommand()
             .BeginSubCommand("spawn")
-                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant; giantserpent starts 100 to 140 blocks out.")
-                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "giantserpent"))
+                .WithDescription("Spawn a creature near the calling player. serpent picks a random variant; anglerfish lurks in nearby deep water; giantserpent starts 100 to 140 blocks out.")
+                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "anglerfish", "giantserpent"))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dungeon")
@@ -1005,8 +1005,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
             case "deepserpent": creature = SpawnSerpent(caller, forceDeep: true); break;
             case "serpent3": creature = SpawnSerpent3(caller); break;
             case "kraken": creature = SpawnKraken(caller); break;
+            case "anglerfish": creature = EntityBehaviorAnglerfishAI.Spawn(sapi,caller); break;
             case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140); break;
-            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken or giantserpent.");
+            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken, anglerfish or giantserpent.");
         }
 
         if (creature == null) return TextCommandResult.Error("Failed to spawn creature (no valid water position found nearby). Try deeper water.");
@@ -1695,7 +1696,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // (their tentacles and bonus entities don't count).
     private static readonly HashSet<string> PrimaryCreatureCodes = new()
     {
-        "seaserpent", "seaserpent2", "seaserpent3", "krakenbody", "giantserpent"
+        "seaserpent", "seaserpent2", "seaserpent3", "krakenbody", "giantanglerfish", "giantserpent"
     };
 
     /// <summary>Counts living serpents/krakens currently loaded in the world.</summary>
@@ -1829,20 +1830,29 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 spawnSerpent = sapi.World.Rand.NextDouble() >= krakenChance;
             }
 
-            Entity creature;
-            if (spawnSerpent)
+            // Now and then at night the spawn is the giant anglerfish, out
+            // where the water is deep enough for it to lurk. It starts far
+            // enough out that its lure reaches the player first.
+            Entity creature = null;
+            if (!IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance
+                && CountSaltwaterDepth(player.Entity, Config.AnglerfishMinWaterDepth) >= Config.AnglerfishMinWaterDepth)
+            {
+                creature = EntityBehaviorAnglerfishAI.Spawn(sapi, player, 48, 64, natural: true);
+                if (creature != null && Config.DebugLogging)
+                    DebugLog(sapi, $"SPAWNED natural anglerfish targeting {player.PlayerName} at ({creature.Pos.X:F0}, {creature.Pos.Y:F0}, {creature.Pos.Z:F0})");
+            }
+            if (creature == null && spawnSerpent)
             {
                 // Out in open ocean the serpent is sometimes the giant. It
                 // starts far out and needs open deep water there; without
                 // it, a normal serpent.
-                creature = null;
                 if (sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance &&
                     EntityBehaviorGiantSerpentAI.IsOpenOcean(sapi.World, player.Entity,
                         Config.GiantSerpentOpenOceanRadius, Config.GiantSerpentOpenOceanDepth))
                     creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, player, 120, 200);
                 creature ??= SpawnSerpent(player);
             }
-            else
+            else if (creature == null)
             {
                 creature = SpawnKraken(player);
             }
@@ -2211,6 +2221,24 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return kraken;
     }
 
+    // Day as the kraken glow counts it: [DayKrakenStartHour, DayKrakenEndHour).
+    private bool IsDaytime()
+    {
+        double hour = sapi.World.Calendar.HourOfDay;
+        return hour >= Config.DayKrakenStartHour && hour < Config.DayKrakenEndHour;
+    }
+
+    private bool AnyPlayerWithin(Entity creature, double range)
+    {
+        foreach (IPlayer player in sapi.World.AllOnlinePlayers)
+        {
+            var e = player?.Entity;
+            if (e != null && e.Alive && e.Pos.Dimension == creature.Pos.Dimension
+                && e.Pos.SquareDistanceTo(creature.Pos.XYZ) <= range * range) return true;
+        }
+        return false;
+    }
+
     private void OnDespawnCheck(float dt)
     {
         PruneDespawnTracking();
@@ -2276,6 +2304,21 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (creature.WatchedAttributes.GetBool("underwaterhorrors:static")) continue;
 
             long id = creature.EntityId;
+            if(path == "giantanglerfish")
+            {
+                // Manually placed anglerfish patrol when abandoned instead of
+                // disappearing under the encounter director's target/land timer.
+                if(!creature.WatchedAttributes.GetBool(EntityBehaviorAnglerfishAI.NaturalAttr)) { landTimers.Remove(id); continue; }
+                // A natural one sinks back into the deep at daybreak, unless a
+                // player is right at its mouth. Otherwise the usual rules apply.
+                if(IsDaytime() && !AnyPlayerWithin(creature, 48))
+                {
+                    if (Config.DebugLogging) DebugLog(sapi, $"DESPAWNING natural anglerfish (id {id}): daybreak");
+                    creature.Die(EnumDespawnReason.Expire);
+                    landTimers.Remove(id);
+                    continue;
+                }
+            }
             bool fromSpawner = creature.WatchedAttributes.GetBool(BlockEntityCreatureSpawner.FromSpawnerAttr);
 
             // Resolve the target. For orphans (target offline) this adopts
@@ -2310,6 +2353,15 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     // Spawner encounters can sit in fresh water (a /uh
                     // dungeon built in a lake), so any water counts.
                     engaged = feet != null && WaterHelper.IsWaterBlock(feet);
+                    if (!engaged && path == "giantanglerfish" && target.Entity.MountedOn != null)
+                    {
+                        var waterPos=target.Entity.Pos.AsBlockPos;
+                        for(int below=0;below<MountedWaterScanDownLimit && !engaged;below++)
+                        {
+                            waterPos.Y--;
+                            engaged=WaterHelper.IsWaterBlock(sapi.World.BlockAccessor.GetBlock(waterPos));
+                        }
+                    }
                 }
                 else
                 {

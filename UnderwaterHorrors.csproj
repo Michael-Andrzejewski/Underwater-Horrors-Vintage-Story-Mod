@@ -4,9 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>UnderwaterHorrors</RootNamespace>
     <AssemblyName>UnderwaterHorrors</AssemblyName>
+    <DeployMod Condition="'$(DeployMod)' == ''">true</DeployMod>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tools\anglerfish\validate\**\*.cs" />
+    <Compile Remove="tools\anglerfish\pilot\**\*.cs" />
     <Reference Include="VintagestoryAPI">
       <HintPath>$(APPDATA)\Vintagestory\VintagestoryAPI.dll</HintPath>
       <Private>False</Private>
@@ -47,7 +50,7 @@
       <AssetFiles Include="assets\**\*" />
       <!-- Clean up older versioned zips so only the current one is deployed -->
       <OldZipsBin Include="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\UnderwaterHorrors*.zip" />
-      <OldZipsDeploy Include="$(APPDATA)\VintagestoryData\Mods\UnderwaterHorrors*.zip" />
+      <OldZipsDeploy Include="$(APPDATA)\VintagestoryData\Mods\UnderwaterHorrors*.zip" Condition="'$(DeployMod)' == 'true'" />
       <!--
         VS hashes the zip contents into a unique unpack-cache directory
         name. Each `dotnet build` produces a new zip with the same name
@@ -59,7 +62,7 @@
       -->
       <StaleUnpackCache
         Include="$([System.IO.Directory]::GetDirectories('$(APPDATA)\VintagestoryData\Cache\unpack', 'UnderwaterHorrors*'))"
-        Condition="Exists('$(APPDATA)\VintagestoryData\Cache\unpack')" />
+        Condition="'$(DeployMod)' == 'true' and Exists('$(APPDATA)\VintagestoryData\Cache\unpack')" />
     </ItemGroup>
 
     <!--
@@ -87,8 +90,8 @@
     <RemoveDir Directories="@(StaleUnpackCache)" ContinueOnError="true" />
 
     <!-- 3. Deploy the freshly built zip last -->
-    <Copy SourceFiles="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" DestinationFolder="$(APPDATA)\VintagestoryData\Mods\" />
-    <Message Importance="high" Text="Deployed $(ZipName) to $(APPDATA)\VintagestoryData\Mods\" />
+    <Copy SourceFiles="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\$(ZipName)" DestinationFolder="$(APPDATA)\VintagestoryData\Mods\" Condition="'$(DeployMod)' == 'true'" />
+    <Message Importance="high" Text="Deployed $(ZipName) to $(APPDATA)\VintagestoryData\Mods\" Condition="'$(DeployMod)' == 'true'" />
   </Target>
 
 </Project>

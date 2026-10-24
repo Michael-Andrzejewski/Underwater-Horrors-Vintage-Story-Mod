@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><AssemblyName>AnglerfishPilotSmoke</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI"><HintPath>$(APPDATA)\Vintagestory\VintagestoryAPI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Pilot"><HintPath>..\..\..\bin\pilot-inspect\Pilot.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnderwaterHorrors"><HintPath>..\..\..\bin\Release\net10.0\UnderwaterHorrors.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

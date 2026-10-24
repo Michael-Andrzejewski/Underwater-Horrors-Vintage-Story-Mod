@@ -139,6 +139,13 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentDespawnAfterLandSeconds` | float | `120f` | Seconds its prey can stay ashore before the giant is removed. It is also removed once it has swum out of sight of every player. |
 | `GiantSerpentMaxStaySeconds` | float | `480f` | It swims off after this many seconds even if its prey is still at sea. |
 | `GiantSerpentSoundPitch` | float | `0.6f` | Pitch of its bite and other sounds: the rust serpent's, played slower and deeper. 1 is the rust serpent's own pitch. |
+| `AnglerfishNightSpawnChance` | float | `0.05f` | ─── Giant anglerfish ──────────────────────────────────────────────── A gigantic whipnose angler. It lurks deep and casts a glowing gear on a long rope toward a swimmer, leading them in. When its prey comes close to its mouth, it swoops forward and gulps. Chance that a natural spawn at night is the anglerfish instead. Night is outside DayKrakenStartHour..DayKrakenEndHour. The saltwater under the player must be at least AnglerfishMinWaterDepth deep. 0 turns natural anglerfish off; /uh spawn anglerfish always works. A natural one sinks back into the deep at daybreak. |
+| `AnglerfishMinWaterDepth` | int | `32` |  |
+| `AnglerfishLurkDepthMin` | float | `10f` | How deep it lurks, in blocks from the surface to the middle of its body. Each anglerfish picks a depth in this range. |
+| `AnglerfishLurkDepthMax` | float | `20f` |  |
+| `AnglerfishStrikeRange` | float | `14f` | It swoops once its prey is this close to its mouth, in blocks. |
+| `AnglerfishStrikeSpeed` | float | `28f` | Speed of the swoop in blocks per second, and the damage of the gulp. |
+| `AnglerfishBiteDamage` | float | `50f` |  |
 | **Kraken body** | | | |
 | `KrakenContactDamage` | float | `25f` |  |
 | `KrakenContactRange` | float | `3f` |  |

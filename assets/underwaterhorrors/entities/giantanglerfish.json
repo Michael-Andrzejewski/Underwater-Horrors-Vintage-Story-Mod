@@ -1,0 +1,95 @@
+{
+  "code": "giantanglerfish",
+  "class": "GiantAnglerfishEntity",
+  "habitat": "Sea",
+  "hitboxSize": {
+    "x": 10,
+    "y": 12
+  },
+  "deadHitboxSize": {
+    "x": 12,
+    "y": 10
+  },
+  "eyeHeight": 10,
+  "weight": 12000,
+  "canClimb": false,
+  "knockbackResistance": 1,
+  "client": {
+    "renderer": "Shape",
+    "texture": {
+      "base": "underwaterhorrors:entity/anglerfish"
+    },
+    "shape": {
+      "base": "underwaterhorrors:entity/anglerfish-live"
+    },
+    "size": 2,
+    "sizeForCulling": 70,
+    "glowLevel": 0,
+    "behaviors": [
+      {
+        "code": "interpolateposition"
+      }
+    ],
+    "animations": [
+      {
+        "code": "idle",
+        "animation": "idle"
+      },
+      {
+        "code": "swim",
+        "animation": "swim"
+      },
+      {
+        "code": "swimfast",
+        "animation": "swimfast"
+      },
+      {
+        "code": "lure",
+        "animation": "lure"
+      },
+      {
+        "code": "bite",
+        "animation": "bite"
+      },
+      {
+        "code": "swallow",
+        "animation": "swallow"
+      },
+      {
+        "code": "hurt",
+        "animation": "hurt"
+      },
+      {
+        "code": "die",
+        "animation": "die"
+      }
+    ]
+  },
+  "server": {
+    "behaviors": [
+      {
+        "code": "health",
+        "currenthealth": 200,
+        "maxhealth": 200
+      },
+      {
+        "code": "deaddecay",
+        "hoursToDecay": 12
+      },
+      {
+        "code": "underwaterhorrors:anglerfishanimation"
+      },
+      {
+        "code": "underwaterhorrors:anglerfishai"
+      }
+    ],
+    "spawnConditions": {
+      "runtime": {
+        "group": "hostile",
+        "chance": 0,
+        "maxQuantity": 0
+      }
+    }
+  },
+  "sounds": {}
+}

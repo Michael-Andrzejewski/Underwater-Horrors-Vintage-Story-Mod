@@ -56,6 +56,33 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 - Per-spawner settings for the serpent and kraken spawner blocks. In creative, shift + right click a spawner to edit them: trigger radius (0 = the config's `SpawnerTriggerRange`), whether the player must be in the water, and how long the serpent stays (instead of retreating) while its target stands in shallow water or on land, as long as they are within a given range. Looking at a spawner in creative shows its settings. They stay with the spawner through every spawn and return.
 
+### Anglerfish encounter (working build)
+
+- `/uh spawn anglerfish` spawns the giant anglerfish in nearby deep water.
+- Rare at night: a natural spawn after dark is now and then the anglerfish
+  (`AnglerfishNightSpawnChance`, default 0.05), 48 to 64 blocks out. A
+  natural one sinks back into the deep at daybreak once nobody is near it.
+- It lurks with the middle of its body 10 to 20 blocks deep
+  (`AnglerfishLurkDepthMin`, `AnglerfishLurkDepthMax`) and holds that depth
+  while it waits, slowly turning its mouth toward its prey.
+- Its blue gear glides and sways toward the player on the kraken's spline
+  chain, aiming to stay 8–15 blocks ahead and gradually lead them deeper.
+  Extension and recall use acceleration-limited movement, with no position snaps.
+- Once its prey is within 14 blocks of its mouth (`AnglerfishStrikeRange`),
+  it swoops forward at 28 blocks a second (`AnglerfishStrikeSpeed`) and
+  gulps for 50 base damage (`AnglerfishBiteDamage`), followed by a cooldown.
+  The swoop arrives as the bite clip snaps shut. It used to lunge at anyone
+  within 30 blocks of its body.
+- The body dives immediately after a strike, instead of waiting at the surface.
+  With no nearby targets it patrols submerged with the serpent's smooth turning.
+- New model: a gigantic whipnose angler, after MikeZilla_'s rough and
+  Soareverix's sketch. Rust-brown hide with faint glowing cyan patches, a
+  jutting jaw of crooked fangs that opens wide enough for a sailboat, milky
+  eyes that glow faintly in the dark, spiny fins, and a glowing temporal gear
+  on its rod. See `art/anglerfish/README.md`.
+- `/uhangler show` remains a harmless model display. See
+  `art/anglerfish/README.md` for animation commands and testing details.
+
 ### 0.20.0
 
 - Fixed a worldgen crash. Ghostlights placed outside the chunk column being generated were scheduled for a light bake that chunk could not do, which threw inside the game's chunk illuminator and aborted the whole TerrainFeatures pass for that column, taking every other mod's features with it. Lights outside the column are now re-lit when a player arrives, and the ruin generator is guarded so a bad ruin can never stop the pass again.

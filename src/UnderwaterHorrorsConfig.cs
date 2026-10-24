@@ -506,6 +506,27 @@ public class UnderwaterHorrorsConfig
     // and deeper. 1 is the rust serpent's own pitch.
     public float GiantSerpentSoundPitch { get; set; } = 0.6f;
 
+    // ─── Giant anglerfish ────────────────────────────────────────────────
+    // A gigantic whipnose angler. It lurks deep and casts a glowing gear on
+    // a long rope toward a swimmer, leading them in. When its prey comes
+    // close to its mouth, it swoops forward and gulps.
+    // Chance that a natural spawn at night is the anglerfish instead. Night
+    // is outside DayKrakenStartHour..DayKrakenEndHour. The saltwater under
+    // the player must be at least AnglerfishMinWaterDepth deep. 0 turns
+    // natural anglerfish off; /uh spawn anglerfish always works. A natural
+    // one sinks back into the deep at daybreak.
+    public float AnglerfishNightSpawnChance { get; set; } = 0.05f;
+    public int AnglerfishMinWaterDepth { get; set; } = 32;
+    // How deep it lurks, in blocks from the surface to the middle of its
+    // body. Each anglerfish picks a depth in this range.
+    public float AnglerfishLurkDepthMin { get; set; } = 10f;
+    public float AnglerfishLurkDepthMax { get; set; } = 20f;
+    // It swoops once its prey is this close to its mouth, in blocks.
+    public float AnglerfishStrikeRange { get; set; } = 14f;
+    // Speed of the swoop in blocks per second, and the damage of the gulp.
+    public float AnglerfishStrikeSpeed { get; set; } = 28f;
+    public float AnglerfishBiteDamage { get; set; } = 50f;
+
     // Kraken body
     public float KrakenContactDamage { get; set; } = 25f;
     public float KrakenContactRange { get; set; } = 3f;
@@ -822,6 +843,16 @@ public class UnderwaterHorrorsConfig
         GiantSerpentDespawnAfterLandSeconds = Math.Max(0f, GiantSerpentDespawnAfterLandSeconds);
         GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
         GiantSerpentSoundPitch = Math.Clamp(GiantSerpentSoundPitch, 0.25f, 2f);
+
+        // Anglerfish: it must stay under water (its body is about 11.5
+        // blocks tall), and a swoop needs some reach and speed.
+        AnglerfishNightSpawnChance = Math.Clamp(AnglerfishNightSpawnChance, 0f, 1f);
+        AnglerfishMinWaterDepth = Math.Max(16, AnglerfishMinWaterDepth);
+        AnglerfishLurkDepthMin = Math.Clamp(AnglerfishLurkDepthMin, 7f, 120f);
+        AnglerfishLurkDepthMax = Math.Clamp(AnglerfishLurkDepthMax, AnglerfishLurkDepthMin, 120f);
+        AnglerfishStrikeRange = Math.Clamp(AnglerfishStrikeRange, 3f, 40f);
+        AnglerfishStrikeSpeed = Math.Clamp(AnglerfishStrikeSpeed, 4f, 80f);
+        AnglerfishBiteDamage = Math.Max(0f, AnglerfishBiteDamage);
 
         // 0 disables the clearance entirely; the upper bound keeps the
         // per-spawn footprint scan bounded. A rise of 0 would make the
