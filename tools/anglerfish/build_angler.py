@@ -440,6 +440,8 @@ def build(display=True, lure_stub=2):
         a2 = a1 + norm([1, math.tan(ang * D2R) * 0.2, 0]) * 52
         m.beam(m.name(fname), f2["name"], a1, a2, 0.9, mat="ray")
 
+    glow_patches(m)
+
     # ── Lure: the rod from the snout and the gear at its end ─────────────
     lure_path = rod_path()
     count = len(lure_path) - 1 if display else lure_stub
@@ -454,6 +456,53 @@ def build(display=True, lure_stub=2):
         g = m.bone("gear", parent, lure_path[-1])
         build_gear(m, g["name"], lure_path[-1] + np.array([0, -17, 0]), stalk_top=lure_path[-1])
     return m
+
+
+# Glow of the bioluminescent patches. The game lights a glowing face as if
+# at that light level, so the spots are pale cyan; they stay faint by being
+# small and sparse next to the gear.
+PATCH_GLOW = 200
+
+
+def glow_patches(m, count=26, seed=11):
+    """Faint bioluminescent patches: clusters of small glowing spots set into
+    the hide's plates, mostly on the flanks and back, clear of the eyes, the
+    lips and the gill slit. Each spot is a child of its plate's bone, so it
+    bends with the body."""
+    rng = np.random.default_rng(seed)
+    plates = [p for p in m.parts.values()
+              if p["kind"] == "box" and p["name"].startswith(("skull", "mandible", "hide"))]
+    weights = []
+    for p in plates:
+        n = p["R"][:, 1]
+        size = p["hi"] - p["lo"]
+        weights.append(size[0] * size[2] * (abs(n[2]) + 0.6 * max(n[1], 0.0)))
+    weights = np.array(weights) / sum(weights)
+    eyes = [m.parts["eyeR"]["paint"]["center"], m.parts["eyeL"]["paint"]["center"]]
+    made = tries = 0
+    while made < count and tries < 1000:
+        tries += 1
+        p = plates[rng.choice(len(plates), p=weights)]
+        lo, hi = p["lo"], p["hi"]
+        if hi[0] - lo[0] < 8 or hi[2] - lo[2] < 6:
+            continue
+        lx, lz = rng.uniform(lo[0] + 3, hi[0] - 3), rng.uniform(lo[2] + 2.5, hi[2] - 2.5)
+        c = p["origin"] + p["R"] @ np.array([lx, 0, lz])
+        if any(np.linalg.norm(c - e) < 16 for e in eyes):
+            continue
+        if -62 < c[0] < 40 and abs(c[1] - LIP(c[0])) < 7:
+            continue
+        if 50 < c[0] < 68:
+            continue
+        for k in range(int(rng.integers(4, 9))):
+            r, a = (rng.uniform(1.8, 6.0) if k else 0), rng.uniform(0, 2 * math.pi)
+            sx = float(np.clip(lx + r * math.cos(a), lo[0] + 1.5, hi[0] - 1.5))
+            sz = float(np.clip(lz + r * math.sin(a), lo[2] + 1.5, hi[2] - 1.5))
+            half = rng.uniform(0.8, 1.8) * (1.3 if k == 0 else 1)
+            at = p["origin"] + p["R"] @ np.array([sx, 0, sz])
+            m.box(m.name("glowspot"), p["parent"], at, p["R"], (-half, -0.6, -half), (half, 0.4, half), "biolum",
+                  faces=["up", "north", "south", "east", "west"], glow=PATCH_GLOW, center=at, half=half)
+        made += 1
 
 
 def rod_path():
@@ -645,6 +694,7 @@ PAL = {
     "gearhub": ramp(["#0a1e33", "#0f2c4a", "#163d63", "#1f4f7d", "#2c6596"]),
     "gearcore": ramp(["#5fd9f5", "#9cf0ff", "#d6fbff", "#ffffff"]),
     "bristle": ramp(["#150c0a", "#22130f", "#311c15", "#40251b"]),
+    "biolum": ramp(["#1f6f78", "#2b8f98", "#38aeb3", "#4fc8c8", "#6edcd6", "#93ece4", "#bdf6f0"]),
     "filament": ramp(["#2a1712", "#3b2219", "#4e2e21", "#62392a"]),
     "gillcover": ramp(["#2a1814", "#3c231b", "#4f2f24", "#643d2e", "#7d5040", "#9a6a56", "#b88a74"]),
 }
@@ -827,6 +877,13 @@ def paint_face(p, fname, P, nrm, ij, fu, fv):
         col = np.where(hub[:, None], quantize(np.clip((r - 3.2) / 3.4, 0, 1), PAL["gearhub"], ij), col)
         core = r <= 3.2
         col = np.where(core[:, None], quantize(np.clip(1 - r / 3.2, 0, 1), PAL["gearcore"], ij), col)
+    elif mat == "biolum":
+        # Brightest in each spot's middle, dimmer to its rim and sides.
+        r = np.linalg.norm(P - p["paint"]["center"], axis=1) / (p["paint"]["half"] * 1.41)
+        t = 0.95 - 0.6 * r + (fbm(P, 0.8, 1, 91) - 0.5) * 0.2
+        if fname != "up":
+            t -= 0.35
+        col = quantize(np.clip(t, 0, 1), PAL["biolum"], ij, 0.5)
     elif mat in ("bristle", "filament"):
         t = 0.5 + (fbm(P, 0.5, 1, 81) - 0.5) * 0.6
         col = quantize(np.clip(t, 0, 1), PAL[mat], ij)

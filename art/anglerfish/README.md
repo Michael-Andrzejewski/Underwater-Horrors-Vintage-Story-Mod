@@ -52,6 +52,9 @@ them over into the script.
   run across faces without seams.
 - The gear glows at full strength. The eyes glow faintly, so two pale eyes
   show behind the lure in the dark.
+- 26 faint patches of cyan spots (145 small boxes) sit in the hide's
+  plates, mostly on the flanks and back, clear of the eyes, lips and gill.
+  Each spot is a child of its plate's bone, so it bends with the body.
 
 ## Scale and rig
 
