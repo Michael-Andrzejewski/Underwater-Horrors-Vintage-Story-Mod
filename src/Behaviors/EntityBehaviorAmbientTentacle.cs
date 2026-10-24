@@ -115,6 +115,13 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         // leaving its remains where it lands rather than blinking out of
         // existence in open water.
         Entity body = GetBody();
+        if (body == null && !krakenDeathHandled)
+        {
+            // Body unloaded or removed, not dead (a dead kraken stays
+            // loaded as a corpse). Vanish quietly; see EntityBehaviorTentacle.
+            entity.Die(EnumDespawnReason.Expire);
+            return;
+        }
         if (body == null || !body.Alive)
         {
             if (!krakenDeathHandled)
@@ -313,6 +320,15 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     // Teleport-stepping per tick bypasses collision entirely so they
     // glide past obstacles, which also looks correct for "ghost-like"
     // tentacles.
+    //
+    // The step is a direct position write (PlaceHead), not
+    // Entity.TeleportToDouble. TeleportToDouble queues a priority chunk
+    // load for the target column on every call, which allocates per tick
+    // per arm and, when a wandering tip strays into a column that is not
+    // loaded, loads or even generates terrain out there just to move an
+    // invisible head. It also flags each move as a teleport, so clients
+    // snap instead of interpolating. The chain segments already move this
+    // way.
 
     private void OnRising(float deltaTime)
     {
@@ -373,15 +389,17 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         // and its tip follows here, so the visible chain arches between
         // body and tip across the floor.
         double horizDist = Math.Sqrt(horizDistSq);
-        double step = config.AmbientTentacleWanderSpeed;
+        // SpeedScale here too: this crawl steps by hand rather than through
+        // StepTowardTeleport, so the four ground arms ignored the
+        // TentacleSpeedMultiplier setting entirely without it.
+        double step = config.AmbientTentacleWanderSpeed * SpeedScale;
         double frac = Math.Min(1.0, step / horizDist);
         double newX = entity.Pos.X + dx * frac;
         double newZ = entity.Pos.Z + dz * frac;
         double targetY = GetCachedFloorY(newX, entity.Pos.Y + 4, newZ);
         double newY = SmoothYStep(entity.Pos.Y, targetY);
 
-        entity.TeleportToDouble(newX, newY, newZ);
-        ClearMotion();
+        PlaceHead(newX, newY, newZ);
     }
 
     private void OnWanderingIdle(float deltaTime)
@@ -391,8 +409,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         double bob = Math.Sin(stateTimer * 0.7) * 0.25;
         double targetY = GetCachedFloorY(entity.Pos.X, entity.Pos.Y + 4, entity.Pos.Z) + bob;
         double newY = SmoothYStep(entity.Pos.Y, targetY);
-        entity.TeleportToDouble(entity.Pos.X, newY, entity.Pos.Z);
-        ClearMotion();
+        PlaceHead(entity.Pos.X, newY, entity.Pos.Z);
 
         if (stateTimer >= wanderIdleDuration)
         {
@@ -524,8 +541,8 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
 
     /// <summary>
     /// Step the entity toward (tx, ty, tz) by at most `step` blocks
-    /// using TeleportToDouble — phases through terrain, ignoring the
-    /// controlledphysics collision check. Caller is responsible for
+    /// with a direct position write — phases through terrain, ignoring
+    /// the controlledphysics collision check. Caller is responsible for
     /// any Y-clamping (e.g. snap to sea floor).
     /// </summary>
     private void StepTowardTeleport(double tx, double ty, double tz, double step)
@@ -542,10 +559,20 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
         double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
         if (dist < 1e-6) { ClearMotion(); return; }
         double frac = Math.Min(1.0, step / dist);
-        entity.TeleportToDouble(
+        PlaceHead(
             entity.Pos.X + dx * frac,
             entity.Pos.Y + dy * frac,
             entity.Pos.Z + dz * frac);
+    }
+
+    /// <summary>
+    /// Moves the invisible head straight to (x, y, z) and clears any
+    /// physics drift. See the movement note above OnRising for why this is
+    /// not TeleportToDouble.
+    /// </summary>
+    private void PlaceHead(double x, double y, double z)
+    {
+        entity.Pos.SetPos(x, y, z);
         ClearMotion();
     }
 

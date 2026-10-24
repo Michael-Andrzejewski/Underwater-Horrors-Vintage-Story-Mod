@@ -9,6 +9,8 @@ namespace UnderwaterHorrors;
 
 public class EntityBehaviorKrakenBody : EntityBehavior
 {
+    // Tentacles are never saved (KrakenPartStorage), so this starts false
+    // on every load and the body grows its full set again.
     private bool tentaclesSpawned;
     private float contactDamageCooldown;
     private long attackTentacleId;
@@ -399,18 +401,19 @@ public class EntityBehaviorKrakenBody : EntityBehavior
 
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
-        // When the body is genuinely removed (killed, expired, or distance-
-        // despawned) proactively despawn its tentacles. Each tentacle only
-        // self-cleans while it is Active (a client within simulation range);
-        // a body that expires far from any player would otherwise orphan its
-        // tentacle chains (~96 entities each) until they happen to unload.
-        // On a plain chunk Unload or a Disconnect (world unloading) we do
-        // nothing, so the tentacles unload/save with their own chunks and
-        // reload normally instead of being permanently deleted.
-        if (entity.Api.Side == EnumAppSide.Server
-            && despawn != null
-            && despawn.Reason != EnumDespawnReason.Unload
-            && despawn.Reason != EnumDespawnReason.Disconnect)
+        // Whenever the body leaves the world, for any reason, its tentacles
+        // go with it. Each tentacle only self-cleans while it is Active (a
+        // client within simulation range), so a body that expires far from
+        // any player would otherwise orphan its chains (~96 entities each).
+        //
+        // That includes a plain chunk Unload. Tentacles are not saved (see
+        // KrakenPartStorage) and the body grows a fresh set when it loads
+        // again, so there is nothing to preserve. Left alive, a tentacle
+        // reaching into a neighbouring chunk that stays loaded keeps its
+        // cached reference to the unloaded body (an unload does not mark
+        // the entity dead) and carries on anchored to it, orphaned, while
+        // the reloaded body grows a second set (pilot saw 12 such arms).
+        if (entity.Api.Side == EnumAppSide.Server)
         {
             DespawnAllTentacles();
         }

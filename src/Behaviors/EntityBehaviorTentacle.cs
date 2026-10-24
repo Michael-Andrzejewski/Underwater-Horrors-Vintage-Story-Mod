@@ -213,6 +213,16 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         // leaves its remains where it touches down. TickSink's timeout is
         // what guarantees this ends.
         Entity body = GetBody();
+        if (body == null && !krakenDeathHandled)
+        {
+            // No body at all is not a death: a dead kraken stays loaded as
+            // a corpse for its decay window. The body was unloaded or
+            // removed without taking this tentacle with it, so vanish
+            // quietly rather than sinking and leaving remains for a kraken
+            // that is still alive. Despawn releases the grip and the slow.
+            entity.Die(EnumDespawnReason.Expire);
+            return;
+        }
         if (body == null || !body.Alive)
         {
             if (!krakenDeathHandled)

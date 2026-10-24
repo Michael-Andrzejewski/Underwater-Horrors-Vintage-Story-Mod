@@ -169,9 +169,13 @@ public class BioluminescentGlowRenderer : IRenderer
             capi.ShowChatMessage($"[uh] biolum mode={Mode} stage={stage} {shaderState}");
         }
 
+        // The count only feeds the test-mode log and the mode-1 diagnostic.
+        // The night-kraken production path skips it: that is a second full
+        // walk of every loaded entity, every frame, for a number nobody
+        // reads.
         var entities = capi.World.LoadedEntities;
         int matched = 0;
-        if (entities != null)
+        if (testActive && entities != null)
         {
             foreach (Entity e in entities.Values)
             {

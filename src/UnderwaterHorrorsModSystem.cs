@@ -112,6 +112,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntity("DeepSerpentEntity", typeof(DeepSerpentEntity));
         api.RegisterEntity("EntitySerpentHitProxy", typeof(EntitySerpentHitProxy));
         api.RegisterEntity("EntityKrakenPart", typeof(EntityKrakenPart));
+        api.RegisterEntity("EntityKrakenClaw", typeof(EntityKrakenClaw));
 
         // Lets a client (or a reloading server) rebuild the tentacle seat
         // from the rider's saved "mountedOn" attribute. Returning null when
@@ -608,8 +609,26 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.Event.RegisterGameTickListener(OnDespawnCheck, despawnInterval);
 
         api.Event.PlayerJoin += OnPlayerJoinSyncDebug;
+        api.Event.OnEntityLoaded += RemoveSavedKrakenPart;
 
         RegisterCommands(api);
+    }
+
+    /// <summary>
+    /// Kraken helper parts are no longer saved (see KrakenPartStorage), but
+    /// worlds played on older versions still hold them on disk: whole frozen
+    /// tentacles, still glowing at night, that nothing will ever move or
+    /// clean up. This fires only for entities read back from the savegame,
+    /// never for fresh spawns, so any non-static part arriving here is one
+    /// of those leftovers. Its body, if still alive, grows a new set.
+    /// </summary>
+    private void RemoveSavedKrakenPart(Entity entity)
+    {
+        if (entity?.Code?.Domain != "underwaterhorrors") return;
+        if (!KrakenPartStorage.IsTransientCode(entity.Code.Path)) return;
+        if (KrakenPartStorage.ShouldStore(entity)) return;
+
+        entity.Die(EnumDespawnReason.Expire);
     }
 
     private void OnPlayerJoinSyncDebug(IServerPlayer player)

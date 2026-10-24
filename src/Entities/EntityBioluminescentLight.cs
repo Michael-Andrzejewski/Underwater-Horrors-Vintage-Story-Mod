@@ -18,6 +18,10 @@ public class EntityBioluminescentLight : EntityAgent
     // Pure light emitter — never a click or projectile target.
     public override bool IsInteractable => false;
 
+    // Respawned by its tentacle; a saved copy would be an unowned light
+    // left glowing in the water. See KrakenPartStorage.
+    public override bool StoreWithChunk => false;
+
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
     {
         base.Initialize(properties, api, InChunkIndex3d);

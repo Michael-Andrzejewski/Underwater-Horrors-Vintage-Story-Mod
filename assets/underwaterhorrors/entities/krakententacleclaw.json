@@ -1,6 +1,6 @@
 {
     "code": "krakententacleclaw",
-    "class": "EntityAgent",
+    "class": "EntityKrakenClaw",
     "habitat": "Underwater",
     "hitboxSize": { "x": 1.0, "y": 3.0 },
     "deadHitboxSize": { "x": 0.5, "y": 0.5 },

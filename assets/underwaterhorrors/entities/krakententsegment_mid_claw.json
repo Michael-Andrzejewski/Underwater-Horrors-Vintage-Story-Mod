@@ -1,6 +1,6 @@
 {
     "code": "krakententsegment_mid_claw",
-    "class": "EntityAgent",
+    "class": "EntityKrakenClaw",
     "habitat": "Underwater",
     "hitboxSize": { "x": 1.3, "y": 1.3 },
     "deadHitboxSize": { "x": 0.1, "y": 0.1 },
