@@ -31,8 +31,6 @@ The design follows two sources:
   1024 x 1024 atlas.
 - `reference-prototype.json`: an earlier prototype from a collaboration with
   a modeler, kept unchanged.
-- `previous-armored/`: the armored, lamprey-mouthed model this one replaces,
-  with its generator, preview and README.
 
 The JSON files open in VS Model Creator, or in Blockbench with the Vintage
 Story plugin. Edits made there are lost when the script runs again, so carry
