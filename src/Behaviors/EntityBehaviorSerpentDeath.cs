@@ -1,6 +1,7 @@
 using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
@@ -49,6 +50,13 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
 
     private bool animsStopped;
 
+    // The giant serpent turns both off in its JSON: its corpse holds the
+    // curve its spine had (an animation must stay active for that), and
+    // rolling a 400-block curved body about its head would sweep the tail
+    // through the sea floor.
+    private bool corpseRoll = true;
+    private bool stopAnimations = true;
+
     // Client-side barrel roll angle written to the renderer.
     private float clientRoll;
 
@@ -58,6 +66,13 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
     private float rescanTimer;
 
     public EntityBehaviorSerpentDeath(Entity entity) : base(entity) { }
+
+    public override void Initialize(EntityProperties properties, JsonObject attributes)
+    {
+        base.Initialize(properties, attributes);
+        corpseRoll = attributes["corpseRoll"].AsBool(true);
+        stopAnimations = attributes["stopAnimations"].AsBool(true);
+    }
 
     public override void OnEntityDeath(DamageSource damageSourceForDeath)
     {
@@ -94,13 +109,14 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
         if (!animsStopped)
         {
             animsStopped = true;
-            entity.AnimManager?.StopAllAnimations();
+            if (stopAnimations) entity.AnimManager?.StopAllAnimations();
         }
 
         if (!entity.WatchedAttributes.GetBool(DiedForRealAttr)) return;
 
         if (entity.Api.Side == EnumAppSide.Client)
         {
+            if (!corpseRoll) return;
             // Body-axis barrel roll, computed locally on every client.
             if (entity.Properties?.Client?.Renderer is EntityShapeRenderer renderer)
             {

@@ -1,0 +1,56 @@
+{
+    "code": "giantserpent",
+    "class": "GiantSerpentEntity",
+    "habitat": "Sea",
+    "hitboxSize": { "x": 10.0, "y": 10.0 },
+    "deadHitboxSize": { "x": 10.0, "y": 6.0 },
+    "eyeHeight": 5.0,
+    "weight": 50000,
+    "canClimb": false,
+    "knockbackResistance": 1.0,
+    "attributes": {
+        "giantSerpent": {
+            "bodyLength": 44.456,
+            "waveAmplitude": 0.6,
+            "waveLength": 11,
+            "spineBones": [ "head", "neck10", "neck9", "neck6", "neck5", "neck4", "neck3", "neck2", "neck1", "chest",
+                            "chest4", "chest5", "tail11", "tail12", "tail13", "tail14", "tail15", "tail16", "tail17", "tail18",
+                            "tail19", "tail20" ]
+        }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "underwaterhorrors:entity/serpent" },
+        "shape": { "base": "underwaterhorrors:entity/giantserpent" },
+        "glowLevel": 0,
+        "size": 10.0,
+        "behaviors": [
+            { "code": "interpolateposition" },
+            { "code": "underwaterhorrors:serpentdeath", "corpseRoll": false, "stopAnimations": false },
+            { "code": "underwaterhorrors:giantserpentbody" }
+        ]
+    },
+    "server": {
+        "behaviors": [
+            { "code": "health", "currenthealth": 1500, "maxhealth": 1500 },
+            { "code": "deaddecay", "hoursToDecay": 48 },
+            { "code": "underwaterhorrors:serpentdeath", "corpseRoll": false, "stopAnimations": false },
+            { "code": "underwaterhorrors:serpentharvest", "rustLoot": true, "lootMultiplier": 6 },
+            { "code": "underwaterhorrors:giantserpentai" },
+            {
+                "code": "underwaterhorrors:giantserpenthitproxies",
+                "proxyEntity": "underwaterhorrors:giantserpenthitbox",
+                "offsets": [ 0.0, 1.2, 2.4, 3.6, 4.8, 6.0, 7.2, 8.4, 9.6, 10.8, 12.0, 13.2, 14.4, 15.6, 16.8, 18.0, 19.2, 20.4, 21.6,
+                             22.8, 24.0, 25.2, 26.4, 27.6, 28.8, 30.0, 31.2, 32.4, 33.6, 34.8, 36.0, 37.2, 38.4, 39.6, 40.8, 42.0, 43.2 ]
+            }
+        ],
+        "spawnConditions": {
+            "runtime": {
+                "group": "hostile",
+                "chance": 0,
+                "maxQuantity": 0
+            }
+        }
+    },
+    "sounds": {}
+}

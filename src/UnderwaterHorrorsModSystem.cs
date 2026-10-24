@@ -649,8 +649,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .HandleWith(OnCmdNatural)
             .EndSubCommand()
             .BeginSubCommand("spawn")
-                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant.")
-                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken"))
+                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant; giantserpent starts 100 to 140 blocks out.")
+                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "giantserpent"))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dungeon")
@@ -1001,7 +1001,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
             case "deepserpent": creature = SpawnSerpent(caller, forceDeep: true); break;
             case "serpent3": creature = SpawnSerpent3(caller); break;
             case "kraken": creature = SpawnKraken(caller); break;
-            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3 or kraken.");
+            case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140); break;
+            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken or giantserpent.");
         }
 
         if (creature == null) return TextCommandResult.Error("Failed to spawn creature (no valid water position found nearby). Try deeper water.");
@@ -1690,7 +1691,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // (their tentacles and bonus entities don't count).
     private static readonly HashSet<string> PrimaryCreatureCodes = new()
     {
-        "seaserpent", "seaserpent2", "seaserpent3", "krakenbody"
+        "seaserpent", "seaserpent2", "seaserpent3", "krakenbody", "giantserpent"
     };
 
     /// <summary>Counts living serpents/krakens currently loaded in the world.</summary>
@@ -1827,7 +1828,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Entity creature;
             if (spawnSerpent)
             {
-                creature = SpawnSerpent(player);
+                // Very rarely the serpent is the giant. It starts far out and
+                // needs open deep water there; without it, a normal serpent.
+                creature = null;
+                if (sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance)
+                    creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, player, 120, 200);
+                creature ??= SpawnSerpent(player);
             }
             else
             {
@@ -2051,6 +2057,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             case "seaserpent": hp = cfg.RustSerpentMaxHealth; break;
             case "seaserpent2": hp = cfg.DeepSerpentMaxHealth; break;
+            case "giantserpent": hp = cfg.GiantSerpentMaxHealth; break;
             default: return;
         }
 

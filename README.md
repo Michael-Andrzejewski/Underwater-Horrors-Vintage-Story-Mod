@@ -7,13 +7,21 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 ## Documents
 
 - `CONFIG.md`: every config setting, its default and what it does. Generated from the source comments by `tools/gen_config_doc.py`.
-- In game: the handbook has a guide page, "Guide: Underwater Horrors", and entries for the Sea Serpent, Rust Serpent and Kraken.
+- In game: the handbook has a guide page, "Guide: Underwater Horrors", and entries for the Sea Serpent, Rust Serpent, Rust Leviathan and Kraken.
 
 ## Building
 
 `dotnet build -c Release` builds the dll, zips it with `modinfo.json` and `assets/`, and copies the zip to `%APPDATA%\VintagestoryData\Mods\UnderwaterHorrors_<version>.zip`.
 
 ## Changelog
+
+### 0.22.0
+
+- New creature: the Rust Leviathan (`giantserpent`), a rust serpent ten times the size, about 440 blocks from jaw to tail. Very rare: one natural serpent spawn in fifty (`GiantSerpentSpawnChance`). `/uh spawn giantserpent` brings one 100 to 140 blocks out.
+- It swims like a snake: its body follows the path its head took, with a side-to-side swimming wave, instead of swinging behind it as one keyframed piece. The model is the rust serpent's own, re-rooted at the mouth by `tools/giantserpent/build_shape.py`.
+- It never surfaces to hiss or show its fins. It circles far below its prey, dives, then rises mouth first and breaches. It swallows a raft in one gulp, breaks a sailboat in three bites (`GiantSerpentBitesToSinkBoat`) and drops the crew in the water with some damage (`GiantSerpentRiderDamage`). Swimmers take a 20 damage bite. It strikes only over water at least 20 blocks deep, so the shallows still save you.
+- 1500 health. Its carcass sinks, keeps its last curve, and harvests for six times a rust serpent's loot, with a trail of bone piles along its body.
+- New config section "Giant serpent" (see `CONFIG.md`).
 
 ### 0.21.0
 

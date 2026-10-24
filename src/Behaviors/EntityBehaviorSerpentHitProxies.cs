@@ -29,10 +29,10 @@ namespace UnderwaterHorrors;
 /// </summary>
 public class EntityBehaviorSerpentHitProxies : EntityBehavior
 {
-    private static readonly AssetLocation ProxyAsset =
-        new AssetLocation("underwaterhorrors", "serpenthitbox");
+    // Proxy entity type; the giant serpent's JSON swaps in bigger boxes.
+    private AssetLocation proxyAsset = new AssetLocation("underwaterhorrors", "serpenthitbox");
 
-    private float[] offsets = Array.Empty<float>();
+    protected float[] offsets = Array.Empty<float>();
     private float spineHeight = 0.75f;
 
     /// <summary>Spine offsets in blocks (+ = head). Read by the harvest
@@ -56,6 +56,8 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         base.Initialize(properties, attributes);
         offsets = attributes["offsets"].AsArray<float>(Array.Empty<float>());
         spineHeight = attributes["spineHeight"].AsFloat(0.75f);
+        string proxy = attributes["proxyEntity"].AsString(null);
+        if (proxy != null) proxyAsset = new AssetLocation(proxy);
     }
 
     public override void OnGameTick(float deltaTime)
@@ -84,7 +86,13 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         UpdateProxies(maySpawn);
     }
 
-    private void UpdateProxies(bool maySpawn)
+    /// <summary>
+    /// World position of the spine line at proxy <paramref name="index"/>:
+    /// where that proxy's box is centered, and where the harvest behavior
+    /// drops that bone pile. Straight along the facing here; the giant
+    /// serpent follows its curved trail instead.
+    /// </summary>
+    public virtual void GetSpinePoint(int index, out double x, out double y, out double z)
     {
         // Forward axis: same convention as the AIs' GetHeadPosition —
         // forward = (sin(yaw), 0, cos(yaw)). Positive pitch tilts the
@@ -92,10 +100,14 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         float yaw = entity.Pos.Yaw;
         float pitch = entity.Pos.Pitch;
         double cosP = Math.Cos(pitch);
-        double fx = Math.Sin(yaw) * cosP;
-        double fy = -Math.Sin(pitch);
-        double fz = Math.Cos(yaw) * cosP;
+        double off = offsets[index];
+        x = entity.Pos.X + Math.Sin(yaw) * cosP * off;
+        y = entity.Pos.Y + spineHeight - Math.Sin(pitch) * off;
+        z = entity.Pos.Z + Math.Cos(yaw) * cosP * off;
+    }
 
+    private void UpdateProxies(bool maySpawn)
+    {
         for (int i = 0; i < offsets.Length; i++)
         {
             Entity proxy = proxies[i];
@@ -112,20 +124,17 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
                 if (proxy == null) continue;
             }
 
-            double off = offsets[i];
+            GetSpinePoint(i, out double sx, out double sy, out double sz);
             // Entity position is the bottom center of the hitbox; place
             // the box so its vertical middle sits on the spine line.
             double halfHeight = proxy.SelectionBox != null ? proxy.SelectionBox.Y2 / 2.0 : 1.1;
-            proxy.Pos.SetPos(
-                entity.Pos.X + fx * off,
-                entity.Pos.Y + spineHeight + fy * off - halfHeight,
-                entity.Pos.Z + fz * off);
+            proxy.Pos.SetPos(sx, sy - halfHeight, sz);
         }
     }
 
     private Entity SpawnProxyAt(int index)
     {
-        EntityProperties props = entity.World.GetEntityType(ProxyAsset);
+        EntityProperties props = entity.World.GetEntityType(proxyAsset);
         if (props == null) return null;
 
         Entity proxy = entity.World.ClassRegistry.CreateEntity(props);

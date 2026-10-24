@@ -28,12 +28,25 @@ public class EntitySerpentHitProxy : EntityAgent
     {
         if (mode == EnumInteractMode.Interact && Api.Side == EnumAppSide.Server)
         {
-            long targetId = WatchedAttributes.GetLong(EntityBehaviorDamageRelay.TargetAttr);
-            Entity target = targetId != 0 ? World.GetEntityById(targetId) : null;
-            var harvest = target?.GetBehavior<EntityBehaviorSerpentHarvest>();
+            var harvest = Owner?.GetBehavior<EntityBehaviorSerpentHarvest>();
             if (harvest != null && harvest.TryHarvest(byEntity, itemslot, Pos.XYZ)) return;
         }
 
         base.OnInteract(byEntity, itemslot, hitPosition, mode);
+    }
+
+    // Looking at any part of the body names the serpent and shows its
+    // health, instead of the proxy's own untranslated entity code.
+    public override string GetName() => Owner?.GetName() ?? base.GetName();
+
+    public override string GetInfoText() => Owner?.GetInfoText() ?? base.GetInfoText();
+
+    private Entity Owner
+    {
+        get
+        {
+            long targetId = WatchedAttributes.GetLong(EntityBehaviorDamageRelay.TargetAttr);
+            return targetId != 0 && targetId != EntityId ? World?.GetEntityById(targetId) : null;
+        }
     }
 }

@@ -454,6 +454,42 @@ public class UnderwaterHorrorsConfig
     public float DeepSerpentMaxVerticalSpeed { get; set; } = 0.012f;
     public float DeepSerpentVerticalSlewPerSec { get; set; } = 0.04f;
 
+    // ─── Giant serpent ───────────────────────────────────────────────────
+    // A very rare rust serpent ten times the size (the entity size in
+    // giantserpent.json). It never surfaces to hiss like the rust serpent:
+    // it circles far below its prey, then rises mouth first from the deep.
+    // It bites swimmers, swallows rafts whole and breaks bigger boats in a
+    // few bites. The only time it leaves the water is the breach after a
+    // strike.
+    // Chance that a natural serpent spawn is the giant instead. 0.02 is one
+    // serpent spawn in fifty. 0 turns natural giants off; /uh spawn
+    // giantserpent always works.
+    public float GiantSerpentSpawnChance { get; set; } = 0.02f;
+    public float GiantSerpentMaxHealth { get; set; } = 1500f;
+    // Damage of a bite on a swimmer, and its armor piercing tier.
+    public float GiantSerpentBiteDamage { get; set; } = 20f;
+    public int GiantSerpentDamageTier { get; set; } = 4;
+    // Damage to each rider when the giant swallows or breaks their boat.
+    // They land in the water, where it can come back for them.
+    public float GiantSerpentRiderDamage { get; set; } = 8f;
+    // Bites it takes to break a boat that is not a raft (the sailboat).
+    // A raft always goes down in one gulp.
+    public int GiantSerpentBitesToSinkBoat { get; set; } = 3;
+    // Swimming speeds in blocks per second: cruising and circling, and the
+    // final rush at its prey.
+    public float GiantSerpentCruiseSpeed { get; set; } = 7f;
+    public float GiantSerpentStrikeSpeed { get; set; } = 24f;
+    // Seconds it circles below before the first strike, and between strikes.
+    public float GiantSerpentStalkSecondsMin { get; set; } = 25f;
+    public float GiantSerpentStalkSecondsMax { get; set; } = 50f;
+    public float GiantSerpentStrikeCooldownMin { get; set; } = 15f;
+    public float GiantSerpentStrikeCooldownMax { get; set; } = 30f;
+    // It only strikes prey over water at least this deep. Over shallower
+    // water it keeps circling, and gives up after half a minute.
+    public int GiantSerpentMinStrikeDepth { get; set; } = 20;
+    // It swims off after this many seconds even if its prey is still at sea.
+    public float GiantSerpentMaxStaySeconds { get; set; } = 480f;
+
     // Kraken body
     public float KrakenContactDamage { get; set; } = 25f;
     public float KrakenContactRange { get; set; } = 3f;
@@ -749,6 +785,23 @@ public class UnderwaterHorrorsConfig
         RustSerpentMaxHealth = Math.Max(1f, RustSerpentMaxHealth);
         DeepSerpentMaxHealth = Math.Max(1f, DeepSerpentMaxHealth);
         SerpentSpeedMultiplier = Math.Clamp(SerpentSpeedMultiplier, 0.1f, 10f);
+
+        // Giant serpent: a chance is a 0..1 roll, the stalk and cooldown
+        // windows must be real ranges, and a giant that cannot move or
+        // never breaks a boat is not the creature described above.
+        GiantSerpentSpawnChance = Math.Clamp(GiantSerpentSpawnChance, 0f, 1f);
+        GiantSerpentMaxHealth = Math.Max(1f, GiantSerpentMaxHealth);
+        GiantSerpentBiteDamage = Math.Max(0f, GiantSerpentBiteDamage);
+        GiantSerpentRiderDamage = Math.Max(0f, GiantSerpentRiderDamage);
+        GiantSerpentBitesToSinkBoat = Math.Max(1, GiantSerpentBitesToSinkBoat);
+        GiantSerpentCruiseSpeed = Math.Clamp(GiantSerpentCruiseSpeed, 0.5f, 60f);
+        GiantSerpentStrikeSpeed = Math.Clamp(GiantSerpentStrikeSpeed, GiantSerpentCruiseSpeed, 80f);
+        GiantSerpentStalkSecondsMin = Math.Max(0f, GiantSerpentStalkSecondsMin);
+        GiantSerpentStalkSecondsMax = Math.Max(GiantSerpentStalkSecondsMin, GiantSerpentStalkSecondsMax);
+        GiantSerpentStrikeCooldownMin = Math.Max(0f, GiantSerpentStrikeCooldownMin);
+        GiantSerpentStrikeCooldownMax = Math.Max(GiantSerpentStrikeCooldownMin, GiantSerpentStrikeCooldownMax);
+        GiantSerpentMinStrikeDepth = Math.Max(1, GiantSerpentMinStrikeDepth);
+        GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
 
         // 0 disables the clearance entirely; the upper bound keeps the
         // per-spawn footprint scan bounded. A rise of 0 would make the

@@ -44,6 +44,8 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
 
     // Set on the rust (aggressive surface) serpent via JSON attributes.
     private bool rustLoot;
+    // Multiplies every stack and part count; the giant serpent carries a hoard.
+    private int lootMultiplier = 1;
 
     public EntityBehaviorSerpentHarvest(Entity entity) : base(entity) { }
 
@@ -51,6 +53,7 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
     {
         base.Initialize(properties, attributes);
         rustLoot = attributes["rustLoot"].AsBool(false);
+        lootMultiplier = Math.Max(1, attributes["lootMultiplier"].AsInt(1));
     }
 
     /// <summary>
@@ -111,14 +114,15 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
         var world = entity.World;
         var rand = world.Rand;
 
-        SpawnStack(FishAsset, 3 + rand.Next(4), dropPos);   // 3-6 raw fillets
-        SpawnStack(BoneAsset, 4 + rand.Next(5), dropPos);   // 4-8 bones
+        int m = lootMultiplier;
+        SpawnStack(FishAsset, (3 + rand.Next(4)) * m, dropPos);   // 3-6 raw fillets
+        SpawnStack(BoneAsset, (4 + rand.Next(5)) * m, dropPos);   // 4-8 bones
 
         if (rustLoot)
         {
-            SpawnStack(GearAsset, 5 + rand.Next(6), dropPos);   // 5-10 rusty gears
+            SpawnStack(GearAsset, (5 + rand.Next(6)) * m, dropPos);   // 5-10 rusty gears
 
-            int parts = 2 + rand.Next(3);                       // 2-4 Jonas parts
+            int parts = (2 + rand.Next(3)) * m;                       // 2-4 Jonas parts
             for (int i = 0; i < parts; i++)
             {
                 string type = JonasPartTypes[rand.Next(JonasPartTypes.Length)];
@@ -162,20 +166,16 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
         Block pileBlock = world.GetBlock(BonePileAsset);
         if (pileBlock == null) return;
 
-        float[] offsets = entity.GetBehavior<EntityBehaviorSerpentHitProxies>()?.Offsets;
-        if (offsets == null || offsets.Length == 0) offsets = new float[] { 0f };
-
-        float yaw = entity.Pos.Yaw;
-        double fx = Math.Sin(yaw);
-        double fz = Math.Cos(yaw);
+        var proxies = entity.GetBehavior<EntityBehaviorSerpentHitProxies>();
+        int count = proxies?.Offsets.Length ?? 0;
 
         var accessor = world.BlockAccessor;
         var placed = new HashSet<BlockPos>();
 
-        foreach (float off in offsets)
+        for (int i = 0; i < Math.Max(1, count); i++)
         {
-            double x = entity.Pos.X + fx * off;
-            double z = entity.Pos.Z + fz * off;
+            double x = entity.Pos.X, z = entity.Pos.Z;
+            if (count > 0) proxies.GetSpinePoint(i, out x, out _, out z);
 
             int floorY = FindRestingYBelow(accessor, x, entity.Pos.Y + 1, z, entity.Pos.Dimension);
             if (floorY < 0) continue;
