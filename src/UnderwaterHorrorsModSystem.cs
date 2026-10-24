@@ -653,8 +653,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .HandleWith(OnCmdNatural)
             .EndSubCommand()
             .BeginSubCommand("spawn")
-                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant; giantserpent starts 100 to 140 blocks out, giantserpentglow the glowing one.")
-                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "giantserpent", "giantserpentglow"))
+                .WithDescription("Force spawn a creature on the calling player. serpent picks rust or deep at random; rustserpent and deepserpent force the variant; giantserpent starts 100 to 140 blocks out.")
+                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "giantserpent"))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dungeon")
@@ -1005,9 +1005,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
             case "deepserpent": creature = SpawnSerpent(caller, forceDeep: true); break;
             case "serpent3": creature = SpawnSerpent3(caller); break;
             case "kraken": creature = SpawnKraken(caller); break;
-            case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140, glow: false); break;
-            case "giantserpentglow": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140, glow: true); break;
-            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken, giantserpent or giantserpentglow.");
+            case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140); break;
+            default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken or giantserpent.");
         }
 
         if (creature == null) return TextCommandResult.Error("Failed to spawn creature (no valid water position found nearby). Try deeper water.");
@@ -1833,10 +1832,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Entity creature;
             if (spawnSerpent)
             {
-                // Very rarely the serpent is the giant. It starts far out and
-                // needs open deep water there; without it, a normal serpent.
+                // Out in open ocean the serpent is sometimes the giant. It
+                // starts far out and needs open deep water there; without
+                // it, a normal serpent.
                 creature = null;
-                if (sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance)
+                if (sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance &&
+                    EntityBehaviorGiantSerpentAI.IsOpenOcean(sapi.World, player.Entity,
+                        Config.GiantSerpentOpenOceanRadius, Config.GiantSerpentOpenOceanDepth))
                     creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, player, 120, 200);
                 creature ??= SpawnSerpent(player);
             }

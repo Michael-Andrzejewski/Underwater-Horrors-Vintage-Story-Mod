@@ -1,7 +1,6 @@
 using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 
 namespace UnderwaterHorrors;
@@ -27,13 +26,6 @@ public class GiantSerpentEntity : DeepSerpentEntity
     public override double FrustumSphereRadius => reach + 20;
 
     public override bool AllowOutsideLoadedRange => true;
-
-    // The glowing variant has a name of its own.
-    public override string GetName()
-    {
-        if (!Alive || !WatchedAttributes.GetBool(GiantSerpentGlow.BiolumAttr)) return base.GetName();
-        return Lang.Get("underwaterhorrors:item-creature-giantserpent-glow");
-    }
 
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
     {

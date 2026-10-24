@@ -461,14 +461,19 @@ public class UnderwaterHorrorsConfig
     // It bites swimmers, swallows rafts whole and breaks bigger boats in a
     // few bites. It never leaves the water: when it strikes, only its head
     // and the arch of its back break the surface.
-    // Chance that a natural serpent spawn is the giant instead. 0.02 is one
-    // serpent spawn in fifty. 0 turns natural giants off; /uh spawn
+    // Patches of cyan bioluminescence grow over its hide and light the
+    // water around it.
+    // Chance that a natural serpent spawn in open ocean is the giant
+    // instead. Open ocean: the player's own column and four random columns
+    // within GiantSerpentOpenOceanRadius blocks are all saltwater at least
+    // GiantSerpentOpenOceanDepth deep. 0 turns natural giants off; /uh spawn
     // giantserpent always works.
-    public float GiantSerpentSpawnChance { get; set; } = 0.02f;
-    // Chance that a natural giant is the glowing variant: patches of cyan
-    // bioluminescence over its hide that light the water around it. /uh
-    // spawn giantserpentglow always brings one.
-    public float GiantSerpentGlowChance { get; set; } = 0.3f;
+    public float GiantSerpentSpawnChance { get; set; } = 0.05f;
+    // How far around the player the open-ocean test looks, in blocks.
+    public float GiantSerpentOpenOceanRadius { get; set; } = 50f;
+    // How deep the saltwater must be at the player and at every tested column.
+    public int GiantSerpentOpenOceanDepth { get; set; } = 50;
+    public bool GiantSerpentChanceMigrated { get; set; } = false;
     public float GiantSerpentMaxHealth { get; set; } = 1500f;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
@@ -801,7 +806,8 @@ public class UnderwaterHorrorsConfig
         // windows must be real ranges, and a giant that cannot move or
         // never breaks a boat is not the creature described above.
         GiantSerpentSpawnChance = Math.Clamp(GiantSerpentSpawnChance, 0f, 1f);
-        GiantSerpentGlowChance = Math.Clamp(GiantSerpentGlowChance, 0f, 1f);
+        GiantSerpentOpenOceanRadius = Math.Clamp(GiantSerpentOpenOceanRadius, 0f, 200f);
+        GiantSerpentOpenOceanDepth = Math.Max(1, GiantSerpentOpenOceanDepth);
         GiantSerpentMaxHealth = Math.Max(1f, GiantSerpentMaxHealth);
         GiantSerpentBiteDamage = Math.Max(0f, GiantSerpentBiteDamage);
         GiantSerpentRiderDamage = Math.Max(0f, GiantSerpentRiderDamage);
@@ -903,6 +909,13 @@ public class UnderwaterHorrorsConfig
         {
             IgnoreCreativePlayers = true;
             IgnoreCreativePlayersMigrated = true;
+        }
+        if (!GiantSerpentChanceMigrated)
+        {
+            // 0.22.0 to 0.22.4 rolled the giant on any natural serpent spawn,
+            // at 0.02; now only in open ocean, at 0.05.
+            if (GiantSerpentSpawnChance == 0.02f) GiantSerpentSpawnChance = 0.05f;
+            GiantSerpentChanceMigrated = true;
         }
         if (!ScreechVolumeMigrated)
         {

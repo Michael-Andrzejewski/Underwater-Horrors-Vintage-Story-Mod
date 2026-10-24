@@ -137,9 +137,13 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private double MinDepthBelowSurface => Showcase ? 0.3 * size : 2.4 * size;  // keeps the dorsal spikes under
     private bool Showcase => entity.WatchedAttributes.GetBool(ShowcaseAttr);
 
-    // A deeper voice that carries further, for an animal this size.
+    // A deeper voice that carries further, for an animal this size. Its
+    // bite is the rust serpent's, cut to start at once (played this slow,
+    // the original's lead-in made it land late) with a longer, softer tail.
     protected override float SoundPitch => config?.GiantSerpentSoundPitch ?? 0.6f;
     protected override float SoundReach => 24f;
+    protected override string BiteSound => "sounds/creature/bite-giant";
+    protected override float BiteDuration => 2.1f;
     private double FloorClearance => 1.3 * size;  // belly clear of the sea floor
     private double GulpRange => 0.9 * size;
     private double OuterOrbit => 14 * size;
@@ -684,8 +688,8 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         if (raft || bites >= config.GiantSerpentBitesToSinkBoat)
         {
             Log($"swallowed {boat.Code} ({riders.Count} rider(s))");
-            // Death unmounts the riders and drops anything stored aboard,
-            // the same as a boat burning down.
+            SpillCargo(boat);
+            // Death unmounts the riders.
             boat.Die(EnumDespawnReason.Death, new DamageSource
             {
                 Source = EnumDamageSource.Entity,
@@ -703,6 +707,41 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             boat.WatchedAttributes.SetInt(BitesAttr, bites);
             Log($"bit {boat.Code}, {bites}/{config.GiantSerpentBitesToSinkBoat} bites to sink it");
         }
+    }
+
+    /// <summary>
+    /// The boat's cargo goes down with it: crates, baskets and bags aboard are
+    /// destroyed, and what they held scatters over the water. Left to the
+    /// game, a dying boat drops its crates whole, contents sealed inside.
+    /// </summary>
+    private void SpillCargo(Entity boat)
+    {
+        var aboard = boat.GetBehavior<EntityBehaviorAttachable>()?.Inventory;
+        if (aboard == null) return;
+        var world = entity.World;
+        var rand = world.Rand;
+        var at = boat.Pos;
+        int spilled = 0;
+        foreach (ItemSlot slot in aboard)
+        {
+            ItemStack stack = slot.Itemstack;
+            if (stack == null) continue;
+            ItemStack[] contents = stack.Collectible.GetCollectibleBehavior<CollectibleBehaviorHeldBag>(true)?.GetContents(stack, world);
+            if (contents != null)
+            {
+                foreach (ItemStack item in contents)
+                {
+                    if (item == null || item.StackSize <= 0) continue;
+                    double a = rand.NextDouble() * Math.PI * 2, v = 0.08 + rand.NextDouble() * 0.12;
+                    world.SpawnItemEntity(item, new Vec3d(at.X, at.Y + 0.6, at.Z),
+                        new Vec3d(Math.Cos(a) * v, 0.12 + rand.NextDouble() * 0.12, Math.Sin(a) * v));
+                    spilled++;
+                }
+            }
+            slot.Itemstack = null;
+            slot.MarkDirty();
+        }
+        if (spilled > 0) Log($"{boat.Code} spilled {spilled} stack(s) of cargo");
     }
 
     private void BitePlayer(EntityPlayer player, float damage)
@@ -972,12 +1011,51 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     public static readonly AssetLocation EntityCode = new("underwaterhorrors", "giantserpent");
 
     /// <summary>
-    /// Spawns a giant serpent in open water between minDist and maxDist
-    /// blocks from the player, facing them, at its cruising depth. glow
-    /// picks the bioluminescent variant; null rolls GiantSerpentGlowChance.
-    /// Returns null when no column that far out is open deep water.
+    /// True when the player is out in open ocean: their own column and four
+    /// random columns within radius blocks of them are all saltwater at
+    /// least depth deep. Natural giants only come there.
     /// </summary>
-    public static Entity SpawnNear(ICoreServerAPI sapi, IServerPlayer player, double minDist, double maxDist, bool? glow = null)
+    public static bool IsOpenOcean(IWorldAccessor world, Entity player, double radius, int depth)
+    {
+        var p = player.Pos;
+        if (SaltwaterDepthAt(world, p.X, p.Z, p.Dimension, depth) < depth) return false;
+        var rand = world.Rand;
+        for (int i = 0; i < 4; i++)
+        {
+            double a = rand.NextDouble() * Math.PI * 2;
+            double d = radius * Math.Sqrt(rand.NextDouble());
+            if (SaltwaterDepthAt(world, p.X + Math.Cos(a) * d, p.Z + Math.Sin(a) * d, p.Dimension, depth) < depth) return false;
+        }
+        return true;
+    }
+
+    // Saltwater blocks from the top of the sea down at a column, counted up
+    // to need. 0 on land, in fresh water, or where nothing is loaded.
+    private static int SaltwaterDepthAt(IWorldAccessor world, double x, double z, int dim, int need)
+    {
+        var acc = world.BlockAccessor;
+        var bp = new BlockPos((int)Math.Floor(x), world.SeaLevel + 4, (int)Math.Floor(z), dim);
+        for (; bp.Y > world.SeaLevel - 12; bp.Y--)
+        {
+            Block b = acc.GetBlock(bp, BlockLayersAccess.Fluid);
+            if (WaterHelper.IsSaltwater(b)) break;
+            if (acc.GetBlock(bp, BlockLayersAccess.Solid)?.Id > 0) return 0;
+        }
+        int count = 0;
+        for (; bp.Y > 0 && count < need; bp.Y--, count++)
+        {
+            if (!WaterHelper.IsSaltwater(acc.GetBlock(bp, BlockLayersAccess.Fluid))) break;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Spawns a giant serpent in open water between minDist and maxDist
+    /// blocks from the player, facing them, at its cruising depth. Every
+    /// giant glows. Returns null when no column that far out is open deep
+    /// water.
+    /// </summary>
+    public static Entity SpawnNear(ICoreServerAPI sapi, IServerPlayer player, double minDist, double maxDist)
     {
         var cfg = UnderwaterHorrorsModSystem.Config;
         EntityProperties props = sapi.World.GetEntityType(EntityCode);
@@ -1006,14 +1084,13 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             giant.Pos.Yaw = (float)Math.Atan2(ppos.X - x, ppos.Z - z);
             giant.Pos.SetFrom(giant.Pos);
             giant.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
-            bool glowing = glow ?? rand.NextDouble() < cfg.GiantSerpentGlowChance;
-            if (glowing) giant.WatchedAttributes.SetBool(GiantSerpentGlow.BiolumAttr, true);
+            giant.WatchedAttributes.SetBool(GiantSerpentGlow.BiolumAttr, true);
             sapi.World.SpawnEntity(giant);
             UnderwaterHorrorsModSystem.ApplyConfiguredHealth(giant);
 
             if (cfg.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(sapi,
-                    $"SPAWNED {(glowing ? "glowing " : "")}giant serpent targeting {player.PlayerName} at ({x:F0}, {y:F0}, {z:F0}), {dist:F0} blocks out");
+                    $"SPAWNED giant serpent targeting {player.PlayerName} at ({x:F0}, {y:F0}, {z:F0}), {dist:F0} blocks out");
             return giant;
         }
         return null;

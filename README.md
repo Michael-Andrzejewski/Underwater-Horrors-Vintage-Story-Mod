@@ -15,6 +15,13 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.22.5
+
+- The Rust Leviathan only comes out in the open ocean: the player's own column and four random columns within 50 blocks must all be saltwater at least 50 deep (`GiantSerpentOpenOceanRadius`, `GiantSerpentOpenOceanDepth`). There, one natural serpent spawn in twenty is the giant (`GiantSerpentSpawnChance`, now 0.05; a config still at the old 0.02 is moved up once).
+- Every Rust Leviathan glows now. The plain variant, `GiantSerpentGlowChance` and `/uh spawn giantserpentglow` are gone; `/uh spawn giantserpent` brings the glowing one.
+- Its bite has a sound of its own: the rust serpent's bite without the silent lead-in, so it lands about half a second sooner, with a softer attack and a longer, echoing tail.
+- A boat it sinks loses its cargo: crates, baskets and bags aboard are destroyed and what they held spills into the sea. Light goods such as wood and fiber float; metal and stone sink. The game on its own drops such a boat's crates whole, contents sealed inside.
+
 ### 0.22.4
 
 - The Glowing Rust Leviathan's patches sit only on opaque parts of its hide. Dots used to land on see-through texels of the fins and whiskers, and on the edges past a face, and floated in the water beside the body. Each dot is now placed on its own face and checked against the texture.

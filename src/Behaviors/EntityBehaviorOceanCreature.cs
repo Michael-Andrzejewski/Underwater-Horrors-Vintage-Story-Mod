@@ -360,6 +360,9 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     /// </summary>
     protected virtual float SoundPitch => 1f;
     protected virtual float SoundReach => 8f;
+    // The bite clip and its length in seconds at pitch 1.
+    protected virtual string BiteSound => UnderwaterHorrorsModSystem.SndBite;
+    protected virtual float BiteDuration => UnderwaterHorrorsModSystem.DurBite;
 
     protected void UpdateAmbientSound(float deltaTime)
     {
@@ -432,8 +435,8 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     {
         var cfg = UnderwaterHorrorsModSystem.Config;
         UnderwaterHorrorsModSystem.ServerInstance?.PlayMonsterSound(
-            entity, UnderwaterHorrorsModSystem.SndBite,
-            UnderwaterHorrorsModSystem.DurBite / SoundPitch, bite: true,
+            entity, BiteSound,
+            BiteDuration / SoundPitch, bite: true,
             volumeMul: cfg?.MonsterSoundBiteVolume ?? 1f, refDistance: SoundReach, pitch: SoundPitch);
     }
 
