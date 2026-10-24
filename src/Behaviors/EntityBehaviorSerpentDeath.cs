@@ -52,7 +52,7 @@ public class EntityBehaviorSerpentDeath : EntityBehavior
 
     // The giant serpent turns both off in its JSON: its corpse holds the
     // curve its spine had (an animation must stay active for that), and
-    // rolling a 400-block curved body about its head would sweep the tail
+    // rolling a 200-block curved body about its head would sweep the tail
     // through the sea floor.
     private bool corpseRoll = true;
     private bool stopAnimations = true;

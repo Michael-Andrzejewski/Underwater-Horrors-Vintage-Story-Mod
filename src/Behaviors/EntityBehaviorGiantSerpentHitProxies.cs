@@ -47,7 +47,7 @@ public class EntityBehaviorGiantSerpentHitProxies : EntityBehaviorSerpentHitProx
         }
 
         arc[0] = s;
-        trail.SampleMany(arc, 1, sx, sy, sz, so, stx, stz);
+        trail.SampleSmooth(arc, 1, EntityBehaviorGiantSerpentBody.TangentSpan * size, sx, sy, sz, so, stx, stz);
         double off = SerpentTrail.WaveOffset(s, so[0], waveAmplitude * size, waveLength * size, bodyLength * size);
         // The trail's mouth can lag the entity: a corpse sinks after the
         // trail froze. Shift by the difference so the boxes move with it.

@@ -455,7 +455,7 @@ public class UnderwaterHorrorsConfig
     public float DeepSerpentVerticalSlewPerSec { get; set; } = 0.04f;
 
     // ─── Giant serpent ───────────────────────────────────────────────────
-    // A very rare rust serpent ten times the size (the entity size in
+    // A very rare rust serpent five times the size (the entity size in
     // giantserpent.json). It never surfaces to hiss like the rust serpent:
     // it circles far below its prey, then rises mouth first from the deep.
     // It bites swimmers, swallows rafts whole and breaks bigger boats in a

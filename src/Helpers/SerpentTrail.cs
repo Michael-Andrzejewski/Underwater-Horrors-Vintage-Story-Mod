@@ -161,6 +161,48 @@ public class SerpentTrail
         }
     }
 
+    private double[] smoothArcs, smoothX, smoothY, smoothZ, smoothO, smoothTx, smoothTz;
+
+    /// <summary>
+    /// Like <see cref="SampleMany"/>, but the horizontal direction at each
+    /// sample is taken across the points <paramref name="delta"/> before and
+    /// after it. SampleMany's direction is that of the single breadcrumb
+    /// segment the sample sits on, so it jumps whenever a sample crosses onto
+    /// the next segment; anything offset sideways along it (the swimming
+    /// wave) twitched every time. delta must be under half the smallest gap
+    /// between the arcs, so the widened list stays in order.
+    /// </summary>
+    public void SampleSmooth(double[] arcs, int n, double delta,
+        double[] outX, double[] outY, double[] outZ, double[] outOdo, double[] outTx, double[] outTz)
+    {
+        int m = n * 3;
+        if (smoothArcs == null || smoothArcs.Length < m)
+        {
+            smoothArcs = new double[m]; smoothX = new double[m]; smoothY = new double[m]; smoothZ = new double[m];
+            smoothO = new double[m]; smoothTx = new double[m]; smoothTz = new double[m];
+        }
+        for (int i = 0; i < n; i++)
+        {
+            smoothArcs[i * 3] = Math.Max(0, arcs[i] - delta);
+            smoothArcs[i * 3 + 1] = arcs[i];
+            smoothArcs[i * 3 + 2] = arcs[i] + delta;
+        }
+        SampleMany(smoothArcs, m, smoothX, smoothY, smoothZ, smoothO, smoothTx, smoothTz);
+
+        for (int i = 0; i < n; i++)
+        {
+            int c = i * 3 + 1;
+            outX[i] = smoothX[c];
+            outY[i] = smoothY[c];
+            outZ[i] = smoothZ[c];
+            outOdo[i] = smoothO[c];
+            double tx = smoothTx[c], tz = smoothTz[c];
+            SetTangent(smoothX[c - 1] - smoothX[c + 1], smoothZ[c - 1] - smoothZ[c + 1], ref tx, ref tz);
+            outTx[i] = tx;
+            outTz[i] = tz;
+        }
+    }
+
     private static void SetTangent(double dx, double dz, ref double tx, ref double tz)
     {
         double h = Math.Sqrt(dx * dx + dz * dz);

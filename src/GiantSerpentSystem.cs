@@ -14,6 +14,7 @@ public class GiantSerpentSystem : ModSystem
         api.RegisterEntity("GiantSerpentEntity", typeof(GiantSerpentEntity));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentai", typeof(EntityBehaviorGiantSerpentAI));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentbody", typeof(EntityBehaviorGiantSerpentBody));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentmotion", typeof(EntityBehaviorGiantSerpentMotion));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpenthitproxies", typeof(EntityBehaviorGiantSerpentHitProxies));
     }
 }

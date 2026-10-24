@@ -22,7 +22,7 @@ namespace UnderwaterHorrors;
 /// only animates elements some clip names, which is why the shape's idle
 /// clip carries zero keyframes for every spine bone.
 ///
-/// Runs at the Before render stage after interpolateposition (order 0) has
+/// Runs at the Before render stage after giantserpentmotion (order 0) has
 /// moved the entity and before the entity animator (order 0.4) builds this
 /// frame's matrices. A dead serpent keeps its last pose.
 /// </summary>
@@ -30,6 +30,11 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
 {
     public const string SeedAttr = "underwaterhorrors:giantTrailSeed";
     public const double SeedSpacing = 8.0;
+
+    // Half the stretch of trail the swimming wave's sideways direction is
+    // measured across, in blocks at size 1 (see SerpentTrail.SampleSmooth).
+    // Under half the shortest spine link (1.06 at size 1).
+    public const double TangentSpan = 0.25;
 
     // A bone never bends further than this from its parent, so a glitched
     // trail (a teleport inside one frame) can't fold the body inside out.
@@ -48,6 +53,19 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
     private SerpentTrail trail;
     private double[] arcs, qx, qy, qz, qodo, qtx, qtz;
     private bool warnedMissingBone;
+
+    /// <summary>
+    /// Spine joints as last posed, relative to the mouth (the entity
+    /// position): the mouth, each bone's pivot, and the end of the last
+    /// link. A dead serpent keeps its last set, which moves with the sinking
+    /// corpse. Read by the deep silhouette and the lighting.
+    /// </summary>
+    public double[] RelX { get; private set; }
+    public double[] RelY { get; private set; }
+    public double[] RelZ { get; private set; }
+    public int JointCount { get; private set; }
+
+    private GiantSerpentSilhouette silhouette;
 
     public EntityBehaviorGiantSerpentBody(Entity entity) : base(entity) { }
 
@@ -68,6 +86,7 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
             lighting = new BodyLighting(this);
             capi.Event.RegisterRenderer(this, EnumRenderStage.Before, "underwaterhorrors-giantserpentbody");
             capi.Event.RegisterRenderer(lighting, EnumRenderStage.Before, "underwaterhorrors-giantserpentlight");
+            silhouette = new GiantSerpentSilhouette(capi, entity, this, GiantSerpentRig.BodyRadii(properties));
         }
     }
 
@@ -75,6 +94,8 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
     {
         capi?.Event.UnregisterRenderer(this, EnumRenderStage.Before);
         if (lighting != null) capi?.Event.UnregisterRenderer(lighting, EnumRenderStage.Before);
+        silhouette?.Dispose();
+        silhouette = null;
         base.OnEntityDespawn(despawn);
     }
 
@@ -106,20 +127,21 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
 
     private void RelightFromNearestJoint()
     {
-        if (!entity.IsRendered || qx == null || LightField == null) return;
+        if (!entity.IsRendered || JointCount == 0 || LightField == null) return;
         if (entity.Properties.Client.Renderer is not Vintagestory.GameContent.EntityShapeRenderer esr) return;
         Vec3d cam = capi.World.Player?.Entity?.CameraPos;
         if (cam == null) return;
 
+        var pos = entity.Pos;
         int best = 0;
         double bestSq = double.MaxValue;
-        for (int i = 0; i < qx.Length; i++)
+        for (int i = 0; i < JointCount; i++)
         {
-            double dx = qx[i] - cam.X, dy = qy[i] - cam.Y, dz = qz[i] - cam.Z;
+            double dx = pos.X + RelX[i] - cam.X, dy = pos.InternalY + RelY[i] - cam.Y, dz = pos.Z + RelZ[i] - cam.Z;
             double sq = dx * dx + dy * dy + dz * dz;
             if (sq < bestSq) { bestSq = sq; best = i; }
         }
-        lightPos.Set((int)Math.Floor(qx[best]), (int)Math.Floor(qy[best]), (int)Math.Floor(qz[best]));
+        lightPos.Set((int)Math.Floor(pos.X + RelX[best]), (int)Math.Floor(pos.InternalY + RelY[best]), (int)Math.Floor(pos.Z + RelZ[best]));
         lightPos.dimension = entity.Pos.Dimension;
         Vec4f near = capi.World.BlockAccessor.GetLightRGBs(lightPos);
         if (LightField.GetValue(esr) is not Vec4f current || near.W > current.W) LightField.SetValue(esr, near);
@@ -220,7 +242,7 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
     {
         int n = poses.Length;
         for (int i = 0; i <= n; i++) arcs[i] = restArc[i] * size;
-        trail.SampleMany(arcs, n + 1, qx, qy, qz, qodo, qtx, qtz);
+        trail.SampleSmooth(arcs, n + 1, TangentSpan * size, qx, qy, qz, qodo, qtx, qtz);
 
         double amp = waveAmplitude * size, wl = waveLength * size, len = bodyLength * size;
         for (int i = 1; i <= n; i++)
@@ -230,6 +252,18 @@ public class EntityBehaviorGiantSerpentBody : EntityBehavior, IRenderer
             qx[i] += qtz[i] * off;
             qz[i] -= qtx[i] * off;
         }
+
+        if (RelX == null || RelX.Length != n + 1)
+        {
+            RelX = new double[n + 1]; RelY = new double[n + 1]; RelZ = new double[n + 1];
+        }
+        for (int i = 0; i <= n; i++)
+        {
+            RelX[i] = qx[i] - qx[0];
+            RelY[i] = qy[i] - qy[0];
+            RelZ[i] = qz[i] - qz[0];
+        }
+        JointCount = n + 1;
 
         // World to model: the renderer turns the model by yaw + 90 degrees
         // about Y (pitch and roll stay 0 for this serpent).

@@ -20,7 +20,7 @@ public enum GiantSerpentState
 }
 
 /// <summary>
-/// The giant serpent: a rust serpent ten times the size that hunts boats.
+/// The giant serpent: a rust serpent five times the size that hunts boats.
 ///
 /// It swims like a snake rather than like the smaller serpents: the entity
 /// position is the middle of its mouth, which always moves forward along its
@@ -99,7 +99,8 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private float envScanTimer;
 
     // Sea floor under the mouth and ahead of it.
-    private int floorY = -1, floorAheadY = -1;
+    private int floorY = -1, floorAheadY = -1, floorFarY = -1;
+    private double smoothLowY = double.NaN;
     private float floorScanTimer;
 
     public EntityBehaviorGiantSerpentAI(Entity entity) : base(entity) { }
@@ -138,7 +139,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     {
         if (entity.Api.Side != EnumAppSide.Server) return;
         if (!entity.Alive) return;
-        // A lag spike must not fling a 400-block animal through the sea floor.
+        // A lag spike must not fling a 200-block animal through the sea floor.
         float dt = Math.Min(deltaTime, 0.2f);
 
         if (!initialized) Init();
@@ -284,19 +285,35 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private void UpdateFloor(float dt)
     {
         floorScanTimer -= dt;
-        if (floorScanTimer > 0) return;
-        floorScanTimer = 0.25f;
+        if (floorScanTimer <= 0)
+        {
+            floorScanTimer = 0.25f;
+            var acc = entity.World.BlockAccessor;
+            var pos = entity.Pos;
+            double scanFrom = Math.Max(pos.Y, surfaceY) + 1;
+            double sx = Math.Sin(yaw), sz = Math.Cos(yaw);
+            floorY = EntityBehaviorSerpentHarvest.FindRestingYBelow(acc, pos.X, scanFrom, pos.Z, pos.Dimension);
+            floorAheadY = EntityBehaviorSerpentHarvest.FindRestingYBelow(acc,
+                pos.X + sx * 2 * size, scanFrom, pos.Z + sz * 2 * size, pos.Dimension);
+            floorFarY = EntityBehaviorSerpentHarvest.FindRestingYBelow(acc,
+                pos.X + sx * 4 * size, scanFrom, pos.Z + sz * 4 * size, pos.Dimension);
+        }
 
-        var acc = entity.World.BlockAccessor;
-        var pos = entity.Pos;
-        double scanFrom = Math.Max(pos.Y, surfaceY) + 1;
-        floorY = EntityBehaviorSerpentHarvest.FindRestingYBelow(acc, pos.X, scanFrom, pos.Z, pos.Dimension);
-        double ahead = 3 * size;
-        floorAheadY = EntityBehaviorSerpentHarvest.FindRestingYBelow(acc,
-            pos.X + Math.Sin(yaw) * ahead, scanFrom, pos.Z + Math.Cos(yaw) * ahead, pos.Dimension);
+        // The scans step a whole block at a time, and further ahead the
+        // floor can jump by many. Following them directly made the mouth
+        // lurch up and down every scan, and the body carried each lurch
+        // along as a tilt. Ease toward them instead, rising for a shoal a
+        // little quicker than settling into a trench.
+        int floor = Math.Max(floorY, Math.Max(floorAheadY, floorFarY));
+        if (floor < 0) return;
+        double target = floor + FloorClearance;
+        if (double.IsNaN(smoothLowY)) smoothLowY = target;
+        double rate = target > smoothLowY ? 1.5 : 0.5;
+        smoothLowY += (target - smoothLowY) * (1 - Math.Exp(-rate * dt));
     }
 
-    private double LowestY => Math.Max(floorY, floorAheadY) + FloorClearance;
+    // The lowest the mouth keeps to: clear of the sea floor here and ahead.
+    private double LowestY => double.IsNaN(smoothLowY) ? double.NegativeInfinity : smoothLowY;
 
     // Keeps a cruising depth above the sea floor and under the surface.
     private double CruiseY(double depthBelowSurface)
@@ -673,20 +690,27 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         pos.Z += vz * dt;
 
         // Between the sea floor and, outside a strike, under the surface.
+        // Out of bounds it is eased back over a second or so and levels
+        // out, rather than snapped back: a snap kinks the mouth's path, and
+        // the body would carry every kink along behind it.
         bool striking = state == GiantSerpentState.Strike || state == GiantSerpentState.Breach;
         double low = LowestY;
         double high = striking ? surfaceY + 2.5 * size : surfaceY - MinDepthBelowSurface;
         if (high < low) high = low;
-        if (pos.Y < low && floorY >= 0)
+        double ease = 0.5 * size * dt;
+        double level = 25 * GameMath.DEG2RAD * dt;
+        if (pos.Y < low)
         {
-            pos.Y = low;
-            if (pitch < 0) pitch = 0;
+            pos.Y += Math.Min(low - pos.Y, Math.Max(0, -vy) * dt + ease);
+            if (pitch < 0) pitch = Math.Min(0, pitch + level);
         }
         else if (pos.Y > high)
         {
-            pos.Y = high;
-            if (pitch > 0) pitch = 0;
+            pos.Y -= Math.Min(pos.Y - high, Math.Max(0, vy) * dt + ease);
+            if (pitch > 0) pitch = Math.Max(0, pitch - level);
         }
+        // Never into the sea floor itself, whatever the easing says.
+        if (floorY >= 0 && pos.Y < floorY + 0.4 * size) pos.Y = floorY + 0.4 * size;
 
         // The model turns with yaw only; the spine takes every bend, so the
         // entity itself always stays level.

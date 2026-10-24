@@ -15,6 +15,12 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.22.1
+
+- The Rust Leviathan is five times a rust serpent's size now (about 220 blocks), not ten.
+- It swims smoothly. Its position is dead-reckoned between server updates instead of using the stock interpolation, which assumed packets 1/15 s apart and stuttered on the 30 a second this entity gets. Over an uneven sea floor it eases up and down instead of snapping to the floor height, and the swimming wave no longer twitches the segments against each other.
+- It shows deep down: a dark, soft-edged shape where the water would hide it, from above the surface and through the underwater murk.
+
 ### 0.22.0
 
 - New creature: the Rust Leviathan (`giantserpent`), a rust serpent ten times the size, about 440 blocks from jaw to tail. Very rare: one natural serpent spawn in fifty (`GiantSerpentSpawnChance`). `/uh spawn giantserpent` brings one 100 to 140 blocks out.
