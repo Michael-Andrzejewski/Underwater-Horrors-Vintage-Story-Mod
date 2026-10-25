@@ -1,8 +1,8 @@
 # Giant Anglerfish
 
-A gigantic whipnose angler for Underwater Horrors. It lurks deep, dangles a
-glowing temporal gear on a long rod, and has a mouth big enough to swallow a
-sailboat.
+A gigantic angler for Underwater Horrors, about 100 blocks long. It lies on
+the sea floor off coasts, raises a pole with a glowing temporal gear at its
+tip, and has a mouth that could swallow a sailboat whole.
 
 The design follows two sources:
 
@@ -18,15 +18,15 @@ The design follows two sources:
   texture atlas and the animations. Rerun it after any change.
 - `tools/anglerfish/vsshape.py`: the game's shape transforms and UV rules,
   plus a small software renderer for previews.
-- `assets/underwaterhorrors/shapes/entity/anglerfish.json`: display model
-  with the full lure rod (`/uhangler show`).
+- `assets/underwaterhorrors/shapes/entity/anglerfish.json`: display model,
+  with the pole and its gear (`/uhangler show`).
 - `assets/underwaterhorrors/shapes/entity/anglerfish-live.json`: the hostile
-  body. It keeps only the rod's stub; the live rope and gear are separate
-  entities.
-- `assets/underwaterhorrors/shapes/entity/anglerfishlure.json`: the glowing
-  gear at the end of the live rope.
+  body, with the pole but no gear; the live gear is its own entity, which
+  docks on the pole tip and plays out on a rope from there.
+- `assets/underwaterhorrors/shapes/entity/anglerfishlure.json`: the live
+  gear (entity size 3), sitting on the entity's position.
 - `assets/underwaterhorrors/shapes/entity/anglerfishluresegment.json`: one
-  rope piece (entity size 1).
+  rope piece, 4 blocks long and 0.75 thick (entity size 3).
 - `assets/underwaterhorrors/textures/entity/anglerfish.png`: the shared
   1024 x 1024 atlas.
 - `reference-prototype.json`: an earlier prototype from a collaboration with
@@ -50,28 +50,34 @@ them over into the script.
 - The texture is painted from 3D positions: each texel knows where it sits
   on the fish. Blotches, pores, scars, the lateral line and the gill slit
   run across faces without seams.
-- The gear glows at full strength. The eyes glow faintly, so two pale eyes
-  show behind the lure in the dark.
+- The gear is the vanilla temporal gear upscaled: its bars from
+  `assets/survival/shapes/item/gear-temporal.json` laid on a half-unit grid
+  and merged into 13 boxes that never overlap, so no two faces share a
+  plane, then painted from the vanilla texture's own pixels. It is 4.5
+  blocks across on the pole and as the live lure, and glows at full strength.
+  The build reads that texture from the installed game.
+- The eyes glow faintly, so two pale eyes show behind the lure in the dark.
 - 26 faint patches of cyan spots (145 small boxes) sit in the hide's
   plates, mostly on the flanks and back, clear of the eyes, lips and gill.
   Each spot is a child of its plate's bone, so it bends with the body.
 
 ## Scale and rig
 
-The entity renders at size 2, so 8 model units are one block. Model -X is
-forward, as the AI expects. At rest the creature measures about:
+The entity renders at size 6 (`SIZE` in the script), so 8/3 model units are
+one block. Model -X is forward, as the AI expects. At rest the creature
+measures about:
 
 | Part | Blocks |
 | --- | --- |
-| Body, chin to tail fin base | 33 long |
-| With the tail fin's rays | 44 long |
-| With the two trailing filaments | 55 long |
-| Head | 11.5 tall, 10 wide |
-| Display lure | rises 18 above the belly, hangs 14 ahead of the snout |
+| Body, chin to tail fin base | 100 long |
+| With the tail fin's rays | 132 long |
+| With the two trailing filaments | 165 long |
+| Head | 35 tall, 30 wide |
+| Pole | rises 43 above the belly, its tip 20 ahead of the entity's centre |
 
 For scale, the game's sailboat is 8.5 x 7.8 x 6.25 blocks.
 
-The display model has 32 animated joints, the live body 22. Both stay under
+The display model has 24 animated joints, the live body 23. Both stay under
 46, the cap on older client settings. The spine runs head, body0 to body4,
 tail, caudal. Each spine joint is its parent's child, so a bend adds up
 toward the tail.
@@ -88,9 +94,11 @@ toward the tail.
 | die | 121 | Hold | Rolls belly up, jaw slack |
 
 The AI in `src/Behaviors/EntityBehaviorAnglerfishAI.cs` uses block offsets
-taken from this model: `BodyAlong`, `BodySides`, `BodyHeights`,
-`MouthForward`, `MouthUp`, the capsule in `NearestTarget` and
-`LureAnchor`. Change them together with the profile curves in the script.
+taken from this model at size 2 and scales them by the entity's size:
+`BodyAlong`, `BodySides`, `BodyHeights`, `MouthForward`, `MouthUp`,
+`BodyCenterUp`, `BodyTop`, the pole tip (`PoleForward`, `PoleUp`) and the
+rope's hiding place (`StackForward`, `StackUp`). Change them together with
+the profile curves and `pole_path` in the script.
 
 ## Rebuild and validate
 
@@ -115,6 +123,7 @@ clip's frames and checks names, UVs and loop continuity.
 /uh spawn anglerfish
 ```
 
-`show` places a still, animated model 24 blocks ahead, facing you. `anim`
-plays a clip on the nearest anglerfish within 32 blocks. `/uh spawn
-anglerfish` brings the hostile one into nearby deep water.
+`show` places a still, animated model 60 blocks ahead, facing you. `anim`
+plays a clip on the nearest anglerfish within 128 blocks. `/uh spawn
+anglerfish` lays the hostile one on the floor in nearby water at least 40
+deep.

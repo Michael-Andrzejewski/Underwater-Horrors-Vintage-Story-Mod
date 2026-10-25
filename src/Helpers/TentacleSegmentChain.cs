@@ -338,6 +338,68 @@ public class TentacleSegmentChain
         }
     }
 
+    /// <summary>
+    /// A line from the anchor to the tip, as the anglerfish's lure uses it:
+    /// pieces laid end to end from the anchor, the last one ending exactly at
+    /// the tip, so there is no gap at the anchor and nothing pokes out past
+    /// the tip. Pieces the line does not need wait upright at stackPoint,
+    /// out of sight inside the body; they are only moved when stackPoint has
+    /// drifted more than two blocks, so a creeping body does not drag every
+    /// piece through a network update each tick.
+    /// </summary>
+    public void UpdateRope(double anchorX, double anchorY, double anchorZ, Vec3d stackPoint, float archHeightFactor)
+    {
+        if (!spawned || segmentEntities == null) return;
+
+        reusableAnchor.Set(anchorX, anchorY, anchorZ);
+        reusableTip.Set(tipEntity.Pos.X, tipEntity.Pos.Y, tipEntity.Pos.Z);
+        SplineHelper.ComputeTentacleControlPoints(reusableAnchor, reusableTip, archHeightFactor, reusableB1, reusableB2);
+        EnsureArcArrays();
+        double length = SampleSpline(reusableAnchor, reusableB1, reusableB2, reusableTip);
+
+        int n = segmentEntities.Length;
+        EnsurePositionBuffer(n);
+        int used = length < 0.05 ? 0 : Math.Min(n, (int)Math.Ceiling(length / segmentVisualHeight));
+        bool restack = double.IsNaN(lastAnchorX) || stackPoint.SquareDistanceTo(lastAnchorX, lastAnchorY, lastAnchorZ) > 4;
+        if (restack) { lastAnchorX = stackPoint.X; lastAnchorY = stackPoint.Y; lastAnchorZ = stackPoint.Z; }
+
+        for (int i = 0; i < n; i++)
+        {
+            Entity seg = segmentEntities[i];
+            if (seg == null || !seg.Alive)
+            {
+                seg = tipEntity.World.GetEntityById(segmentIds[i]);
+                segmentEntities[i] = seg;
+                if (seg == null || !seg.Alive) continue;
+            }
+            if (i >= used)
+            {
+                if (lastWasEmerged[i] || restack)
+                {
+                    seg.Pos.SetPos(lastAnchorX, lastAnchorY, lastAnchorZ);
+                    SetOrientation(seg, YawCancelBakedOffset, 0f, 0f);
+                }
+                lastWasEmerged[i] = false;
+                continue;
+            }
+            double start = Math.Min(i * segmentVisualHeight, Math.Max(0, length - segmentVisualHeight));
+            double end = Math.Min(length, start + segmentVisualHeight);
+            GetPositionAtArcLength(start, out double x, out double y, out double z);
+            GetPositionAtArcLength(end, out double ex, out double ey, out double ez);
+            seg.Pos.SetPos(x, y, z);
+            lastWasEmerged[i] = true;
+            double tx = ex - x, ty = ey - y, tz = ez - z;
+            double tlen = Math.Sqrt(tx * tx + ty * ty + tz * tz);
+            if (tlen > 1e-6)
+            {
+                tx /= tlen; ty /= tlen; tz /= tlen;
+                float roll = (float)Math.Atan2(-tx, Math.Sqrt(ty * ty + tz * tz));
+                float pitch = (float)Math.Atan2(tz, ty);
+                SetOrientation(seg, YawCancelBakedOffset, pitch, roll);
+            }
+        }
+    }
+
     private double DistFromTipFor(int i)
     {
         // chain[N-1] sits at tipOuterVisualHeight back from the tip; each

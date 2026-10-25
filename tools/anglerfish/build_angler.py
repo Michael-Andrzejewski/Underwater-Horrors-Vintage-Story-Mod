@@ -442,19 +442,22 @@ def build(display=True, lure_stub=2):
 
     glow_patches(m)
 
-    # ── Lure: the rod from the snout and the gear at its end ─────────────
-    lure_path = rod_path()
-    count = len(lure_path) - 1 if display else lure_stub
+    # ── Lure: a pole on the forehead, the gear docked at its tip ─────────
+    # The live body keeps the pole only; its gear is the lure entity, which
+    # docks at the pole's tip and plays out on a rope from there.
+    pole = pole_path()
     parent = "head"
-    for i in range(count):
-        a, b = lure_path[i], lure_path[i + 1]
+    for i in range(len(pole) - 1):
+        a, b = pole[i], pole[i + 1]
         bn = m.bone(f"lure{i}", parent, a)
-        w = 5.0 - 2.6 * i / (len(lure_path) - 2)
+        w = 6.0 - 1.6 * i
         m.beam(m.name("rod"), bn["name"], a - norm(b - a) * 0.8, b + norm(b - a) * 0.8, w, mat="rod", up=(0, 0, 1))
         parent = bn["name"]
     if display:
-        g = m.bone("gear", parent, lure_path[-1])
-        build_gear(m, g["name"], lure_path[-1] + np.array([0, -17, 0]), stalk_top=lure_path[-1])
+        tip, d = pole[-1], norm(pole[-1] - pole[-2])
+        g = m.bone("gear", parent, tip)
+        radius = GEAR_BLOCKS / 2 * 16 / SIZE
+        build_temporal_gear(m, g["name"], tip + d * radius, GEAR_BLOCKS * 16 / SIZE, axis=(-1, 0, 0))
     return m
 
 
@@ -505,14 +508,96 @@ def glow_patches(m, count=26, seed=11):
         made += 1
 
 
-def rod_path():
-    """Joints of the lure rod: up from the snout, arcing forward and down."""
-    pts = [(-44, 48), (-42, 62), (-38, 78), (-36, 96), (-40, 114), (-52, 130), (-70, 140), (-92, 143),
-           (-114, 139), (-134, 128), (-148, 112), (-154, 96)]
+# Entity sizes (the "size" in the entity JSON files): the fish, its gear and
+# the rope pieces. The gear is GEAR_BLOCKS across in the world on the fish's
+# pole and as the live lure alike.
+SIZE, LURE_SIZE, SEGMENT_SIZE = 6, 3, 3
+GEAR_BLOCKS = 4.5
+SEGMENT_BLOCKS = 4.0      # AnglerfishLureCycle.SegmentLength
+ROPE_BLOCKS = 0.75
+
+
+def pole_path():
+    """Joints of the lure pole: from inside the forehead up and a little
+    forward, like a deep-sea angler's illicium."""
+    pts = [(-33, 66), (-36, 86), (-40, 102), (-45, 115)]
     return [np.array([x, y, CZ]) for x, y in pts]
 
 
-def build_gear(m, parent, c, stalk_top=None, prefix="", axis=(-0.82, 0, -0.57)):
+# The vanilla temporal gear (assets/survival/shapes/item/gear-temporal.json),
+# face on: its bars as (x range, y range, z range) in its own units. Where
+# bars overlap, the game's model offsets their thickness a little.
+TEMPORAL_GEAR_BARS = [
+    ((2.0, 3.0), (0.0, 6.0), (0.0, 1.2)),
+    ((-1.5, 4.5), (3.5, 4.5), (-0.1, 1.3)),
+    ((-1.5, 4.5), (1.5, 2.5), (-0.1, 1.3)),
+    ((-1.0, 0.0), (0.5, 5.5), (0.1, 1.1)),
+    ((3.0, 4.0), (0.5, 5.5), (0.1, 1.1)),
+    ((1.0, 2.0), (4.5, 5.5), (0.1, 1.1)),
+    ((1.0, 2.0), (0.5, 1.5), (0.1, 1.1)),
+]
+TEMPORAL_GEAR_TEXTURE = os.path.join(os.environ.get("APPDATA", ""), "Vintagestory", "assets", "survival", "textures",
+                                     "item", "resource", "temporalgear.png")
+
+
+def temporal_gear_cells():
+    """The gear's outline on a half-unit grid, merged into rectangles that
+    never overlap: (x0, x1, y0, y1, z0, z1) in vanilla units, centred. Each
+    cell takes the full depth of every bar over it, so overlaps become one
+    box and no two front faces share a plane."""
+    xs = np.arange(-1.5, 4.5, 0.5)
+    ys = np.arange(0.0, 6.0, 0.5)
+    grid = {}
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            cx, cy = x + 0.25, y + 0.25
+            z = [b[2] for b in TEMPORAL_GEAR_BARS if b[0][0] <= cx <= b[0][1] and b[1][0] <= cy <= b[1][1]]
+            if z:
+                grid[(i, j)] = (min(a for a, _ in z), max(b for _, b in z))
+    # Runs along x, then stack equal runs up the rows.
+    runs = []
+    for j in range(len(ys)):
+        i = 0
+        while i < len(xs):
+            if (i, j) not in grid:
+                i += 1
+                continue
+            k = i
+            while (k + 1, j) in grid and grid[(k + 1, j)] == grid[(i, j)]:
+                k += 1
+            runs.append([i, k, j, j, grid[(i, j)]])
+            i = k + 1
+    merged = []
+    for r in runs:
+        for m_ in merged:
+            if m_[0] == r[0] and m_[1] == r[1] and m_[3] == r[2] - 1 and m_[4] == r[4]:
+                m_[3] = r[2]
+                break
+        else:
+            merged.append(list(r))
+    cx, cy = 1.5, 3.0
+    cz = 0.6
+    return [(xs[a] - cx, xs[b] + 0.5 - cx, ys[c] - cy, ys[d] + 0.5 - cy, z[0] - cz, z[1] - cz)
+            for a, b, c, d, z in merged]
+
+
+def build_temporal_gear(m, parent, c, across, axis=(-1, 0, 0), prefix="", tilt=-22.5):
+    """An upscaled vanilla temporal gear, `across` units wide, centred on c,
+    facing along axis and turned by the vanilla model's tilt."""
+    ax = norm(axis)
+    e1 = np.array([0.0, 1.0, 0.0])
+    e2 = np.cross(e1, ax)
+    t = tilt * D2R
+    u = math.cos(t) * e2 + math.sin(t) * e1
+    v = np.cross(ax, u)
+    R = np.column_stack([u, v, ax])
+    k = across / 6.7          # the vanilla gear spans about 6.7 of its units
+    for x0, x1, y0, y1, z0, z1 in temporal_gear_cells():
+        m.box(m.name(prefix + "tgear"), parent, c, R, (x0 * k, y0 * k, z0 * k), (x1 * k, y1 * k, z1 * k), "tgear",
+              glow=255, center=c, u=u, v=v, texel=0.5 * k)
+
+
+def _unused_build_gear(m, parent, c, stalk_top=None, prefix="", axis=(-0.82, 0, -0.57)):
     """A glowing temporal gear on a fleshy stalk, with frayed filaments
     hanging below. axis: the gear's face normal."""
     ax = norm(axis)
@@ -541,18 +626,22 @@ def build_gear(m, parent, c, stalk_top=None, prefix="", axis=(-0.82, 0, -0.57)):
 
 
 def build_lure_entity():
-    """The live lure: the gear alone, centred on the entity."""
+    """The live lure (entity size LURE_SIZE): the gear sitting on the entity's
+    position, which is where the rope ends and where it docks on the pole."""
     m = Model()
     m.bone("lurebody", None, (8, 0, 8))
-    build_gear(m, "lurebody", np.array([8.0, -2.0, 8.0]), stalk_top=np.array([8.0, 12.0, 8.0]), prefix="",
-               axis=(-1, 0, 0))
+    across = GEAR_BLOCKS * 16 / LURE_SIZE
+    build_temporal_gear(m, "lurebody", np.array([8.0, across / 2, 8.0]), across, axis=(-1, 0, 0))
     return m
 
 
 def build_segment():
-    """One rope piece of the live lure, 4 x 65 units, upright (size 1)."""
+    """One rope piece (entity size SEGMENT_SIZE), SEGMENT_BLOCKS long and
+    upright from the entity's position."""
     m = Model()
-    m.box("lure-segment", None, (6, -0.5, 6), np.eye(3), (0, 0, 0), (4, 65, 4), "rope")
+    w = ROPE_BLOCKS * 16 / SEGMENT_SIZE
+    length = SEGMENT_BLOCKS * 16 / SEGMENT_SIZE
+    m.box("lure-segment", None, (8 - w / 2, -0.3, 8 - w / 2), np.eye(3), (0, 0, 0), (w, length + 0.6, w), "rope")
     return m
 
 
@@ -864,6 +953,17 @@ def paint_face(p, fname, P, nrm, ij, fu, fv):
         if fname in ("down", "south"):
             t -= 0.12
         col = quantize(np.clip(t, 0, 1), PAL["rod"], ij)
+    elif mat == "tgear":
+        # The vanilla texture, one of its texels per half vanilla unit,
+        # sampled by position in the gear's plane: an upscaled temporal gear.
+        tex = temporal_gear_texture()
+        d = P - p["paint"]["center"]
+        size = p["paint"]["texel"]
+        tu = np.floor(d @ p["paint"]["u"] / size).astype(int) % tex.shape[1]
+        tv = np.floor(-(d @ p["paint"]["v"]) / size).astype(int) % tex.shape[0]
+        col = tex[tv, tu, :3].astype(float)
+        if fname in ("east", "west", "up", "down"):
+            col = col * 0.78
     elif mat in ("gear", "gearhub", "gearcore"):
         c, ax = p["paint"]["center"], p["paint"]["axis"]
         d = P - c
@@ -890,6 +990,16 @@ def paint_face(p, fname, P, nrm, ij, fu, fv):
     else:
         raise ValueError(mat)
     return np.concatenate([np.asarray(col, float), alpha[:, None]], axis=1)
+
+
+_TG = None
+
+
+def temporal_gear_texture():
+    global _TG
+    if _TG is None:
+        _TG = np.array(Image.open(TEMPORAL_GEAR_TEXTURE).convert("RGBA"))
+    return _TG
 
 
 def paint_atlas(models, shapes, height):
@@ -946,8 +1056,8 @@ def rest_pose(display):
     return pose
 
 
-LURE_JOINTS = len(rod_path()) - 1
-LURE_STUB = 2
+LURE_JOINTS = len(pole_path()) - 1
+LURE_STUB = LURE_JOINTS
 
 
 def wave(pose, phase, amp, lure_amp, display, breathe=0.0, jaw=4.0):

@@ -477,7 +477,8 @@ public class UnderwaterHorrorsConfig
     public float GiantSerpentMaxHealth { get; set; } = 1500f;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
-    public int GiantSerpentDamageTier { get; set; } = 4;
+    public int GiantSerpentDamageTier { get; set; } = 5;
+    public bool GiantSerpentTierMigrated { get; set; } = false;
     // Damage to each rider when the giant swallows or breaks their boat.
     // They land in the water, where it can come back for them.
     public float GiantSerpentRiderDamage { get; set; } = 8f;
@@ -507,28 +508,33 @@ public class UnderwaterHorrorsConfig
     public float GiantSerpentSoundPitch { get; set; } = 0.6f;
 
     // ─── Giant anglerfish ────────────────────────────────────────────────
-    // A gigantic whipnose angler. It lurks deep and casts a glowing gear on
-    // a long rope toward a swimmer, leading them in. When its prey comes
-    // close to its mouth, it swoops forward and gulps.
+    // A gigantic angler some 100 blocks long. Like a wobbegong it lies on
+    // the sea floor near a coast and creeps toward a player heading for
+    // land, casting a glowing temporal gear on a rope from the pole on its
+    // head. When its prey comes close to its mouth, it swoops and gulps.
+    // Hitting the gear sends it away; destroying the gear (10 health) drops
+    // two temporal gears.
     // Chance that a natural spawn at night is the anglerfish instead. Night
-    // is outside DayKrakenStartHour..DayKrakenEndHour. The saltwater under
-    // the player must be at least AnglerfishMinWaterDepth deep. 0 turns
-    // natural anglerfish off; /uh spawn anglerfish always works. A natural
-    // one sinks back into the deep at daybreak.
+    // is outside DayKrakenStartHour..DayKrakenEndHour. It needs a coast
+    // within AnglerfishCoastRange blocks of the player with water at least
+    // AnglerfishMinWaterDepth deep off it. 0 turns natural anglerfish off;
+    // /uh spawn anglerfish always works. A natural one sinks back into the
+    // deep at daybreak.
     public float AnglerfishNightSpawnChance { get; set; } = 0.05f;
-    public int AnglerfishMinWaterDepth { get; set; } = 32;
-    // How deep it lurks, in blocks from the surface to the middle of its
-    // body. Each anglerfish picks a depth in this range.
-    public float AnglerfishLurkDepthMin { get; set; } = 10f;
-    public float AnglerfishLurkDepthMax { get; set; } = 20f;
+    public float AnglerfishCoastRange { get; set; } = 160f;
+    // Water it needs to lie in, in blocks from the surface to the floor.
+    public int AnglerfishMinWaterDepth { get; set; } = 40;
     // It swoops once its prey is this close to its mouth, in blocks, or
     // within that range sideways and up to AnglerfishStrikeReachUp blocks
-    // above its mouth: it rises from the deep at prey on the surface.
-    public float AnglerfishStrikeRange { get; set; } = 14f;
-    public float AnglerfishStrikeReachUp { get; set; } = 24f;
-    // Speed of the swoop in blocks per second, and the damage of the gulp.
-    public float AnglerfishStrikeSpeed { get; set; } = 28f;
+    // above its mouth: it rises from the floor at prey on the surface.
+    public float AnglerfishStrikeRange { get; set; } = 28f;
+    public float AnglerfishStrikeReachUp { get; set; } = 60f;
+    // Speed of the swoop in blocks per second, the damage of the gulp, and
+    // its armor piercing tier.
+    public float AnglerfishStrikeSpeed { get; set; } = 40f;
     public float AnglerfishBiteDamage { get; set; } = 50f;
+    public int AnglerfishDamageTier { get; set; } = 3;
+    public bool AnglerfishGiantMigrated { get; set; } = false;
 
     // Kraken body
     public float KrakenContactDamage { get; set; } = 25f;
@@ -847,12 +853,12 @@ public class UnderwaterHorrorsConfig
         GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
         GiantSerpentSoundPitch = Math.Clamp(GiantSerpentSoundPitch, 0.25f, 2f);
 
-        // Anglerfish: it must stay under water (its body is about 11.5
-        // blocks tall), and a swoop needs some reach and speed.
+        // Anglerfish: it must stay under water (its body is about 35 blocks
+        // tall), and a swoop needs some reach and speed.
         AnglerfishNightSpawnChance = Math.Clamp(AnglerfishNightSpawnChance, 0f, 1f);
         AnglerfishMinWaterDepth = Math.Max(16, AnglerfishMinWaterDepth);
-        AnglerfishLurkDepthMin = Math.Clamp(AnglerfishLurkDepthMin, 7f, 120f);
-        AnglerfishLurkDepthMax = Math.Clamp(AnglerfishLurkDepthMax, AnglerfishLurkDepthMin, 120f);
+        AnglerfishCoastRange = Math.Clamp(AnglerfishCoastRange, 32f, 400f);
+        AnglerfishDamageTier = Math.Clamp(AnglerfishDamageTier, 0, 10);
         AnglerfishStrikeRange = Math.Clamp(AnglerfishStrikeRange, 3f, 40f);
         AnglerfishStrikeReachUp = Math.Clamp(AnglerfishStrikeReachUp, AnglerfishStrikeRange, 60f);
         AnglerfishStrikeSpeed = Math.Clamp(AnglerfishStrikeSpeed, 4f, 80f);
@@ -944,6 +950,22 @@ public class UnderwaterHorrorsConfig
         {
             IgnoreCreativePlayers = true;
             IgnoreCreativePlayersMigrated = true;
+        }
+        if (!AnglerfishGiantMigrated)
+        {
+            // The anglerfish grew to three times its size: settings still at
+            // the smaller fish's defaults move to the new ones.
+            if (AnglerfishStrikeRange == 14f) AnglerfishStrikeRange = 28f;
+            if (AnglerfishStrikeReachUp == 24f) AnglerfishStrikeReachUp = 60f;
+            if (AnglerfishStrikeSpeed == 28f) AnglerfishStrikeSpeed = 40f;
+            if (AnglerfishMinWaterDepth == 32) AnglerfishMinWaterDepth = 40;
+            AnglerfishGiantMigrated = true;
+        }
+        if (!GiantSerpentTierMigrated)
+        {
+            // Its bite pierces up to tier 5 armor now (was 4).
+            if (GiantSerpentDamageTier == 4) GiantSerpentDamageTier = 5;
+            GiantSerpentTierMigrated = true;
         }
         if (!GiantSerpentChanceMigrated)
         {

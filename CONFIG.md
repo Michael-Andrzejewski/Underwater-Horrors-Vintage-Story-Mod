@@ -126,7 +126,8 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentChanceMigrated` | bool | `false` |  |
 | `GiantSerpentMaxHealth` | float | `1500f` |  |
 | `GiantSerpentBiteDamage` | float | `20f` | Damage of a bite on a swimmer, and its armor piercing tier. |
-| `GiantSerpentDamageTier` | int | `4` |  |
+| `GiantSerpentDamageTier` | int | `5` |  |
+| `GiantSerpentTierMigrated` | bool | `false` |  |
 | `GiantSerpentRiderDamage` | float | `8f` | Damage to each rider when the giant swallows or breaks their boat. They land in the water, where it can come back for them. |
 | `GiantSerpentBitesToSinkBoat` | int | `3` | Bites it takes to break a boat that is not a raft (the sailboat). A raft always goes down in one gulp. |
 | `GiantSerpentCruiseSpeed` | float | `7f` | Swimming speeds in blocks per second: cruising and circling, and the final rush at its prey. |
@@ -139,14 +140,15 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentDespawnAfterLandSeconds` | float | `120f` | Seconds its prey can stay ashore before the giant is removed. It is also removed once it has swum out of sight of every player. |
 | `GiantSerpentMaxStaySeconds` | float | `480f` | It swims off after this many seconds even if its prey is still at sea. |
 | `GiantSerpentSoundPitch` | float | `0.6f` | Pitch of its bite and other sounds: the rust serpent's, played slower and deeper. 1 is the rust serpent's own pitch. |
-| `AnglerfishNightSpawnChance` | float | `0.05f` | ─── Giant anglerfish ──────────────────────────────────────────────── A gigantic whipnose angler. It lurks deep and casts a glowing gear on a long rope toward a swimmer, leading them in. When its prey comes close to its mouth, it swoops forward and gulps. Chance that a natural spawn at night is the anglerfish instead. Night is outside DayKrakenStartHour..DayKrakenEndHour. The saltwater under the player must be at least AnglerfishMinWaterDepth deep. 0 turns natural anglerfish off; /uh spawn anglerfish always works. A natural one sinks back into the deep at daybreak. |
-| `AnglerfishMinWaterDepth` | int | `32` |  |
-| `AnglerfishLurkDepthMin` | float | `10f` | How deep it lurks, in blocks from the surface to the middle of its body. Each anglerfish picks a depth in this range. |
-| `AnglerfishLurkDepthMax` | float | `20f` |  |
-| `AnglerfishStrikeRange` | float | `14f` | It swoops once its prey is this close to its mouth, in blocks, or within that range sideways and up to AnglerfishStrikeReachUp blocks above its mouth: it rises from the deep at prey on the surface. |
-| `AnglerfishStrikeReachUp` | float | `24f` |  |
-| `AnglerfishStrikeSpeed` | float | `28f` | Speed of the swoop in blocks per second, and the damage of the gulp. |
+| `AnglerfishNightSpawnChance` | float | `0.05f` | ─── Giant anglerfish ──────────────────────────────────────────────── A gigantic angler some 100 blocks long. Like a wobbegong it lies on the sea floor near a coast and creeps toward a player heading for land, casting a glowing temporal gear on a rope from the pole on its head. When its prey comes close to its mouth, it swoops and gulps. Hitting the gear sends it away; destroying the gear (10 health) drops two temporal gears. Chance that a natural spawn at night is the anglerfish instead. Night is outside DayKrakenStartHour..DayKrakenEndHour. It needs a coast within AnglerfishCoastRange blocks of the player with water at least AnglerfishMinWaterDepth deep off it. 0 turns natural anglerfish off; /uh spawn anglerfish always works. A natural one sinks back into the deep at daybreak. |
+| `AnglerfishCoastRange` | float | `160f` |  |
+| `AnglerfishMinWaterDepth` | int | `40` | Water it needs to lie in, in blocks from the surface to the floor. |
+| `AnglerfishStrikeRange` | float | `28f` | It swoops once its prey is this close to its mouth, in blocks, or within that range sideways and up to AnglerfishStrikeReachUp blocks above its mouth: it rises from the floor at prey on the surface. |
+| `AnglerfishStrikeReachUp` | float | `60f` |  |
+| `AnglerfishStrikeSpeed` | float | `40f` | Speed of the swoop in blocks per second, the damage of the gulp, and its armor piercing tier. |
 | `AnglerfishBiteDamage` | float | `50f` |  |
+| `AnglerfishDamageTier` | int | `3` |  |
+| `AnglerfishGiantMigrated` | bool | `false` |  |
 | **Kraken body** | | | |
 | `KrakenContactDamage` | float | `25f` |  |
 | `KrakenContactRange` | float | `3f` |  |

@@ -58,39 +58,44 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ### Anglerfish encounter (working build)
 
-- `/uh spawn anglerfish` spawns the giant anglerfish in nearby deep water.
-- Rare at night: a natural spawn after dark is now and then the anglerfish
-  (`AnglerfishNightSpawnChance`, default 0.05), 48 to 64 blocks out. A
-  natural one sinks back into the deep at daybreak once nobody is near it.
-- It lurks with the middle of its body 10 to 20 blocks deep
-  (`AnglerfishLurkDepthMin`, `AnglerfishLurkDepthMax`) and holds that depth
-  while it waits, slowly turning its mouth toward its prey.
-- Its blue gear glides and sways toward the player on the kraken's spline
-  chain, 8–15 blocks ahead of them. For a player at the surface (swimming or
-  in a boat) it hangs 2.5 blocks above the waves, between them and the fish,
-  and never past the fish, so following it leads them over its mouth. A
-  player who dives is led on down underwater. Extension and recall use
-  acceleration-limited movement, with no position snaps.
-- Once its prey is within 14 blocks of its mouth (`AnglerfishStrikeRange`),
-  or within 14 sideways and up to 24 above it (`AnglerfishStrikeReachUp`),
-  it swoops at 28 blocks a second (`AnglerfishStrikeSpeed`) and gulps for 50
-  base damage (`AnglerfishBiteDamage`), followed by a cooldown. Prey on the
-  surface gets a swoop up from the deep. The swoop arrives as the bite clip
-  snaps shut. It used to lunge at anyone within 30 blocks of its body.
+- A giant anglerfish, about 100 blocks long with a head some 35 tall and 30
+  wide (entity size 6). `/uh spawn anglerfish` lays one on the floor in
+  nearby deep water, facing you; `/uhangler show` places a still model.
+- It lies off coasts like a wobbegong. At night, now and then, a natural
+  spawn is the anglerfish (`AnglerfishNightSpawnChance`, default 0.05): it
+  finds the nearest coast within `AnglerfishCoastRange` (160) of the player
+  and lies on the floor in the first water off it at least
+  `AnglerfishMinWaterDepth` (40) deep. A natural one sinks back into the
+  deep at daybreak once nobody is near it.
+- It creeps along the floor toward its prey, over slopes and among blocks,
+  but never into water too shallow for it and never far from its lair. It
+  turns to face any player within 15 blocks of its body, ashore or afloat.
+- Its lure is a pole on its forehead with an upscaled temporal gear at the
+  tip. With nobody to bait the gear sits docked on the pole; otherwise it
+  plays out on a rope. For a player at the surface, in a boat or on the
+  shore it hangs 2.5 blocks above the waves between them and the fish, and
+  never past it, so following it leads them over the mouth. A diver is led
+  on down underwater.
+- Once its prey is within 28 blocks of its mouth (`AnglerfishStrikeRange`),
+  or that far sideways and up to 60 above it (`AnglerfishStrikeReachUp`),
+  it swoops at 40 blocks a second (`AnglerfishStrikeSpeed`) and gulps for 50
+  damage at armor tier 3 (`AnglerfishBiteDamage`, `AnglerfishDamageTier`).
+  It only strikes prey roughly ahead of it, turning first, and the bite
+  clip is timed to snap shut as the swoop arrives.
+- The gear has 10 health. Any hit startles the fish: it reels the gear in
+  and swims off into deeper water, away from the attacker, and is removed
+  once nobody is within 128 blocks (or after a minute). Breaking the gear
+  drops two temporal gears at the attacker's feet. It also flees once it is
+  down to a third of its health.
 - Fixed: the anglerfish and its gear could stay invisible while it still
   bit. Its first ticks started a clip while the server wrote its spawn
   packet on another thread; that threw "Collection was modified" and the
   client never got the fish. Its animations now go through a locked manager
   (`ThreadSafeAnimationManager`), as do the Rust Leviathan's.
-- The body dives immediately after a strike, instead of waiting at the surface.
-  With no nearby targets it patrols submerged with the serpent's smooth turning.
-- New model: a gigantic whipnose angler, after MikeZilla_'s rough and
-  Soareverix's sketch. Rust-brown hide with faint glowing cyan patches, a
-  jutting jaw of crooked fangs that opens wide enough for a sailboat, milky
-  eyes that glow faintly in the dark, spiny fins, and a glowing temporal gear
-  on its rod. See `art/anglerfish/README.md`.
-- `/uhangler show` remains a harmless model display. See
-  `art/anglerfish/README.md` for animation commands and testing details.
+- The model: a gigantic deep-sea angler after MikeZilla_'s rough and
+  Soareverix's sketch, with rust-brown hide, faint glowing cyan patches, a
+  jutting jaw of crooked fangs, milky eyes that glow faintly in the dark,
+  and spiny fins. See `art/anglerfish/README.md`.
 
 ### 0.20.0
 

@@ -27,7 +27,7 @@
     "shape": {
       "base": "underwaterhorrors:entity/anglerfishluresegment"
     },
-    "size": 1,
+    "size": 3,
     "glowLevel": 0,
     "behaviors": [
       {

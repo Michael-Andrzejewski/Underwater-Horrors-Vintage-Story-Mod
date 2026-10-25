@@ -9,11 +9,11 @@ public enum AnglerfishPhase { Lurking, Lunging, Recovering, Returning }
 public sealed class AnglerfishAttackCycle
 {
     // Defaults for the config's AnglerfishStrikeRange (blocks from the
-    // mouth), AnglerfishBiteDamage and AnglerfishStrikeSpeed. At 28 blocks/s
-    // a swoop from the edge of its range arrives as the bite clip snaps shut.
-    public const double DefaultTriggerRange = 14;
+    // mouth), AnglerfishBiteDamage and AnglerfishStrikeSpeed, for the fish
+    // at entity size 6. The bite clip is timed to each swoop's length.
+    public const double DefaultTriggerRange = 28;
     public const float Damage = 50;
-    public const double LungeSpeed = 28; // blocks/second
+    public const double LungeSpeed = 40; // blocks/second
     public double TriggerRange { get; set; } = DefaultTriggerRange;
     public const float MaxLungeSeconds = 2f;
     public const float CooldownSeconds = 6;

@@ -7,7 +7,7 @@ static class CombatChecks
         int checks=0;
         void Check(bool result,string description){checks++;if(!result)throw new Exception(description);}
         var cycle=new AnglerfishAttackCycle();
-        Check(cycle.TriggerRange==14,"Strike range default changed");
+        Check(cycle.TriggerRange==28,"Strike range default changed");
         Check(!cycle.TryBegin(cycle.TriggerRange+.001),"Attack outside the mouth's strike range");
         Check(!cycle.TryBegin(double.NaN),"NaN attack range accepted");
         Check(!cycle.TryBegin(double.PositiveInfinity),"Infinite attack range accepted");
@@ -43,7 +43,7 @@ static class CombatChecks
         Check(AnglerfishAttackCycle.DistanceToSegment(20,8,0,0,8,0,24,8,0)==0,"Main-body proximity ignored rear trunk");
         Check(AnglerfishAttackCycle.DistanceToSegment(0,40,0,0,8,0,24,8,0)>14,"Distant lure proximity incorrectly triggered body attack");
         SteeringChecks.Run();
-        Check(AnglerfishAttackCycle.LungeSpeed==28 && AnglerfishAttackCycle.Damage==50,"Lunge speed/damage changed");
+        Check(AnglerfishAttackCycle.LungeSpeed==40 && AnglerfishAttackCycle.Damage==50,"Lunge speed/damage changed");
         Console.WriteLine($"PASS {checks} combat checks: range, damage, cooldown, timeout, return and swept contact");
     }
 }

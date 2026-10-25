@@ -1849,14 +1849,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 spawnSerpent = sapi.World.Rand.NextDouble() >= krakenChance;
             }
 
-            // Now and then at night the spawn is the giant anglerfish, out
-            // where the water is deep enough for it to lurk. It starts far
-            // enough out that its lure reaches the player first.
+            // Now and then at night the spawn is the giant anglerfish, lying
+            // in the deep water off the nearest coast, ahead of a player
+            // heading for land.
             Entity creature = null;
-            if (!IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance
-                && CountSaltwaterDepth(player.Entity, Config.AnglerfishMinWaterDepth) >= Config.AnglerfishMinWaterDepth)
+            if (!IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance)
             {
-                creature = EntityBehaviorAnglerfishAI.Spawn(sapi, player, 48, 64, natural: true);
+                creature = EntityBehaviorAnglerfishAI.SpawnNearCoast(sapi, player, natural: true);
                 if (creature != null && Config.DebugLogging)
                     DebugLog(sapi, $"SPAWNED natural anglerfish targeting {player.PlayerName} at ({creature.Pos.X:F0}, {creature.Pos.Y:F0}, {creature.Pos.Z:F0})");
             }

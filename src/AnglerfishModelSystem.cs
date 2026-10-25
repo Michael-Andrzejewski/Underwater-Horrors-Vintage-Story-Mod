@@ -29,11 +29,11 @@ public class AnglerfishModelSystem : ModSystem
             .WithDescription("Giant anglerfish model and animation inspection")
             .RequiresPrivilege(Privilege.controlserver)
             .BeginSubCommand("show")
-                .WithDescription("Place an animated anglerfish 24 blocks ahead for inspection")
+                .WithDescription("Place an animated anglerfish 60 blocks ahead for inspection")
                 .HandleWith(Show)
             .EndSubCommand()
             .BeginSubCommand("anim")
-                .WithDescription("Play a clip on the nearest living anglerfish within 32 blocks; off restores automatic animation")
+                .WithDescription("Play a clip on the nearest living anglerfish within 128 blocks; off restores automatic animation")
                 .WithArgs(api.ChatCommands.Parsers.WordRange("clip", "idle", "swim", "swimfast", "lure", "bite", "swallow", "hurt", "die", "off"))
                 .HandleWith(Animate)
             .EndSubCommand();
@@ -46,7 +46,7 @@ public class AnglerfishModelSystem : ModSystem
         var type = sapi.World.GetEntityType(new AssetLocation("underwaterhorrors", "giantanglerfish-display"));
         if (type == null) return TextCommandResult.Error("The giantanglerfish entity asset is missing.");
         var fish = sapi.World.ClassRegistry.CreateEntity(type);
-        fish.Pos.SetPos(player.Pos.X + Math.Sin(player.Pos.Yaw) * 24, player.Pos.Y, player.Pos.Z + Math.Cos(player.Pos.Yaw) * 24);
+        fish.Pos.SetPos(player.Pos.X + Math.Sin(player.Pos.Yaw) * 60, player.Pos.Y, player.Pos.Z + Math.Cos(player.Pos.Yaw) * 60);
         fish.Pos.Dimension = player.Pos.Dimension;
         fish.Pos.Yaw = player.Pos.Yaw + (float)Math.PI;
         fish.WatchedAttributes.SetBool("underwaterhorrors:static",true);
@@ -60,7 +60,7 @@ public class AnglerfishModelSystem : ModSystem
         var player = args.Caller.Player?.Entity;
         if (player == null) return TextCommandResult.Error("Run this command as a player.");
         EntityBehaviorAnglerfishAnimation nearest = null;
-        double distance = 32;
+        double distance = 128;
         foreach (var fish in sapi.World.LoadedEntities.Values)
         {
             if (fish is not GiantAnglerfishEntity || !fish.Alive || fish.Pos.Dimension != player.Pos.Dimension) continue;
@@ -71,7 +71,7 @@ public class AnglerfishModelSystem : ModSystem
             nearest = behavior;
             distance = d;
         }
-        if (nearest == null) return TextCommandResult.Error("No living anglerfish within 32 blocks. Use /uhangler show.");
+        if (nearest == null) return TextCommandResult.Error("No living anglerfish within 128 blocks. Use /uhangler show.");
         string code = args.Parsers[0].GetValue() as string;
         nearest.Preview(code == "off" ? null : code);
         return TextCommandResult.Success(code == "off" ? "Automatic anglerfish animation restored." : $"Anglerfish playing {code}; one-shot clips hold their final pose. Repeat the command to replay.");
@@ -85,7 +85,8 @@ public class GiantAnglerfishEntity : EntityAgent
     public GiantAnglerfishEntity() { AnimManager = new ThreadSafeAnimationManager(); }
 
     public override bool AlwaysActive => true;
-    public override double FrustumSphereRadius => 45;
+    // Its head is some 30 blocks across and its tail trails 130 behind.
+    public override double FrustumSphereRadius => 140;
     public override bool CanStepPitch => false;
     public override bool CanSwivel => false;
     public override bool CanSwivelNow => false;
@@ -95,6 +96,9 @@ public class AnglerfishLureEntity : EntityKrakenPart
 {
     public override bool AlwaysActive => true;
     public override double FrustumSphereRadius => 6;
+    // The gear can be hit (10 health, two temporal gears); the rope pieces,
+    // which share this class, cannot.
+    public override bool IsInteractable => Code?.Path == "anglerfishlure";
 }
 
 /// <summary>
@@ -119,11 +123,13 @@ public class EntityBehaviorAnglerfishAnimation : EntityBehavior
     public void SetLocomotion(string code, float speed = 1)
     { if (Clips.Contains(code)) { locomotion=code; locomotionSpeed=speed; } }
 
-    public void PlayLunge()
+    /// <summary>The bite, sped up so its jaws snap shut (frame 49) as the swoop arrives.</summary>
+    public void PlayLunge(float secondsToContact)
     {
         if(entity.Api.Side!=EnumAppSide.Server || !entity.Alive || preview!=null)return;
-        action="bite";actionRemaining=76f/30/3;
-        Play("bite",true,3);
+        float speed=Math.Clamp(49f/30/Math.Max(.2f,secondsToContact),1f,4f);
+        action="bite";actionRemaining=76f/30/speed;
+        Play("bite",true,speed);
     }
 
     public void Preview(string code)
