@@ -16,10 +16,10 @@
 		"serpent4.png": [1024, 1024]
 	},
 	"textures": {
-		"serpent.png": "",
-		"serpent2.png": "",
-		"serpent3.png": "",
-		"serpent4.png": ""
+		"serpent.png": "entity/serpent",
+		"serpent2.png": "entity/serpent2",
+		"serpent3.png": "entity/serpent2",
+		"serpent4.png": "entity/serpent2"
 	},
 	"elements": [
 		{

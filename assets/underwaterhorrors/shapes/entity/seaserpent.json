@@ -13,7 +13,7 @@
 		"serpent.png": [1024, 1024]
 	},
 	"textures": {
-		"serpent.png": ""
+		"serpent.png": "entity/serpent"
 	},
 	"elements": [
 		{
