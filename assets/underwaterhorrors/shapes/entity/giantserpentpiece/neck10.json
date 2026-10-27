@@ -1,0 +1,73 @@
+{
+	"textureWidth": 1024,
+	"textureHeight": 1024,
+	"textureSizes": {
+		"serpent.png": [1024, 1024]
+	},
+	"textures": {
+		"serpent.png": "underwaterhorrors:entity/serpent"
+	},
+	"elements": [
+		{
+			"name": "root",
+			"from": [8.0, 0.0, 8.0],
+			"to": [8.0, 0.0, 8.0],
+			"rotationOrigin": [8.0, 0.0, 8.0],
+			"children": [
+				{
+					"name": "neck10",
+					"from": [17.0, 3.0, 0.0],
+					"to": [17.0, 3.0, 0.0],
+					"rotationOrigin": [0, 0, 0],
+					"children": [
+						{
+							"name": "cube",
+							"from": [-18, -9.5, -11.75],
+							"to": [6, 10.5, 11.75],
+							"rotationOrigin": [-12, 0, 0],
+							"faces": {
+								"north": {
+									"texture": "#serpent.png",
+									"uv": [294, 145, 318, 165],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#serpent.png",
+									"uv": [442, 285, 466, 305],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#serpent.png",
+									"uv": [442, 305, 466, 325],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#serpent.png",
+									"uv": [427, 443, 451, 463],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#serpent.png",
+									"uv": [102, 433, 78, 409],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#serpent.png",
+									"uv": [386, 411, 362, 435],
+									"rotation": 180,
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

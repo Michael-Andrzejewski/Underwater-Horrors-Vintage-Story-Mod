@@ -60,6 +60,12 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // are gated). Resets to true on server restart.
     private bool naturalSpawningEnabled = true;
 
+    // When a player last killed a Rust Leviathan, as UTC ticks (0 = never).
+    // Kept in the savegame so the GiantSerpentKillCooldownMinutes wait
+    // survives a restart.
+    private const string GiantKilledAtKey = "underwaterhorrors:giantSerpentKilledAtUtc";
+    private long giantKilledAtUtcTicks;
+
     // Session-only test mode for the bioluminescent glow renderer.
     // 0 = production behavior (only night-spawned krakens glow).
     // Non-zero values are debug overrides documented in /uh biolumtest mode.
@@ -610,8 +616,73 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         api.Event.PlayerJoin += OnPlayerJoinSyncDebug;
         api.Event.OnEntityLoaded += RemoveSavedKrakenPart;
+        api.Event.SaveGameLoaded += LoadGiantKillTime;
+        api.Event.GameWorldSave += StoreGiantKillTime;
 
         RegisterCommands(api);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Rust Leviathan kill cooldown
+    // ═══════════════════════════════════════════════════════════════════
+    private void LoadGiantKillTime()
+    {
+        try
+        {
+            byte[] data = sapi.WorldManager.SaveGame.GetData(GiantKilledAtKey);
+            giantKilledAtUtcTicks = data != null && data.Length > 0 ? Vintagestory.API.Util.SerializerUtil.Deserialize<long>(data) : 0;
+        }
+        catch (Exception e)
+        {
+            sapi.Logger.Warning("[underwaterhorrors] could not read the Rust Leviathan kill time: {0}", e.Message);
+        }
+    }
+
+    private void StoreGiantKillTime()
+    {
+        sapi.WorldManager.SaveGame.StoreData(GiantKilledAtKey, Vintagestory.API.Util.SerializerUtil.Serialize(giantKilledAtUtcTicks));
+    }
+
+    /// <summary>
+    /// A player killed a Rust Leviathan: no natural one comes on this server
+    /// for GiantSerpentKillCooldownMinutes.
+    /// </summary>
+    public void NoteGiantSerpentKilled(Entity giant, DamageSource source)
+    {
+        giantKilledAtUtcTicks = DateTime.UtcNow.Ticks;
+        StoreGiantKillTime();
+        Entity killer = source?.CauseEntity ?? source?.SourceEntity;
+        string name = (killer as EntityPlayer)?.Player?.PlayerName ?? killer?.GetName() ?? "someone";
+        sapi.Logger.Notification("[underwaterhorrors] {0} killed a Rust Leviathan at ({1:F0}, {2:F0}, {3:F0}); no other comes for {4:F0} minutes",
+            name, giant.Pos.X, giant.Pos.Y, giant.Pos.Z, Config.GiantSerpentKillCooldownMinutes);
+    }
+
+    /// <summary>Time left until a natural Rust Leviathan may come again
+    /// after the last player kill; zero or less when it may.</summary>
+    public TimeSpan GiantSerpentCooldownLeft()
+    {
+        if (giantKilledAtUtcTicks == 0) return TimeSpan.Zero;
+        TimeSpan since = DateTime.UtcNow - new DateTime(giantKilledAtUtcTicks, DateTimeKind.Utc);
+        return TimeSpan.FromMinutes(Config.GiantSerpentKillCooldownMinutes) - since;
+    }
+
+    private TextCommandResult OnCmdGiantCooldown(TextCommandCallingArgs args)
+    {
+        string arg = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
+        if (arg == "clear")
+        {
+            giantKilledAtUtcTicks = 0;
+            StoreGiantKillTime();
+            return TextCommandResult.Success("Rust Leviathan cooldown cleared: natural ones may come again.");
+        }
+        if (!string.IsNullOrEmpty(arg)) return TextCommandResult.Error("Use /uh giantcooldown, or /uh giantcooldown clear.");
+
+        TimeSpan left = GiantSerpentCooldownLeft();
+        if (left <= TimeSpan.Zero)
+            return TextCommandResult.Success(giantKilledAtUtcTicks == 0
+                ? "No Rust Leviathan has been killed here yet; natural ones may come."
+                : "The cooldown since the last Rust Leviathan kill has passed; natural ones may come.");
+        return TextCommandResult.Success($"A Rust Leviathan was killed; the next natural one may come in {(int)left.TotalHours}h {left.Minutes:D2}m.");
     }
 
     /// <summary>
@@ -718,6 +789,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .BeginSubCommand("status")
                 .WithDescription("Show all toggle states and entity counts")
                 .HandleWith(OnCmdStatus)
+            .EndSubCommand()
+            .BeginSubCommand("giantcooldown")
+                .WithDescription("Show how long until a natural Rust Leviathan may come again after the last player kill, or 'clear' to end the wait now.")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("clear"))
+                .HandleWith(OnCmdGiantCooldown)
             .EndSubCommand()
             .BeginSubCommand("serpent")
                 .WithDescription("Serpent-specific settings")
@@ -1863,8 +1939,10 @@ public class UnderwaterHorrorsModSystem : ModSystem
             {
                 // Out in open ocean the serpent is sometimes the giant. It
                 // starts far out and needs open deep water there; without
-                // it, a normal serpent.
-                if (sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance &&
+                // it, a normal serpent. None comes for a while after a
+                // player killed one.
+                if (GiantSerpentCooldownLeft() <= TimeSpan.Zero &&
+                    sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance &&
                     EntityBehaviorGiantSerpentAI.IsOpenOcean(sapi.World, player.Entity,
                         Config.GiantSerpentOpenOceanRadius, Config.GiantSerpentOpenOceanDepth))
                     creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, player, 120, 200);

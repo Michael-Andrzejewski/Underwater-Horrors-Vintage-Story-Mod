@@ -60,4 +60,31 @@ public static class GiantSerpentRig
     /// <summary>Spine bones from the head back, as named in the shape.</summary>
     public static string[] SpineBones(EntityProperties p) =>
         Rig(p)?["spineBones"].AsArray<string>(Array.Empty<string>()) ?? Array.Empty<string>();
+
+    // The numbers below are measured from the rest model and written into
+    // the entity file by tools/giantserpent/build_shape.py.
+
+    /// <summary>Mouth to each spine bone's pivot (its head-side joint), plus
+    /// the end of the last bone's link: one more entry than SpineBones.</summary>
+    public static double[] SpineArcs(EntityProperties p) =>
+        Rig(p)?["spineArcs"].AsArray<double>(Array.Empty<double>()) ?? Array.Empty<double>();
+
+    /// <summary>Rest elevation of each bone's link, in radians.</summary>
+    public static double[] SpineElev(EntityProperties p) =>
+        Rig(p)?["spineElev"].AsArray<double>(Array.Empty<double>()) ?? Array.Empty<double>();
+
+    /// <summary>Each bone's solid body around its pivot, in its own rest
+    /// frame: back from, back to, below, above, half width.</summary>
+    public static double[][] PieceExtents(EntityProperties p) => Rows(Rig(p)?["pieceExtents"]);
+
+    /// <summary>A JSON array of number arrays. The game's AsArray&lt;T&gt;
+    /// gives up on arrays inside arrays and returns its default.</summary>
+    public static double[][] Rows(JsonObject table)
+    {
+        JsonObject[] rows = table?.AsArray();
+        if (rows == null) return Array.Empty<double[]>();
+        var result = new double[rows.Length][];
+        for (int i = 0; i < rows.Length; i++) result[i] = rows[i].AsArray<double>(Array.Empty<double>());
+        return result;
+    }
 }

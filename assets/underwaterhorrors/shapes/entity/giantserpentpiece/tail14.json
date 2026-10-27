@@ -1,0 +1,165 @@
+{
+	"textureWidth": 1024,
+	"textureHeight": 1024,
+	"textureSizes": {
+		"serpent.png": [1024, 1024]
+	},
+	"textures": {
+		"serpent.png": "underwaterhorrors:entity/serpent"
+	},
+	"elements": [
+		{
+			"name": "root",
+			"from": [8.0, 0.0, 8.0],
+			"to": [8.0, 0.0, 8.0],
+			"rotationOrigin": [8.0, 0.0, 8.0],
+			"children": [
+				{
+					"name": "tail14",
+					"from": [0, 0, 0],
+					"to": [0, 0, 0],
+					"rotationOrigin": [0, 0, 0],
+					"children": [
+						{
+							"name": "cube",
+							"from": [0, -9.5, -11.5],
+							"to": [36, 10.5, 11.5],
+							"rotationOrigin": [12, 0, 0],
+							"faces": {
+								"north": {
+									"texture": "#serpent.png",
+									"uv": [354, 43, 390, 63],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#serpent.png",
+									"uv": [339, 450, 362, 470],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#serpent.png",
+									"uv": [354, 63, 390, 83],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#serpent.png",
+									"uv": [362, 450, 385, 470],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#serpent.png",
+									"uv": [361, 263, 325, 240],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#serpent.png",
+									"uv": [362, 91, 326, 114],
+									"rotation": 180,
+									"autoUv": false,
+									"snapUv": false
+								}
+							}
+						},
+						{
+							"name": "cube",
+							"from": [0, -4.5, -14.5],
+							"to": [36, 5.5, -9.5],
+							"rotationOrigin": [12, 0, -5],
+							"faces": {
+								"north": {
+									"texture": "#serpent.png",
+									"uv": [446, 92, 482, 102],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#serpent.png",
+									"uv": [493, 239, 498, 249],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#serpent.png",
+									"uv": [413, 463, 449, 473],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#serpent.png",
+									"uv": [232, 494, 237, 504],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#serpent.png",
+									"uv": [510, 162, 474, 157],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#serpent.png",
+									"uv": [208, 475, 172, 480],
+									"rotation": 180,
+									"autoUv": false,
+									"snapUv": false
+								}
+							},
+							"rotationY": 2.5
+						},
+						{
+							"name": "cube",
+							"from": [0, -4.5, 9.5],
+							"to": [36, 5.5, 14.5],
+							"rotationOrigin": [12, 0, 5],
+							"faces": {
+								"north": {
+									"texture": "#serpent.png",
+									"uv": [464, 102, 500, 112],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"east": {
+									"texture": "#serpent.png",
+									"uv": [237, 494, 242, 504],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"south": {
+									"texture": "#serpent.png",
+									"uv": [464, 219, 500, 229],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"west": {
+									"texture": "#serpent.png",
+									"uv": [393, 495, 398, 505],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"up": {
+									"texture": "#serpent.png",
+									"uv": [483, 480, 447, 475],
+									"autoUv": false,
+									"snapUv": false
+								},
+								"down": {
+									"texture": "#serpent.png",
+									"uv": [512, 30, 476, 35],
+									"rotation": 180,
+									"autoUv": false,
+									"snapUv": false
+								}
+							},
+							"rotationY": -2.5
+						}
+					]
+				}
+			]
+		}
+	]
+}

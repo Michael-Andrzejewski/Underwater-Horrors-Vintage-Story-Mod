@@ -474,7 +474,12 @@ public class UnderwaterHorrorsConfig
     // How deep the saltwater must be at the player and at every tested column.
     public int GiantSerpentOpenOceanDepth { get; set; } = 50;
     public bool GiantSerpentChanceMigrated { get; set; } = false;
-    public float GiantSerpentMaxHealth { get; set; } = 1500f;
+    // Its health. It can only be hit while its body passes the surface after
+    // a strike, about 20 seconds a pass, and it never flees when hurt; a
+    // player must finish it before it sinks their boat and kills them in
+    // the water. (0.22.x had 1500, too much to finish in practice.)
+    public float GiantSerpentMaxHealth { get; set; } = 600f;
+    public bool GiantSerpentHealthMigrated { get; set; } = false;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
     public int GiantSerpentDamageTier { get; set; } = 5;
@@ -501,11 +506,40 @@ public class UnderwaterHorrorsConfig
     // Seconds its prey can stay ashore before the giant is removed. It is
     // also removed once it has swum out of sight of every player.
     public float GiantSerpentDespawnAfterLandSeconds { get; set; } = 120f;
-    // It swims off after this many seconds even if its prey is still at sea.
+    // It swims off after this many seconds even if its prey is still at sea,
+    // unless a player has hurt it in the last two minutes: then it stays and
+    // fights.
     public float GiantSerpentMaxStaySeconds { get; set; } = 480f;
     // Pitch of its bite and other sounds: the rust serpent's, played slower
     // and deeper. 1 is the rust serpent's own pitch.
     public float GiantSerpentSoundPitch { get; set; } = 0.6f;
+    // After a player kills one, no natural giant comes anywhere on the server
+    // for this many real minutes. The time is kept in the save, so it counts
+    // on while the server is off. /uh giantcooldown shows or clears it;
+    // /uh spawn giantserpent ignores it.
+    public float GiantSerpentKillCooldownMinutes { get; set; } = 120f;
+    // A killed giant breaks apart into its 22 body segments, which sink to
+    // the sea floor. Each segment spills these, a random count between the
+    // two numbers: rusty gears, temporal gears, 1 to 3 of every kind of
+    // Jonas part, raw fish and bones. Fish and bones float up; gears and
+    // Jonas parts sink with the segments.
+    public int GiantSerpentPieceRustyGearsMin { get; set; } = 10;
+    public int GiantSerpentPieceRustyGearsMax { get; set; } = 15;
+    public int GiantSerpentPieceTemporalGearsMin { get; set; } = 1;
+    public int GiantSerpentPieceTemporalGearsMax { get; set; } = 4;
+    public int GiantSerpentPieceJonasPartsMin { get; set; } = 1;
+    public int GiantSerpentPieceJonasPartsMax { get; set; } = 3;
+    public int GiantSerpentPieceFishMin { get; set; } = 20;
+    public int GiantSerpentPieceFishMax { get; set; } = 50;
+    public int GiantSerpentPieceBonesMin { get; set; } = 20;
+    public int GiantSerpentPieceBonesMax { get; set; } = 50;
+    // Real minutes the giant's loot stays in the world before it despawns
+    // (the game's own is 10), counted while a player is near it, so there is
+    // time to dive for what sank.
+    public float GiantSerpentLootMinutes { get; set; } = 60f;
+    // In-game hours its segments lie on the sea floor before they crumble,
+    // each leaving a pile of bones. 0 keeps them for good.
+    public float GiantSerpentPieceDecayHours { get; set; } = 48f;
 
     // ─── Giant anglerfish ────────────────────────────────────────────────
     // A gigantic angler some 100 blocks long. Like a wobbegong it lies on
@@ -852,6 +886,19 @@ public class UnderwaterHorrorsConfig
         GiantSerpentDespawnAfterLandSeconds = Math.Max(0f, GiantSerpentDespawnAfterLandSeconds);
         GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
         GiantSerpentSoundPitch = Math.Clamp(GiantSerpentSoundPitch, 0.25f, 2f);
+        GiantSerpentKillCooldownMinutes = Math.Max(0f, GiantSerpentKillCooldownMinutes);
+        GiantSerpentPieceRustyGearsMin = Math.Max(0, GiantSerpentPieceRustyGearsMin);
+        GiantSerpentPieceRustyGearsMax = Math.Max(GiantSerpentPieceRustyGearsMin, GiantSerpentPieceRustyGearsMax);
+        GiantSerpentPieceTemporalGearsMin = Math.Max(0, GiantSerpentPieceTemporalGearsMin);
+        GiantSerpentPieceTemporalGearsMax = Math.Max(GiantSerpentPieceTemporalGearsMin, GiantSerpentPieceTemporalGearsMax);
+        GiantSerpentPieceJonasPartsMin = Math.Max(0, GiantSerpentPieceJonasPartsMin);
+        GiantSerpentPieceJonasPartsMax = Math.Max(GiantSerpentPieceJonasPartsMin, GiantSerpentPieceJonasPartsMax);
+        GiantSerpentPieceFishMin = Math.Max(0, GiantSerpentPieceFishMin);
+        GiantSerpentPieceFishMax = Math.Max(GiantSerpentPieceFishMin, GiantSerpentPieceFishMax);
+        GiantSerpentPieceBonesMin = Math.Max(0, GiantSerpentPieceBonesMin);
+        GiantSerpentPieceBonesMax = Math.Max(GiantSerpentPieceBonesMin, GiantSerpentPieceBonesMax);
+        GiantSerpentLootMinutes = Math.Max(0f, GiantSerpentLootMinutes);
+        GiantSerpentPieceDecayHours = Math.Max(0f, GiantSerpentPieceDecayHours);
 
         // Anglerfish: it must stay under water (its body is about 35 blocks
         // tall), and a swoop needs some reach and speed.
@@ -966,6 +1013,13 @@ public class UnderwaterHorrorsConfig
             // Its bite pierces up to tier 5 armor now (was 4).
             if (GiantSerpentDamageTier == 4) GiantSerpentDamageTier = 5;
             GiantSerpentTierMigrated = true;
+        }
+        if (!GiantSerpentHealthMigrated)
+        {
+            // 0.23.0: 1500 health could not be finished in the time it shows
+            // itself, so it is 600 now.
+            if (GiantSerpentMaxHealth == 1500f) GiantSerpentMaxHealth = 600f;
+            GiantSerpentHealthMigrated = true;
         }
         if (!GiantSerpentChanceMigrated)
         {

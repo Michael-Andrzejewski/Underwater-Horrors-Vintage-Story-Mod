@@ -1,0 +1,30 @@
+{
+    "code": "giantserpentpiece",
+    "class": "GiantSerpentPieceEntity",
+    "variantgroups": [
+        { "code": "bone", "states": [ "head", "neck10", "neck9", "neck6", "neck5", "neck4", "neck3", "neck2", "neck1", "chest",
+                                      "chest4", "chest5", "tail11", "tail12", "tail13", "tail14", "tail15", "tail16", "tail17", "tail18",
+                                      "tail19", "tail20" ] }
+    ],
+    "habitat": "Sea",
+    "hitboxSize": { "x": 0.25, "y": 0.25 },
+    "weight": 5000,
+    "canClimb": false,
+    "attributes": {
+        "handbook": { "disable": true }
+    },
+    "client": {
+        "renderer": "Shape",
+        "texture": { "base": "underwaterhorrors:entity/serpent" },
+        "shape": { "base": "underwaterhorrors:entity/giantserpentpiece/{bone}" },
+        "glowLevel": 0,
+        "size": 5.0,
+        "behaviors": [
+            { "code": "underwaterhorrors:giantserpentmotion", "keepTilt": true }
+        ]
+    },
+    "server": {
+        "behaviors": []
+    },
+    "sounds": {}
+}

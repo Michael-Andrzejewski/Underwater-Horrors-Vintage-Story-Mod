@@ -1,3 +1,4 @@
+using System;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 
@@ -5,21 +6,30 @@ namespace UnderwaterHorrors;
 
 /// <summary>
 /// Hit proxies for the giant serpent, laid along its curved body instead of
-/// a straight line. Here the "offsets" are arc lengths behind the mouth at
-/// entity size 1 (the entity size scales them), and each proxy sits on the
-/// same trail the client bends the spine along, side wave included, so the
-/// boxes stay on the visible body. A dead giant's trail is frozen, so the
-/// boxes keep the corpse's last curve and sink with it.
+/// a straight line, each box the size of the body where it sits.
+///
+/// The "proxies" table in the entity file comes from the rest model
+/// (tools/giantserpent/build_shape.py): one row per box, in blocks at entity
+/// size 1 (the entity size scales them): arc behind the mouth (negative for
+/// the snout, which reaches past it), box width, and the bottom and top of
+/// what is drawn there relative to the spine line: the body with its fins,
+/// frills and spikes, not the whiskers. The boxes run from the snout tip to
+/// the tip of the tail fin, 4 blocks wide at the snout, 27 across the side
+/// fins and 2.5 at the tail tip, and overlap along the body whichever way it
+/// points. Each sits
+/// on the same trail the client bends the spine along, side wave included
+/// (EntityBehaviorGiantSerpentAI.SpinePoint). A dead giant's trail is
+/// frozen, so the boxes keep the corpse's last curve and sink with it.
 /// </summary>
 public class EntityBehaviorGiantSerpentHitProxies : EntityBehaviorSerpentHitProxies
 {
     private EntityBehaviorGiantSerpentAI ai;
     private double size = 10;
-    private double waveAmplitude, waveLength, bodyLength;
 
-    private readonly double[] arc = new double[1];
-    private readonly double[] sx = new double[1], sy = new double[1], sz = new double[1];
-    private readonly double[] so = new double[1], stx = new double[1], stz = new double[1];
+    // Per proxy, in blocks at entity size 1.
+    private float[] widths = Array.Empty<float>();
+    private float[] heights = Array.Empty<float>();
+    private float[] centers = Array.Empty<float>();
 
     public EntityBehaviorGiantSerpentHitProxies(Entity entity) : base(entity) { }
 
@@ -27,33 +37,45 @@ public class EntityBehaviorGiantSerpentHitProxies : EntityBehaviorSerpentHitProx
     {
         base.Initialize(properties, attributes);
         size = properties.Client?.Size ?? 10;
-        waveAmplitude = GiantSerpentRig.WaveAmplitude(properties);
-        waveLength = GiantSerpentRig.WaveLength(properties);
-        bodyLength = GiantSerpentRig.BodyLength(properties);
+
+        double[][] rows = GiantSerpentRig.Rows(attributes["proxies"]);
+        int n = rows.Length;
+        offsets = new float[n];
+        widths = new float[n];
+        heights = new float[n];
+        centers = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            double[] r = rows[i];
+            offsets[i] = (float)r[0];
+            widths[i] = (float)r[1];
+            heights[i] = (float)(r[3] - r[2]);
+            centers[i] = (float)((r[2] + r[3]) / 2);
+        }
     }
+
+    protected override void PrepareProxy(Entity proxy, int index)
+    {
+        proxy.WatchedAttributes.SetAttribute(EntitySerpentHitProxy.BoxAttr, new FloatArrayAttribute(new[]
+        {
+            (float)(widths[index] * size), (float)(heights[index] * size)
+        }));
+    }
+
+    protected override double ProxyCenterOffset(int index) => centers[index] * size;
 
     public override void GetSpinePoint(int index, out double x, out double y, out double z)
     {
         ai ??= entity.GetBehavior<EntityBehaviorGiantSerpentAI>();
-        SerpentTrail trail = ai?.Trail;
         double s = offsets[index] * size;
-        if (trail == null || !trail.Initialized)
+        if (ai != null)
         {
-            // Before the AI's first tick: straight behind the mouth.
-            x = entity.Pos.X - System.Math.Sin(entity.Pos.Yaw) * s;
-            y = entity.Pos.Y;
-            z = entity.Pos.Z - System.Math.Cos(entity.Pos.Yaw) * s;
+            ai.SpinePoint(s, out x, out y, out z);
             return;
         }
-
-        arc[0] = s;
-        trail.SampleSmooth(arc, 1, EntityBehaviorGiantSerpentBody.TangentSpan * size, sx, sy, sz, so, stx, stz);
-        double off = SerpentTrail.WaveOffset(s, so[0], waveAmplitude * size, waveLength * size, bodyLength * size);
-        // The trail's mouth can lag the entity: a corpse sinks after the
-        // trail froze. Shift by the difference so the boxes move with it.
-        x = sx[0] + stz[0] * off + (entity.Pos.X - trail.HeadX);
-        y = sy[0] + (entity.Pos.Y - trail.HeadY);
-        z = sz[0] - stx[0] * off + (entity.Pos.Z - trail.HeadZ);
+        x = entity.Pos.X - Math.Sin(entity.Pos.Yaw) * s;
+        y = entity.Pos.Y;
+        z = entity.Pos.Z - Math.Cos(entity.Pos.Yaw) * s;
     }
 
     public override string PropertyName() => "underwaterhorrors:giantserpenthitproxies";

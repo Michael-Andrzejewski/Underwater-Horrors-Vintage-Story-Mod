@@ -83,7 +83,7 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         bool maySpawn = alive && respawnCheckTimer <= 0;
         if (maySpawn) respawnCheckTimer = RespawnCheckInterval;
 
-        UpdateProxies(maySpawn);
+        UpdateProxies(maySpawn, deltaTime);
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         z = entity.Pos.Z + Math.Cos(yaw) * cosP * off;
     }
 
-    private void UpdateProxies(bool maySpawn)
+    private void UpdateProxies(bool maySpawn, float dt)
     {
         for (int i = 0; i < offsets.Length; i++)
         {
@@ -117,20 +117,38 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
                 proxies[i] = proxy;
             }
 
+            bool fresh = false;
             if (proxy == null || !proxy.Alive)
             {
                 if (!maySpawn) continue;
                 proxy = SpawnProxyAt(i);
                 if (proxy == null) continue;
+                fresh = true;
             }
 
             GetSpinePoint(i, out double sx, out double sy, out double sz);
             // Entity position is the bottom center of the hitbox; place
-            // the box so its vertical middle sits on the spine line.
+            // the box so its vertical middle sits on the spine line, or as
+            // far off it as the body there is.
             double halfHeight = proxy.SelectionBox != null ? proxy.SelectionBox.Y2 / 2.0 : 1.1;
-            proxy.Pos.SetPos(sx, sy - halfHeight, sz);
+            double ox = proxy.Pos.X, oy = proxy.Pos.Y, oz = proxy.Pos.Z;
+            proxy.Pos.SetPos(sx, sy + ProxyCenterOffset(i) - halfHeight, sz);
+            // The proxy's velocity, in physics units (blocks per 1/60 s),
+            // for clients that dead-reckon it between packets as the giant's
+            // own body is (giantserpentmotion), so its box keeps up with the
+            // drawn body instead of trailing it.
+            if (fresh || dt <= 0) proxy.Pos.Motion.Set(0, 0, 0);
+            else proxy.Pos.Motion.Set((sx - ox) / dt / 60, (proxy.Pos.Y - oy) / dt / 60, (sz - oz) / dt / 60);
         }
     }
+
+    /// <summary>How far above the spine line the middle of proxy
+    /// <paramref name="index"/>'s box sits.</summary>
+    protected virtual double ProxyCenterOffset(int index) => 0;
+
+    /// <summary>Called on each new proxy before it spawns, so a subclass
+    /// can give it its own box size.</summary>
+    protected virtual void PrepareProxy(Entity proxy, int index) { }
 
     private Entity SpawnProxyAt(int index)
     {
@@ -142,6 +160,7 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         proxy.Pos.Dimension = entity.Pos.Dimension;
         proxy.Pos.SetFrom(proxy.Pos);
         proxy.WatchedAttributes.SetLong(EntityBehaviorDamageRelay.TargetAttr, entity.EntityId);
+        PrepareProxy(proxy, index);
         entity.World.SpawnEntity(proxy);
 
         proxyIds[index] = proxy.EntityId;

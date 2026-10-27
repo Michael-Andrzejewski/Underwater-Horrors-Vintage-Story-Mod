@@ -42,11 +42,13 @@ public enum GiantSerpentState
 ///
 /// When its prey goes ashore or over shallow water, it swims off into the
 /// deep (Withdraw), and comes back if the prey returns to deep water. It
-/// leaves for good (Retreat) when its prey is gone, after
-/// GiantSerpentMaxStaySeconds, and when badly hurt. Either way it is only
-/// removed once its whole body is out of sight of every player; the
-/// creature sweep also removes it after its prey has been ashore for
-/// GiantSerpentDespawnAfterLandSeconds.
+/// leaves for good (Retreat) when its prey is gone, or after
+/// GiantSerpentMaxStaySeconds unless a player has hurt it lately. Either way
+/// it is only removed once its whole body is out of sight of every player;
+/// the creature sweep also removes it after its prey has been ashore for
+/// GiantSerpentDespawnAfterLandSeconds. Hurt, it never flees: it fights to
+/// the death, and a killed giant breaks apart
+/// (EntityBehaviorGiantSerpentBreakup).
 /// </summary>
 public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
 {
@@ -72,6 +74,10 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     // or a bay it cannot find its way out of) ends after this long anyway.
     private const float RetreatGiveUpSeconds = 300f;
 
+    // A player who hurt it this recently is fighting it: it does not swim
+    // off at the end of its stay while the fight goes on.
+    private const float FightHoldSeconds = 120f;
+
     /// <summary>
     /// Set on a giant for screenshots and model inspection: it circles its
     /// player forever with its back out of the water and never strikes or
@@ -84,12 +90,14 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
 
     private double size = 10;
     private double bodyLength = 44.5;   // size-1 blocks, from the entity attributes
+    private double waveAmplitude = 0.6, waveLength = 11, headLink = 2.378;
 
     private GiantSerpentState state = GiantSerpentState.Approach;
     private float stateTimer;
     private bool initialized;
     private float lifeTimer;
     private float seedTimer;
+    private float playerHurtAt = float.NegativeInfinity;
 
     // Heading in the game's convention (yaw 0 = +Z), pitch above 0 = nose up.
     private double yaw, pitch, speed;
@@ -153,6 +161,10 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     {
         base.Initialize(properties, attributes);
         bodyLength = GiantSerpentRig.BodyLength(properties);
+        waveAmplitude = GiantSerpentRig.WaveAmplitude(properties);
+        waveLength = GiantSerpentRig.WaveLength(properties);
+        double[] arcs = GiantSerpentRig.SpineArcs(properties);
+        if (arcs.Length > 1) headLink = arcs[1];
     }
 
     private void Init()
@@ -193,15 +205,11 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
                 TransitionTo(GiantSerpentState.Retreat);
             }
             else if (lifeTimer > config.GiantSerpentMaxStaySeconds && !Showcase &&
+                     lifeTimer - playerHurtAt > FightHoldSeconds &&
                      (state == GiantSerpentState.Circle || state == GiantSerpentState.Approach ||
                       state == GiantSerpentState.Withdraw))
             {
                 Log($"stayed {lifeTimer:F0}s, retreating");
-                TransitionTo(GiantSerpentState.Retreat);
-            }
-            else if (HealthFraction() < 0.25f)
-            {
-                Log("badly hurt, retreating");
                 TransitionTo(GiantSerpentState.Retreat);
             }
             else if (!Showcase && (state == GiantSerpentState.Approach ||
@@ -937,6 +945,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         base.OnEntityReceiveDamage(damageSource, ref damage);
         if (entity.Api.Side != EnumAppSide.Server || !entity.Alive) return;
         if (damage <= 0 || damageSource?.Type == EnumDamageType.Heal) return;
+        if (ByPlayer(damageSource)) playerHurtAt = lifeTimer;
 
         // Hurting it cuts its patience short: the next strike comes soon.
         if (state == GiantSerpentState.Circle && circleDuration - stateTimer > 5)
@@ -949,19 +958,71 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     {
         base.OnEntityDeath(damageSourceForDeath);
         if (entity.Api.Side != EnumAppSide.Server) return;
-        // The corpse keeps its last curve: "dead" names every spine bone,
-        // which keeps the client's bend offsets drawn after the swim stops.
+        // The corpse keeps its last curve until it breaks apart: "dead" names
+        // every spine bone, which keeps the client's bend offsets drawn after
+        // the swim stops.
         StopAnim(AnimIdle);
         StopAnim(AnimGape);
         StopAnim(AnimGulp);
         StartAnim(AnimDead, 1f);
+
+        if (ByPlayer(damageSourceForDeath))
+            UnderwaterHorrorsModSystem.ServerInstance?.NoteGiantSerpentKilled(entity, damageSourceForDeath);
     }
 
-    private float HealthFraction()
+    /// <summary>A player's blow, thrown spear or arrow.</summary>
+    internal static bool ByPlayer(DamageSource source) =>
+        source?.CauseEntity is EntityPlayer || source?.SourceEntity is EntityPlayer;
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  The body's line
+    // ═══════════════════════════════════════════════════════════════════
+    private readonly double[] spArc = new double[1];
+    private readonly double[] spX = new double[1], spY = new double[1], spZ = new double[1];
+    private readonly double[] spOdo = new double[1], spTx = new double[1], spTz = new double[1];
+
+    /// <summary>
+    /// A point on the spine line, arc blocks behind the mouth, on the same
+    /// trail the client bends the spine along, side wave included. A negative
+    /// arc reaches on past the mouth along the head, for the snout. A dead
+    /// giant's trail is frozen, so the points keep the corpse's last curve
+    /// and move with it as it sinks. Before the first tick, or for a corpse
+    /// read back from the save, the body lies straight behind the mouth.
+    /// Used by the hit proxies and the breakup.
+    /// </summary>
+    public void SpinePoint(double arc, out double x, out double y, out double z)
     {
-        var health = entity.GetBehavior<EntityBehaviorHealth>();
-        if (health == null || health.MaxHealth <= 0) return 1f;
-        return health.Health / health.MaxHealth;
+        var pos = entity.Pos;
+        if (Trail == null || !Trail.Initialized)
+        {
+            x = pos.X - Math.Sin(pos.Yaw) * arc;
+            y = pos.Y;
+            z = pos.Z - Math.Cos(pos.Yaw) * arc;
+            return;
+        }
+
+        double sz = entity.Properties.Client?.Size ?? 10;
+        if (arc < 0)
+        {
+            // Out along the head: from its first joint through the mouth.
+            SpinePoint(0, out double mx, out double my, out double mz);
+            SpinePoint(headLink * sz, out double jx, out double jy, out double jz);
+            double dx = mx - jx, dy = my - jy, dz = mz - jz;
+            double len = Math.Max(1e-6, Math.Sqrt(dx * dx + dy * dy + dz * dz));
+            x = mx - dx / len * arc;
+            y = my - dy / len * arc;
+            z = mz - dz / len * arc;
+            return;
+        }
+
+        spArc[0] = arc;
+        Trail.SampleSmooth(spArc, 1, EntityBehaviorGiantSerpentBody.TangentSpan * sz, spX, spY, spZ, spOdo, spTx, spTz);
+        double off = SerpentTrail.WaveOffset(arc, spOdo[0], waveAmplitude * sz, waveLength * sz, bodyLength * sz);
+        // The trail's mouth can lag the entity: a corpse sinks after the
+        // trail froze. Shift by the difference so the points move with it.
+        x = spX[0] + spTz[0] * off + (pos.X - Trail.HeadX);
+        y = spY[0] + (pos.Y - Trail.HeadY);
+        z = spZ[0] - spTx[0] * off + (pos.Z - Trail.HeadZ);
     }
 
     private void GetPreyCenter(out double x, out double y, out double z)

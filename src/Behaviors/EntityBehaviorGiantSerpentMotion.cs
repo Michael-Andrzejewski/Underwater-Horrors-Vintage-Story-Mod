@@ -39,12 +39,16 @@ public class EntityBehaviorGiantSerpentMotion : EntityBehavior, IRenderer
 
     private double serverX, serverY, serverZ;
     private double velX, velY, velZ;
-    private float serverYaw;
+    private float serverYaw, serverRoll;
     private long receivedMs;
 
     private double drawX, drawY, drawZ;
-    private float drawYaw;
+    private float drawYaw, drawRoll;
     private bool started;
+
+    // The giant always swims level; its broken pieces tilt as they sink
+    // (Pos.Roll, which the renderer turns about the model's sideways axis).
+    private bool keepTilt;
 
     public EntityBehaviorGiantSerpentMotion(Entity entity) : base(entity) { }
 
@@ -54,6 +58,7 @@ public class EntityBehaviorGiantSerpentMotion : EntityBehavior, IRenderer
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
         base.Initialize(properties, attributes);
+        keepTilt = attributes["keepTilt"].AsBool(false);
         capi = entity.Api as ICoreClientAPI;
         capi?.Event.RegisterRenderer(this, EnumRenderStage.Before, "underwaterhorrors-giantserpentmotion");
         TakeServerState();
@@ -78,7 +83,7 @@ public class EntityBehaviorGiantSerpentMotion : EntityBehavior, IRenderer
         pos.SetPos(drawX, drawY, drawZ);
         pos.Yaw = drawYaw;
         pos.Pitch = 0;
-        pos.Roll = 0;
+        pos.Roll = keepTilt ? drawRoll : 0;
     }
 
     private void TakeServerState()
@@ -88,6 +93,7 @@ public class EntityBehaviorGiantSerpentMotion : EntityBehavior, IRenderer
         serverY = pos.Y;
         serverZ = pos.Z;
         serverYaw = pos.Yaw;
+        serverRoll = pos.Roll;
         // Physics units are blocks per 1/60 s.
         velX = pos.Motion.X * 60;
         velY = pos.Motion.Y * 60;
@@ -101,6 +107,7 @@ public class EntityBehaviorGiantSerpentMotion : EntityBehavior, IRenderer
         drawY = serverY;
         drawZ = serverZ;
         drawYaw = serverYaw;
+        drawRoll = serverRoll;
         started = true;
     }
 
@@ -133,12 +140,13 @@ public class EntityBehaviorGiantSerpentMotion : EntityBehavior, IRenderer
 
         double ky = 1 - Math.Exp(-YawConvergence * dt);
         drawYaw = GameMath.Mod(drawYaw + GameMath.AngleRadDistance(drawYaw, serverYaw) * (float)ky, GameMath.TWOPI);
+        drawRoll += (serverRoll - drawRoll) * (float)ky;
 
         var pos = entity.Pos;
         pos.SetPos(drawX, drawY, drawZ);
         pos.Yaw = drawYaw;
         pos.Pitch = 0;
-        pos.Roll = 0;
+        pos.Roll = keepTilt ? drawRoll : 0;
     }
 
     public void Dispose() { }

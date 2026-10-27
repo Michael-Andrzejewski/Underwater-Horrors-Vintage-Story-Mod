@@ -15,6 +15,16 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.23.0
+
+- The Rust Leviathan can be killed. Its hitboxes now follow the model: 49 boxes from the snout tip (almost 9 blocks past the mouth, which no box reached before) to the tip of the tail fin, each as wide and tall as what is drawn there: the body with its frills, side fins, dorsal spikes and tail fin, but not the whiskers. They run from 4 blocks wide at the snout and 27 across the side fins to 2.5 at the tail tip. They used to be 37 boxes all 7 by 7, which missed the fins, the snout and the end of the tail. Each box gets its size on the client too, which Combat Overhaul tests its swings and arrows against, and clients move the boxes with the body's own smoothing, so they keep up with it in a strike. The box table is measured from the model by `tools/giantserpent/build_shape.py`.
+- It fights to the death: it no longer flees at a quarter health, and it does not swim off at the end of its stay (`GiantSerpentMaxStaySeconds`) while a player has hurt it in the last two minutes.
+- 600 health instead of 1500 (`GiantSerpentMaxHealth`; a config still at 1500 moves down once). It shows itself only for the 20 seconds or so its body takes to pass the surface after each strike, and a sailboat lasts three strikes, so 1500 could not be finished in practice.
+- Killed, it goes limp for two seconds, then breaks apart with a crack of rusted metal into its 22 body segments, each where it lay: the head with its jaws and teeth, every neck and tail segment with its own fins and spikes. The segments drift apart, sink, roll onto a side or their back and come to rest on the sea floor. After 48 in-game hours each crumbles into a pile of bones (`GiantSerpentPieceDecayHours`).
+- Every segment spills its share of the hoard: 10 to 15 rusty gears, 1 to 4 temporal gears, 1 to 3 of each of the seven Jonas parts, 20 to 50 raw fish and 20 to 50 bones (the `GiantSerpentPiece...` settings). Fish and bone float up; gears and Jonas parts sink with the segments. The loot lasts 60 minutes (`GiantSerpentLootMinutes`) instead of the game's 10. The knife harvest is gone for the giant.
+- After a player kills one, no natural Rust Leviathan comes anywhere on the server for two hours of real time (`GiantSerpentKillCooldownMinutes`). The time is kept in the save, so it counts on through a restart. `/uh giantcooldown` shows the time left and `/uh giantcooldown clear` ends it; `/uh spawn giantserpent` ignores it.
+- A new entity type, `giantserpentpiece-<bone>`, with its 22 shapes in `shapes/entity/giantserpentpiece`.
+
 ### 0.22.5
 
 - The Rust Leviathan only comes out in the open ocean: the player's own column and four random columns within 50 blocks must all be saltwater at least 50 deep (`GiantSerpentOpenOceanRadius`, `GiantSerpentOpenOceanDepth`). There, one natural serpent spawn in twenty is the giant (`GiantSerpentSpawnChance`, now 0.05; a config still at the old 0.02 is moved up once).

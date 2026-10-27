@@ -1,5 +1,6 @@
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
 namespace UnderwaterHorrors;
@@ -17,7 +18,38 @@ namespace UnderwaterHorrors;
 /// </summary>
 public class EntitySerpentHitProxy : EntityAgent
 {
+    /// <summary>
+    /// Width and height of this proxy's box, when it differs from the
+    /// entity type's. The giant serpent sizes each box to the body where it
+    /// sits. Set before the proxy spawns, so clients get it with the spawn;
+    /// Combat Overhaul tests its swings and arrows against the client's
+    /// collision box, and vanilla attacks pick the selection box.
+    /// </summary>
+    public const string BoxAttr = "underwaterhorrors:proxyBox";
+
+    private bool boxApplied;
+
     public override bool StoreWithChunk => false;
+
+    public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
+    {
+        base.Initialize(properties, api, InChunkIndex3d);
+        ApplyBox();
+    }
+
+    public override void OnGameTick(float dt)
+    {
+        if (!boxApplied) ApplyBox();
+        base.OnGameTick(dt);
+    }
+
+    private void ApplyBox()
+    {
+        if (WatchedAttributes[BoxAttr] is not FloatArrayAttribute box || box.value.Length < 2) return;
+        SetCollisionBox(box.value[0], box.value[1]);
+        SetSelectionBox(box.value[0], box.value[1]);
+        boxApplied = true;
+    }
 
     // The serpent that drives this proxy is AlwaysActive and can be up
     // to ~80 blocks from the player; keep the proxy active too so its

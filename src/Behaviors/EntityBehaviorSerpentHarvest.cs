@@ -32,12 +32,13 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
     // item code is "fish", not "fishfillet". SpawnStack skips items it
     // cannot resolve, so the old "fishfillet-raw" meant serpents silently
     // never dropped any fish at all.
-    private static readonly AssetLocation FishAsset = new("game", "fish-raw");
-    private static readonly AssetLocation BoneAsset = new("game", "bone");
-    private static readonly AssetLocation GearAsset = new("game", "gear-rusty");
-    private static readonly AssetLocation BonePileAsset = new("game", "bonyremains-ribcage");
+    // Shared with the giant serpent's pieces (GiantSerpentPieceEntity).
+    internal static readonly AssetLocation FishAsset = new("game", "fish-raw");
+    internal static readonly AssetLocation BoneAsset = new("game", "bone");
+    internal static readonly AssetLocation GearAsset = new("game", "gear-rusty");
+    internal static readonly AssetLocation BonePileAsset = new("game", "bonyremains-ribcage");
 
-    private static readonly string[] JonasPartTypes =
+    internal static readonly string[] JonasPartTypes =
     {
         "connector01", "cylinder01", "cylinder02", "tank01", "tank02", "valve01", "pumphead"
     };
@@ -162,33 +163,41 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
         if (entity.WatchedAttributes.GetBool(PilesLeftAttr)) return;
         entity.WatchedAttributes.SetBool(PilesLeftAttr, true);
 
-        var world = entity.World;
-        Block pileBlock = world.GetBlock(BonePileAsset);
-        if (pileBlock == null) return;
-
         var proxies = entity.GetBehavior<EntityBehaviorSerpentHitProxies>();
         int count = proxies?.Offsets.Length ?? 0;
-
-        var accessor = world.BlockAccessor;
         var placed = new HashSet<BlockPos>();
 
         for (int i = 0; i < Math.Max(1, count); i++)
         {
             double x = entity.Pos.X, z = entity.Pos.Z;
             if (count > 0) proxies.GetSpinePoint(i, out x, out _, out z);
-
-            int floorY = FindRestingYBelow(accessor, x, entity.Pos.Y + 1, z, entity.Pos.Dimension);
-            if (floorY < 0) continue;
-
-            BlockPos pos = new((int)x, floorY, (int)z, entity.Pos.Dimension);
-            if (!placed.Add(pos)) continue;
-
-            Block present = accessor.GetBlock(pos);
-            if (present == null || !present.IsReplacableBy(pileBlock)) continue;
-
-            accessor.SetBlock(pileBlock.BlockId, pos);
-            accessor.MarkBlockDirty(pos);
+            PlaceBonePile(entity.World, x, entity.Pos.Y + 1, z, entity.Pos.Dimension, placed);
         }
+    }
+
+    /// <summary>
+    /// Puts a bone pile on the sea floor below (x, fromY, z), where the
+    /// block there can take it. <paramref name="placed"/> skips spots that
+    /// already got one.
+    /// </summary>
+    internal static void PlaceBonePile(IWorldAccessor world, double x, double fromY, double z, int dimension,
+        HashSet<BlockPos> placed = null)
+    {
+        Block pileBlock = world.GetBlock(BonePileAsset);
+        if (pileBlock == null) return;
+
+        var accessor = world.BlockAccessor;
+        int floorY = FindRestingYBelow(accessor, x, fromY, z, dimension);
+        if (floorY < 0) return;
+
+        BlockPos pos = new((int)Math.Floor(x), floorY, (int)Math.Floor(z), dimension);
+        if (placed != null && !placed.Add(pos)) return;
+
+        Block present = accessor.GetBlock(pos);
+        if (present == null || !present.IsReplacableBy(pileBlock)) return;
+
+        accessor.SetBlock(pileBlock.BlockId, pos);
+        accessor.MarkBlockDirty(pos);
     }
 
     /// <summary>

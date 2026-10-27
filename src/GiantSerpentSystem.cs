@@ -12,7 +12,9 @@ public class GiantSerpentSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         api.RegisterEntity("GiantSerpentEntity", typeof(GiantSerpentEntity));
+        api.RegisterEntity("GiantSerpentPieceEntity", typeof(GiantSerpentPieceEntity));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentai", typeof(EntityBehaviorGiantSerpentAI));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentbreakup", typeof(EntityBehaviorGiantSerpentBreakup));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentbody", typeof(EntityBehaviorGiantSerpentBody));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpentmotion", typeof(EntityBehaviorGiantSerpentMotion));
         api.RegisterEntityBehaviorClass("underwaterhorrors:giantserpenthitproxies", typeof(EntityBehaviorGiantSerpentHitProxies));

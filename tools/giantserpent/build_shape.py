@@ -19,6 +19,11 @@ animation joints (the game only animates elements that some animation
 names). Fins and whiskers keep the swim flutter. The jaw gets gape and gulp
 clips.
 
+It also writes the 22 piece shapes a killed giant breaks into
+(shapes/entity/giantserpentpiece), and measures the rest model for the
+entity file (entities/giantserpent.json): each spine bone's pivot arc, link
+elevation and solid extent, and the table of hit proxy boxes.
+
 Run from the repo root:  python tools/giantserpent/build_shape.py
 """
 
@@ -192,6 +197,208 @@ def animations(shape):
     return [swim, gape, gulp, dead]
 
 
+# ── Pieces, hitboxes and spine numbers ────────────────────────────────
+#
+# A killed giant breaks apart into one piece per spine bone. Each piece
+# shape is that bone with everything it holds except the next spine bone,
+# pivoted at its head-side joint, which lands on the entity position.
+#
+# The hit proxies and the pieces need to know where the body is, so this
+# also measures the rest model and writes the numbers into the entity file.
+# Lengths there are blocks at entity size 1, measured from the mouth along
+# the body (the rest body is straight along +x, so arc = x).
+
+PIECE_DIR = "assets/underwaterhorrors/shapes/entity/giantserpentpiece"
+ENTITY = "assets/underwaterhorrors/entities/giantserpent.json"
+
+# A cube counts as solid body when its thinnest side is at least this many
+# model units. Fins and whiskers are flat planes, spikes thin rods.
+SOLID_MIN = 4.0
+
+# Hitbox spacing along the body: 0.8 of the body's width there, kept
+# between these (blocks at size 1). Every box is at least as wide as the
+# spacing, so the boxes overlap along the body whichever way it points.
+PROXY_STEP_MIN = 0.5
+PROXY_STEP_MAX = 1.2
+
+
+def mat_mul(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
+
+
+def mat_trans(v):
+    return [[1, 0, 0, v[0]], [0, 1, 0, v[1]], [0, 0, 1, v[2]], [0, 0, 0, 1]]
+
+
+def mat_rot(axis, deg):
+    c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+    if axis == "x":
+        return [[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]]
+    if axis == "y":
+        return [[c, 0, s, 0], [0, 1, 0, 0], [-s, 0, c, 0], [0, 0, 0, 1]]
+    return [[c, -s, 0, 0], [s, c, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+
+
+def local_matrix(el):
+    """The game's element transform: T(origin) Rx Ry Rz T(from - origin)."""
+    o = el.get("rotationOrigin") or [0, 0, 0]
+    m = mat_trans(o)
+    for axis in "xyz":
+        deg = el.get("rotation" + axis.upper(), 0)
+        if deg:
+            m = mat_mul(m, mat_rot(axis, deg))
+    return mat_mul(m, mat_trans(sub(el["from"], o)))
+
+
+def apply(m, p):
+    return tuple(sum(m[i][k] * (p[k] if k < 3 else 1) for k in range(4)) for i in range(3))
+
+
+def solid_boxes(root, solid=True):
+    """(owning spine bone, world AABB) of every solid cube, in model units.
+    With solid=False, of everything drawn but the whiskers: fins, frills and
+    spikes too, the parts a player swings at."""
+    out = []
+
+    def walk(el, parent, bone, whisker):
+        m = mat_mul(parent, local_matrix(el))
+        bone = el["name"] if el["name"] in SPINE else bone
+        whisker = whisker or "whisker" in el["name"]
+        size = sub(el["to"], el["from"])
+        keep = min(abs(v) for v in size) >= SOLID_MIN if solid else not whisker
+        if el.get("faces") and keep:
+            corners = [apply(m, (x, y, z)) for x in (0, size[0]) for y in (0, size[1]) for z in (0, size[2])]
+            lo = tuple(min(c[i] for c in corners) for i in range(3))
+            hi = tuple(max(c[i] for c in corners) for i in range(3))
+            out.append((bone, lo, hi))
+        for c in el.get("children", []):
+            walk(c, m, bone, whisker)
+
+    walk(root, [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], None, False)
+    return out
+
+
+def write_pieces(out):
+    os.makedirs(PIECE_DIR, exist_ok=True)
+    for i, name in enumerate(SPINE):
+        bone = find(out["elements"], name)
+        next_bone = SPINE[i + 1] if i + 1 < len(SPINE) else None
+        piece = without_child(bone, next_bone)
+        # Pivot on the root: the neck bones already pivot at their parent's
+        # frame origin, the tail bones still at their own.
+        origin = piece.get("rotationOrigin") or [0, 0, 0]
+        piece["from"] = list(sub(piece["from"], origin))
+        piece["to"] = list(sub(piece["to"], origin))
+        piece["rotationOrigin"] = [0, 0, 0]
+        root = {
+            "name": "root",
+            "from": list(ROOT_AT),
+            "to": list(ROOT_AT),
+            "rotationOrigin": list(ROOT_AT),
+            "children": [piece],
+        }
+        shape = {k: out[k] for k in ("textureWidth", "textureHeight", "textureSizes", "textures")}
+        shape["elements"] = [root]
+        write_shape(f"{PIECE_DIR}/{name}.json", shape)
+
+
+def spine_numbers(out, root):
+    """Pivot arcs, link elevations, piece extents and the hitbox table."""
+    pivots = [p for _, p in spine_report(out, root)]
+    # The last bone has no child joint: its link repeats the one before.
+    pivots.append(add(pivots[-1], sub(pivots[-1], pivots[-2])))
+    arcs = [0.0]
+    for a, b in zip(pivots, pivots[1:]):
+        arcs.append(arcs[-1] + math.dist(a, b) / 16)
+    elev = [math.atan2(b[1] - a[1], math.hypot(b[0] - a[0], b[2] - a[2])) for a, b in zip(pivots, pivots[1:])]
+
+    def rel(p):
+        return ((p[0] - ROOT_AT[0]) / 16, (p[1] - ROOT_AT[1]) / 16, (p[2] - ROOT_AT[2]) / 16)
+
+    piv = [rel(p) for p in pivots]
+    boxes = [(bone, rel(lo), rel(hi)) for bone, lo, hi in solid_boxes(root)]
+    drawn = [(bone, rel(lo), rel(hi)) for bone, lo, hi in solid_boxes(root, solid=False)]
+
+    # Each piece's solid body around its own pivot: along, below, above,
+    # sideways. A piece rests on this; its fins can sink into the sand.
+    extents = []
+    for i, name in enumerate(SPINE):
+        own = [(lo, hi) for bone, lo, hi in boxes if bone == name]
+        p = piv[i]
+        extents.append([
+            min(lo[0] for lo, _ in own) - p[0], max(hi[0] for _, hi in own) - p[0],
+            min(lo[1] for lo, _ in own) - p[1], max(hi[1] for _, hi in own) - p[1],
+            max(max(abs(lo[2] - p[2]), abs(hi[2] - p[2])) for lo, hi in own),
+        ])
+
+    # The spine line's rest height at arc s, between the pivots (and on
+    # past the mouth for the snout).
+    def spine_y(s):
+        for k in range(len(arcs) - 1):
+            if s <= arcs[k + 1] or k == len(arcs) - 2:
+                t = (s - arcs[k]) / (arcs[k + 1] - arcs[k])
+                return piv[k][1] + (piv[k + 1][1] - piv[k][1]) * t
+        return piv[-1][1]
+
+    # The hitboxes take in everything drawn there but the whiskers, which
+    # would stretch the head's boxes 48 blocks wide.
+    def section(a, b):
+        hit = [(lo, hi) for _, lo, hi in drawn if lo[0] < b and hi[0] > a]
+        if not hit:
+            return None
+        mid = spine_y((a + b) / 2)
+        return (2 * max(max(abs(lo[2]), abs(hi[2])) for lo, hi in hit),
+                min(lo[1] for lo, _ in hit) - mid, max(hi[1] for _, hi in hit) - mid)
+
+    front = min(lo[0] for _, lo, _ in drawn)
+    back = max(hi[0] for _, _, hi in drawn)
+    proxies = []
+    s = front + PROXY_STEP_MIN / 2
+    while s < back:
+        here = section(s - 0.05, s + 0.05) or section(s - PROXY_STEP_MAX, s + PROXY_STEP_MAX)
+        step = min(PROXY_STEP_MAX, max(PROXY_STEP_MIN, 0.8 * here[0]))
+        width, low, high = section(s - step / 2, s + step / 2) or here
+        proxies.append([s, max(width, step), low, high])
+        s += step
+    return arcs, elev, extents, proxies
+
+
+def patch_entity(values):
+    """Writes each value over the same key's value in the entity file."""
+    with open(ENTITY, encoding="utf-8") as f:
+        text = f.read()
+    for key, value in values.items():
+        pattern = re.compile(r'^([ \t]*)("' + key + r'"\s*:\s*)\[(?:[^\[\]]|\[[^\[\]]*\])*\]', re.M)
+        m = pattern.search(text)
+        if m is None:
+            raise SystemExit(f"{ENTITY} has no \"{key}\" to update")
+        indent = m.group(1)
+
+        def row(v):
+            return "[" + ", ".join(f"{x:.4g}" if isinstance(x, float) else str(x) for x in v) + "]"
+
+        if value and isinstance(value[0], list):
+            inner = indent + "    "
+            body = "[\n" + ",\n".join(inner + row(v) for v in value) + "\n" + indent + "]"
+        else:
+            body = row(value)
+        text = text[:m.start()] + m.group(1) + m.group(2) + body + text[m.end():]
+    with open(ENTITY, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def write_shape(path, shape):
+    text = json.dumps(shape, indent="\t")
+    # Keep number arrays on one line, as the model creator writes them.
+    text = re.sub(
+        r"\[([-\d.eE,\s]*)\]",
+        lambda m: "[" + ", ".join(p.strip() for p in m.group(1).split(",")) + "]",
+        text)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+        f.write("\n")
+
+
 def main():
     shape = load(SRC)
     root, absf, mouth, shift = rebuild(shape)
@@ -206,15 +413,13 @@ def main():
         "elements": [root],
         "animations": animations(shape),
     }
-    text = json.dumps(out, indent="\t")
-    # Keep number arrays on one line, as the model creator writes them.
-    text = re.sub(
-        r"\[([-\d.eE,\s]*)\]",
-        lambda m: "[" + ", ".join(p.strip() for p in m.group(1).split(",")) + "]",
-        text)
-    with open(DST, "w", encoding="utf-8") as f:
-        f.write(text)
-        f.write("\n")
+    write_shape(DST, out)
+    write_pieces(out)
+
+    arcs, elev, extents, proxies = spine_numbers(out, root)
+    patch_entity({"spineArcs": arcs, "spineElev": elev, "pieceExtents": extents, "proxies": proxies})
+    print(f"wrote {len(SPINE)} piece shapes to {PIECE_DIR}")
+    print(f"wrote {len(proxies)} hitboxes and the spine numbers to {ENTITY}")
 
     pivots = spine_report(out, root)
     print(f"wrote {DST}")
