@@ -33,7 +33,8 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     // Server-tuning knob shared with the attack tentacle, so raising it
     // speeds up the whole kraken coherently instead of leaving the
     // ambient arms drifting while the hunter races.
-    protected override double SpeedScale => config?.TentacleSpeedMultiplier ?? 1.0;
+    // Faster still in a temporal storm (StormTentacleSpeedMultiplier).
+    protected override double SpeedScale => (config?.TentacleSpeedMultiplier ?? 1.0) * UnderwaterHorrorsModSystem.StormTentacleSpeed;
 
     private AmbientTentacleState state = AmbientTentacleState.Rising;
     private float stateTimer;

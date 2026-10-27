@@ -55,7 +55,8 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     // base-class movers (rise, linger drift, pursuit, drag). The direct
     // Motion writes for sinking and retreating are deliberately left
     // alone, since those are despawn animations rather than hunting.
-    protected override double SpeedScale => config?.TentacleSpeedMultiplier ?? 1.0;
+    // Faster still in a temporal storm (StormTentacleSpeedMultiplier).
+    protected override double SpeedScale => (config?.TentacleSpeedMultiplier ?? 1.0) * UnderwaterHorrorsModSystem.StormTentacleSpeed;
 
     private TentacleState state = TentacleState.Idle;
     private float stateTimer;

@@ -19,7 +19,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
 {
     // Server-tuning knob: scales all movement done through the base-class
     // movers; the direct Motion writes below multiply it in themselves.
-    protected override double SpeedScale => config?.SerpentSpeedMultiplier ?? 1.0;
+    // Faster still in a temporal storm (StormSerpentSpeedMultiplier).
+    protected override double SpeedScale => (config?.SerpentSpeedMultiplier ?? 1.0) * UnderwaterHorrorsModSystem.StormSerpentSpeed;
 
     private SerpentState state = SerpentState.Rising;
     private float stateTimer;

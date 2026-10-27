@@ -66,6 +66,34 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private const string GiantKilledAtKey = "underwaterhorrors:giantSerpentKilledAtUtc";
     private long giantKilledAtUtcTicks;
 
+    // The game's temporal storm, for the storm frenzy, and the session-only
+    // /uh stormfrenzy override (null follows the storms).
+    private SystemTemporalStability stormSystem;
+    private bool? stormFrenzyOverride;
+
+    /// <summary>
+    /// True while a temporal storm rages and StormFrenzyEnabled is on, or
+    /// while /uh stormfrenzy on forces it: the sea's storm rules apply
+    /// (see the "Temporal storms" config section).
+    /// </summary>
+    public static bool StormFrenzy
+    {
+        get
+        {
+            var mod = ServerInstance;
+            if (mod?.sapi == null || Config == null) return false;
+            if (mod.stormFrenzyOverride.HasValue) return mod.stormFrenzyOverride.Value;
+            if (!Config.StormFrenzyEnabled) return false;
+            mod.stormSystem ??= mod.sapi.ModLoader.GetModSystem<SystemTemporalStability>();
+            return mod.stormSystem?.StormData?.nowStormActive == true;
+        }
+    }
+
+    /// <summary>Extra speed for serpents and for kraken tentacles: their
+    /// storm multipliers during a storm, 1 otherwise.</summary>
+    public static double StormSerpentSpeed => StormFrenzy ? Config.StormSerpentSpeedMultiplier : 1.0;
+    public static double StormTentacleSpeed => StormFrenzy ? Config.StormTentacleSpeedMultiplier : 1.0;
+
     // Session-only test mode for the bioluminescent glow renderer.
     // 0 = production behavior (only night-spawned krakens glow).
     // Non-zero values are debug overrides documented in /uh biolumtest mode.
@@ -666,6 +694,27 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return TimeSpan.FromMinutes(Config.GiantSerpentKillCooldownMinutes) - since;
     }
 
+    private TextCommandResult OnCmdStormFrenzy(TextCommandCallingArgs args)
+    {
+        string mode = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
+        switch (mode)
+        {
+            case null or "": break;
+            case "auto": stormFrenzyOverride = null; break;
+            default:
+                bool? on = ParseOnOff(mode);
+                if (on == null) return TextCommandResult.Error("Use on, off or auto.");
+                stormFrenzyOverride = on;
+                break;
+        }
+        stormSystem ??= sapi.ModLoader.GetModSystem<SystemTemporalStability>();
+        bool storm = stormSystem?.StormData?.nowStormActive == true;
+        string source = stormFrenzyOverride.HasValue
+            ? $"forced {(stormFrenzyOverride.Value ? "on" : "off")} for this session"
+            : Config.StormFrenzyEnabled ? $"following the storms; a storm is {(storm ? "raging" : "not raging")}" : "off in the config";
+        return TextCommandResult.Success($"Storm frenzy {(StormFrenzy ? "ON" : "off")}: {source}.");
+    }
+
     private TextCommandResult OnCmdGiantCooldown(TextCommandCallingArgs args)
     {
         string arg = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
@@ -789,6 +838,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
             .BeginSubCommand("status")
                 .WithDescription("Show all toggle states and entity counts")
                 .HandleWith(OnCmdStatus)
+            .EndSubCommand()
+            .BeginSubCommand("stormfrenzy")
+                .WithDescription("Force the temporal storm rules on or off for this session (resets on server restart), or 'auto' to follow the storms again. No argument shows the state.")
+                .WithArgs(api.ChatCommands.Parsers.OptionalWord("mode"))
+                .HandleWith(OnCmdStormFrenzy)
             .EndSubCommand()
             .BeginSubCommand("giantcooldown")
                 .WithDescription("Show how long until a natural Rust Leviathan may come again after the last player kill, or 'clear' to end the wait now.")
@@ -954,7 +1008,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         msg += nl + "-- Toggles --" + nl;
         msg += $"  Debug logging: {(Config.DebugLogging ? "on" : "off")}" + nl;
         msg += $"  Natural spawning: {(naturalSpawningEnabled ? "on" : "off")}" + nl;
-        msg += $"  Glow debug: {(Config.GlowDebugActive ? "on" : "off")}" + nl;
+        msg += $"  Storm frenzy: {(StormFrenzy ? "ON" : "off")}{(stormFrenzyOverride.HasValue ? " (forced this session)" : "")}" + nl;
+        msg += $"  Glow debug:{(Config.GlowDebugActive ? "on" : "off")}" + nl;
         msg += $"  Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}" + nl;
         msg += $"  Bioluminescence: {(Config.BiolumActive ? "on" : "off")}" + nl;
         msg += $"  Biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}" + nl;
@@ -1816,13 +1871,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
         // the cap, only a single rare extra spawn may roll this whole check
         // (independent of how many players are online), so a second serpent
         // stays very rare even with a crowded ocean.
+        //
+        // In a temporal storm the sea turns on everyone out on it (the
+        // "Temporal storms" config section): far better odds of a spawn,
+        // serpents in shallower water and all of them rust serpents, and a
+        // hard cap of StormMaxLivingCreatures in place of the soft one.
+        bool storm = StormFrenzy;
+        int cap = storm ? Config.StormMaxLivingCreatures : Config.MaxLivingCreatures;
         int livingCreatures = CountLivingPrimaryCreatures();
-        bool overCap = livingCreatures >= Config.MaxLivingCreatures;
+        bool overCap = livingCreatures >= cap;
         bool extraRolledThisCheck = false;
 
         foreach (IServerPlayer player in sapi.World.AllOnlinePlayers)
         {
             if (player?.Entity == null || !player.Entity.Alive) continue;
+            // The storm's cap is hard: no extras past it either.
+            if (storm && overCap) break;
 
             // If player already has a tracked creature, normally skip.
             // But roll SecondCreatureSpawnChance for a bonus untracked
@@ -1833,7 +1897,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 Entity existing = sapi.World.GetEntityById(existingId);
                 if (existing != null && existing.Alive)
                 {
-                    if (sapi.World.Rand.NextDouble() < Config.SecondCreatureSpawnChance)
+                    float extraChance = storm ? Config.StormOdds(Config.SecondCreatureSpawnChance) : Config.SecondCreatureSpawnChance;
+                    if (sapi.World.Rand.NextDouble() < extraChance)
                     {
                         spawnAsExtra = true;
                         if (Config.DebugLogging)
@@ -1862,13 +1927,17 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
             // Count saltwater depth below player (early-exits once threshold is met)
             int depth = CountSaltwaterDepth(player.Entity, Config.MinSaltwaterDepth);
+            int needDepth = storm ? Math.Min(Config.StormMinSaltwaterDepth, Config.MinSaltwaterDepth) : Config.MinSaltwaterDepth;
 
             if (Config.DebugLogging && depth > 0)
             {
-                DebugLog(sapi, $"Spawn check: {player.PlayerName} at ({player.Entity.Pos.X:F0}, {player.Entity.Pos.Y:F0}, {player.Entity.Pos.Z:F0}) - saltwater depth: {depth} (need {Config.MinSaltwaterDepth})");
+                DebugLog(sapi, $"Spawn check: {player.PlayerName} at ({player.Entity.Pos.X:F0}, {player.Entity.Pos.Y:F0}, {player.Entity.Pos.Z:F0}) - saltwater depth: {depth} (need {needDepth}{(storm ? ", storm" : "")})");
             }
 
-            if (depth < Config.MinSaltwaterDepth) continue;
+            if (depth < needDepth) continue;
+            // Water only a storm lets anything spawn in brings serpents: the
+            // kraken and the anglerfish still need the usual depth.
+            bool serpentsOnly = depth < Config.MinSaltwaterDepth;
 
             // Primary spawns still need to pass the per-check dice.
             // Second-creature spawns already rolled their own rare
@@ -1896,15 +1965,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 else
                 {
                     double roll = sapi.World.Rand.NextDouble();
-                    if (roll > Config.SpawnChancePerCheck)
+                    float chance = storm ? Config.StormOdds(Config.SpawnChancePerCheck) : Config.SpawnChancePerCheck;
+                    if (roll > chance)
                     {
                         if (Config.DebugLogging)
-                            DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {Config.SpawnChancePerCheck:F3} or less)");
+                            DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} missed (needed {chance:F3} or less)");
                         continue;
                     }
 
                     if (Config.DebugLogging)
-                        DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {Config.SpawnChancePerCheck:F3})");
+                        DebugLog(sapi, $"Spawn attempt for {player.PlayerName}: roll {roll:F3} succeeded (threshold {chance:F3})");
                 }
             }
 
@@ -1917,7 +1987,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // KrakenNaturalSpawnEnabled can turn this off entirely; the
             // /uh spawn kraken command bypasses the gate either way.
             bool spawnSerpent = true;
-            if (Config.KrakenNaturalSpawnEnabled)
+            if (Config.KrakenNaturalSpawnEnabled && !serpentsOnly)
             {
                 double hourNow = sapi.World.Calendar.HourOfDay;
                 bool isDayNow = hourNow >= Config.DayKrakenStartHour && hourNow < Config.DayKrakenEndHour;
@@ -1929,7 +1999,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // in the deep water off the nearest coast, ahead of a player
             // heading for land.
             Entity creature = null;
-            if (!IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance)
+            if (!serpentsOnly && !IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance)
             {
                 creature = EntityBehaviorAnglerfishAI.SpawnNearCoast(sapi, player, natural: true);
                 if (creature != null && Config.DebugLogging)
@@ -1940,13 +2010,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 // Out in open ocean the serpent is sometimes the giant. It
                 // starts far out and needs open deep water there; without
                 // it, a normal serpent. None comes for a while after a
-                // player killed one.
+                // player killed one. A storm makes it likelier.
+                float giantChance = storm ? Config.StormGiantSerpentSpawnChance : Config.GiantSerpentSpawnChance;
                 if (GiantSerpentCooldownLeft() <= TimeSpan.Zero &&
-                    sapi.World.Rand.NextDouble() < Config.GiantSerpentSpawnChance &&
+                    sapi.World.Rand.NextDouble() < giantChance &&
                     EntityBehaviorGiantSerpentAI.IsOpenOcean(sapi.World, player.Entity,
                         Config.GiantSerpentOpenOceanRadius, Config.GiantSerpentOpenOceanDepth))
                     creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, player, 120, 200);
-                creature ??= SpawnSerpent(player);
+                creature ??= SpawnSerpent(player, storm && Config.StormRustSerpentsOnly ? false : null);
             }
             else if (creature == null)
             {
@@ -1959,7 +2030,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 // so later players in this same check see the updated count and
                 // don't also spawn (prevents a one-per-player burst in a crowd).
                 livingCreatures++;
-                if (livingCreatures >= Config.MaxLivingCreatures) overCap = true;
+                if (livingCreatures >= cap) overCap = true;
 
                 if (!spawnAsExtra)
                 {

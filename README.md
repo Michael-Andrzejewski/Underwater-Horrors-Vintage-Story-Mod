@@ -15,6 +15,16 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.24.0
+
+- Temporal storms make the sea deadly. While a storm rages (new config section "Temporal storms"):
+  - The chance of nothing spawning is divided by five (`StormSpawnOddsFactor`), for the spawn roll and the extra-creature roll: a 10% roll becomes 82%, a 75% roll 95%. A roll set to 0 stays off. Which creature comes keeps its usual odds.
+  - Serpents come in water only 15 blocks deep (`StormMinSaltwaterDepth`), so they can find you near the shore as long as there is room to swim. The kraken and the anglerfish still need the usual 50.
+  - Every serpent that spawns is a rust serpent (`StormRustSerpentsOnly`), and every serpent moves 1.5 times as fast (`StormSerpentSpeedMultiplier`). Kraken tentacles move 3 times as fast (`StormTentacleSpeedMultiplier`), dragging included.
+  - Up to five creatures live at once in the whole world, a hard cap (`StormMaxLivingCreatures`): nothing spawns past it, not even the rare extras.
+  - The Rust Leviathan comes for one serpent spawn in four instead of one in twenty (`StormGiantSerpentSpawnChance`). It still needs open ocean, keeps its two-hour wait after a kill, and behaves as always.
+- The storm rules follow the game's own storm, including storms another mod lengthens. `/uh stormfrenzy on|off|auto` forces them for the session; `/uh status` shows them.
+
 ### 0.23.0
 
 - The Rust Leviathan can be killed. Its hitboxes now follow the model: 49 boxes from the snout tip (almost 9 blocks past the mouth, which no box reached before) to the tip of the tail fin, each as wide and tall as what is drawn there: the body with its frills, side fins, dorsal spikes and tail fin, but not the whiskers. They run from 4 blocks wide at the snout and 27 across the side fins to 2.5 at the tail tip. They used to be 37 boxes all 7 by 7, which missed the fins, the snout and the end of the tail. Each box gets its size on the client too, which Combat Overhaul tests its swings and arrows against, and clients move the boxes with the body's own smoothing, so they keep up with it in a strike. The box table is measured from the model by `tools/giantserpent/build_shape.py`.

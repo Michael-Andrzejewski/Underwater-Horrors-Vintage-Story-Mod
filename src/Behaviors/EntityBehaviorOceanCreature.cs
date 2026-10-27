@@ -149,9 +149,11 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     }
 
     // Movement speed scale applied inside MoveToward / MoveTowardDamped.
-    // 1 for everything except the two serpent AIs, which override it with
-    // the server-configurable SerpentSpeedMultiplier so a single config
-    // knob rescales every serpent motion coherently (tentacles unaffected).
+    // 1 for everything except the two serpent AIs and the kraken's
+    // tentacles, which override it with SerpentSpeedMultiplier and
+    // TentacleSpeedMultiplier (times their temporal storm multipliers), so
+    // one knob rescales every motion of theirs coherently. The leviathan and
+    // the anglerfish move at their own speeds.
     protected virtual double SpeedScale => 1.0;
 
     protected void MoveToward(double targetX, double targetY, double targetZ, double speed, double minDist = 0.1)

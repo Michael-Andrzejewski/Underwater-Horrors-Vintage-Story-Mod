@@ -83,6 +83,43 @@ public class UnderwaterHorrorsConfig
     public float KrakenSpawnChanceDay { get; set; } = 0.05f;
     public float KrakenSpawnChanceNight { get; set; } = 0.10f;
 
+    // ─── Temporal storms ─────────────────────────────────────────────────
+    // While a temporal storm rages, the sea turns on anyone out on it. The
+    // settings below apply only during a storm; turn this off to keep
+    // storms like any other time. /uh stormfrenzy on|off|auto forces it for
+    // the session, for testing.
+    public bool StormFrenzyEnabled { get; set; } = true;
+    // The chance of NOT spawning is divided by this, for the spawn roll
+    // (SpawnChancePerCheck) and the extra-creature roll
+    // (SecondCreatureSpawnChance): with 5, 0.1 becomes 0.82 and 0.75
+    // becomes 0.95. A chance set to 0 stays 0. Which creature comes
+    // (kraken, anglerfish, serpent) keeps its usual odds, except the
+    // leviathan below.
+    public float StormSpawnOddsFactor { get; set; } = 5f;
+    // Water under the player must be this deep for a serpent, instead of
+    // MinSaltwaterDepth. The kraken and the anglerfish still need
+    // MinSaltwaterDepth, and the leviathan open ocean.
+    public int StormMinSaltwaterDepth { get; set; } = 15;
+    // Hard cap on living creatures in the whole world during a storm, in
+    // place of MaxLivingCreatures. Nothing spawns past it.
+    public int StormMaxLivingCreatures { get; set; } = 5;
+    // Every serpent that spawns is a rust serpent.
+    public bool StormRustSerpentsOnly { get; set; } = true;
+    // Every serpent and kraken tentacle moves this much faster while the
+    // storm lasts (on top of SerpentSpeedMultiplier and
+    // TentacleSpeedMultiplier). The leviathan and the anglerfish do not.
+    public float StormSerpentSpeedMultiplier { get; set; } = 1.5f;
+    public float StormTentacleSpeedMultiplier { get; set; } = 3f;
+    // GiantSerpentSpawnChance during a storm. Its open-ocean test, its kill
+    // cooldown and its behavior stay the same.
+    public float StormGiantSerpentSpawnChance { get; set; } = 0.25f;
+
+    /// <summary>A spawn chance during a storm: the chance of not spawning
+    /// divided by StormSpawnOddsFactor. A chance set to 0 stays 0, so a roll
+    /// turned off stays off.</summary>
+    public float StormOdds(float chance) =>
+        chance <= 0f ? 0f : 1f - (1f - Math.Min(chance, 1f)) / StormSpawnOddsFactor;
+
     // ─── Server tuning: one-stop serpent knobs ───────────────────────────
     // Max health applied to serpents when they spawn (already-living
     // creatures keep their current health; they despawn quickly anyway).
@@ -887,6 +924,12 @@ public class UnderwaterHorrorsConfig
         GiantSerpentMaxStaySeconds = Math.Max(30f, GiantSerpentMaxStaySeconds);
         GiantSerpentSoundPitch = Math.Clamp(GiantSerpentSoundPitch, 0.25f, 2f);
         GiantSerpentKillCooldownMinutes = Math.Max(0f, GiantSerpentKillCooldownMinutes);
+        StormSpawnOddsFactor = Math.Clamp(StormSpawnOddsFactor, 1f, 1000f);
+        StormMinSaltwaterDepth = Math.Max(1, StormMinSaltwaterDepth);
+        StormMaxLivingCreatures = Math.Max(1, StormMaxLivingCreatures);
+        StormSerpentSpeedMultiplier = Math.Clamp(StormSerpentSpeedMultiplier, 0.1f, 10f);
+        StormTentacleSpeedMultiplier = Math.Clamp(StormTentacleSpeedMultiplier, 0.1f, 10f);
+        StormGiantSerpentSpawnChance = Math.Clamp(StormGiantSerpentSpawnChance, 0f, 1f);
         GiantSerpentPieceRustyGearsMin = Math.Max(0, GiantSerpentPieceRustyGearsMin);
         GiantSerpentPieceRustyGearsMax = Math.Max(GiantSerpentPieceRustyGearsMin, GiantSerpentPieceRustyGearsMax);
         GiantSerpentPieceTemporalGearsMin = Math.Max(0, GiantSerpentPieceTemporalGearsMin);
