@@ -58,7 +58,7 @@
     },
     "server": {
         "behaviors": [
-            { "code": "health", "currenthealth": 600, "maxhealth": 600 },
+            { "code": "health", "currenthealth": 1500, "maxhealth": 1500 },
             { "code": "deaddecay", "hoursToDecay": 48 },
             { "code": "underwaterhorrors:serpentdeath", "corpseRoll": false, "stopAnimations": false },
             { "code": "underwaterhorrors:giantserpentai" },

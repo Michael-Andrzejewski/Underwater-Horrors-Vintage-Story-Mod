@@ -15,6 +15,10 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.24.1
+
+- The Rust Leviathan has 1500 health again (`GiantSerpentMaxHealth`; a config still at 0.23.0's 600 moves up once). Giants already out keep the health they came with.
+
 ### 0.24.0
 
 - Temporal storms make the sea deadly. While a storm rages (new config section "Temporal storms"):

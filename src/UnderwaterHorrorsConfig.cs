@@ -514,9 +514,9 @@ public class UnderwaterHorrorsConfig
     // Its health. It can only be hit while its body passes the surface after
     // a strike, about 20 seconds a pass, and it never flees when hurt; a
     // player must finish it before it sinks their boat and kills them in
-    // the water. (0.22.x had 1500, too much to finish in practice.)
-    public float GiantSerpentMaxHealth { get; set; } = 600f;
-    public bool GiantSerpentHealthMigrated { get; set; } = false;
+    // the water. Giants already out keep the health they came with.
+    public float GiantSerpentMaxHealth { get; set; } = 1500f;
+    public bool GiantSerpentHealth1500Migrated { get; set; } = false;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
     public int GiantSerpentDamageTier { get; set; } = 5;
@@ -1057,12 +1057,12 @@ public class UnderwaterHorrorsConfig
             if (GiantSerpentDamageTier == 4) GiantSerpentDamageTier = 5;
             GiantSerpentTierMigrated = true;
         }
-        if (!GiantSerpentHealthMigrated)
+        if (!GiantSerpentHealth1500Migrated)
         {
-            // 0.23.0: 1500 health could not be finished in the time it shows
-            // itself, so it is 600 now.
-            if (GiantSerpentMaxHealth == 1500f) GiantSerpentMaxHealth = 600f;
-            GiantSerpentHealthMigrated = true;
+            // 0.23.0 and 0.24.0 lowered its health to 600; 0.24.1 is back to
+            // 1500. A config still at 600 moves up once.
+            if (GiantSerpentMaxHealth == 600f) GiantSerpentMaxHealth = 1500f;
+            GiantSerpentHealth1500Migrated = true;
         }
         if (!GiantSerpentChanceMigrated)
         {
