@@ -15,6 +15,10 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.24.3
+
+- The giant anglerfish lies on the sea floor off steep coasts too. On a slope its long body only lies down at some headings, so it now turns toward a distant player only as far as it can still rest on the floor, instead of lifting off and hanging in the water half turned. It still lifts off to face someone beside it or prey nearly in reach, and lies back down along the slope once they leave. A fish waiting on a turn no longer counts as creeping, so it settles meanwhile.
+
 ### 0.24.2
 
 - The Rust Leviathan flees again when badly hurt, but only for a while. Below a quarter of its health (`GiantSerpentFleeHealthFraction`) it swims off to 200 blocks from its prey (`GiantSerpentFleeDistance`) and circles there, then after a minute (`GiantSerpentFleeSeconds`) comes back and fights to the death. It flees once in its life, waits for a strike under way to finish first, and never goes far enough to be removed: the flee distance stays under 80% of `DespawnMaxDistance`.

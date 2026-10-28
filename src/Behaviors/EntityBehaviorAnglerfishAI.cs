@@ -70,7 +70,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     private readonly Vec3d home = new(), goal = new(), retreat = new();
     private readonly BlockPos scan = new(0, 0, 0, 0);
     private AnglerfishMood mood = AnglerfishMood.Lurking;
-    private bool initialized, lureLost;
+    private bool initialized, lureLost, crept;
     private float lureRetry, stuckTime, creepPause, fleeTime, driftTimer;
     private double fleeYaw;
     private Entity lastAttacker;
@@ -159,34 +159,79 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
         else if (StrikeDistance(target) > StrikeRange) StrikeCheck = $"out of reach ({StrikeDistance(target):F1})";
         else if (TryStartStrike(target)) return;
 
+        // Someone beside it, or prey nearly in reach: it turns to them, lifting
+        // off the floor if it must. Anyone farther it only turns toward as far
+        // as it can still lie on the floor, so off a steep coast it stays
+        // lying along the slope rather than hanging in the water half turned.
+        bool close = face != null || target != null && StrikeDistance(target) <= StrikeRange * 1.5;
         IPlayer look = face ?? target ?? bait;
-        if (look != null) TurnToward(look.Entity.Pos.XYZ, dt, face != null ? 35 : 15);
+        if (look != null) TurnToward(look.Entity.Pos.XYZ, dt, face != null ? 35 : 15, mustRest: !close);
 
         IPlayer prey = target ?? bait;
         creepPause = Math.Max(0, creepPause - dt);
+        crept = false;
         if (prey != null)
         {
-            double mouthSideways = SidewaysFromMouth(prey.Entity.Pos.XYZ);
-            mood = mouthSideways > StrikeRange * .6 && creepPause <= 0 && Creep(prey.Entity.Pos.XYZ, dt)
-                ? AnglerfishMood.Creeping : AnglerfishMood.Lurking;
+            if (SidewaysFromMouth(prey.Entity.Pos.XYZ) > StrikeRange * .6 && creepPause <= 0) Creep(prey.Entity.Pos.XYZ, dt);
         }
-        else
-        {
-            mood = AnglerfishMood.Lurking;
-            DriftHome(dt);
-        }
-        if (mood == AnglerfishMood.Lurking) Settle(dt);
+        else DriftHome(dt);
+        // Only a fish that moved is creeping. One waiting on a turn (which a
+        // steep slope may block) lies on the floor meanwhile.
+        mood = crept ? AnglerfishMood.Creeping : AnglerfishMood.Lurking;
+        if (mood == AnglerfishMood.Lurking) Settle(dt, close);
     }
 
     // Lying in wait it sinks back onto the floor, after lifting off it to
-    // turn, a strike that ended high, or a floor that fell away.
-    private void Settle(float dt)
+    // turn, a strike that ended high, or a floor that fell away. When a steep
+    // slope holds it up at its heading and nobody is close any more, it
+    // turns to the nearest heading at which it can lie down.
+    private void Settle(float dt, bool close)
     {
         if (!RestHeight(entity.World, entity.Pos.X, entity.Pos.Z, entity.Pos.Dimension, Scale, out double floorY)) return;
         if (entity.Pos.Y - floorY < .3) return;
         double y = Math.Max(floorY, entity.Pos.Y - 1.5 * dt);
         if (Fits(entity.World, entity.Pos.X, y, entity.Pos.Z, entity.Pos.Yaw, entity.Pos.Dimension, Scale, false, true))
+        {
             entity.Pos.SetPos(entity.Pos.X, y, entity.Pos.Z);
+            return;
+        }
+        if (!close && !CanRest(entity.Pos.Yaw)) TurnToRest(dt);
+    }
+
+    // How far above the floor below its middle it may lie, at entity size 2:
+    // on a slope part of the belly rests higher up.
+    private const double RestSlack = .5;
+
+    // Whether it can lie on the floor below it at this heading. Off a steep
+    // coast a body this long lies down only along the slope.
+    private bool CanRest(float yaw)
+    {
+        var w = entity.World; int dim = entity.Pos.Dimension; double s = Scale;
+        if (!RestHeight(w, entity.Pos.X, entity.Pos.Z, dim, s, out double floorY)) return true;
+        for (double lift = 0; lift <= RestSlack * s + 1e-6; lift += RestSlack * s / 2)
+            if (Fits(w, entity.Pos.X, floorY + lift, entity.Pos.Z, yaw, dim, s, false, true)) return true;
+        return false;
+    }
+
+    // The nearest heading it can lie down at, looked for every two seconds.
+    private float restYaw = float.NaN, restYawAge;
+
+    private void TurnToRest(float dt)
+    {
+        restYawAge -= dt;
+        if (restYawAge <= 0)
+        {
+            restYawAge = 2;
+            restYaw = float.NaN;
+            for (int deg = 10; deg <= 180 && float.IsNaN(restYaw); deg += 10)
+                foreach (int sign in new[] { 1, -1 })
+                {
+                    float yaw = entity.Pos.Yaw + sign * deg * GameMath.DEG2RAD;
+                    if (CanRest(yaw)) { restYaw = yaw; break; }
+                }
+        }
+        if (float.IsNaN(restYaw)) return;
+        TurnTo(AnglerfishAttackCycle.SmoothYaw(entity.Pos.Yaw, restYaw, dt, 15));
     }
 
     // One step along the floor toward a point (keeping the mouth toward it).
@@ -215,6 +260,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
             if (!Fits(entity.World, nx, ny, nz, (float)yaw, entity.Pos.Dimension, s, false, true)) continue;
             entity.Pos.SetPos(nx, ny, nz);
             stuckTime = 0;
+            crept = true;
             return true;
         }
         stuckTime += dt;
@@ -227,12 +273,11 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     {
         driftTimer -= dt;
         if (HomeDistance() <= 6 || driftTimer > 0) return;
-        TurnToward(home, dt, 15);
+        TurnToward(home, dt, 15, mustRest: true);
         double s = Scale;
         // Creep steers the mouth; aim it one mouth-length past home.
         var mouthAtHome = home.AddCopy(Math.Sin(entity.Pos.Yaw) * MouthForward * s, 0, Math.Cos(entity.Pos.Yaw) * MouthForward * s);
-        if (Creep(mouthAtHome, dt)) mood = AnglerfishMood.Creeping;
-        else driftTimer = 5;
+        if (!Creep(mouthAtHome, dt)) driftTimer = 5;
     }
 
     private double HomeDistance() =>
@@ -534,11 +579,18 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
 
     // ── Movement ────────────────────────────────────────────────────────
 
-    private void TurnToward(Vec3d destination, float dt, float degreesPerSecond, int tolerance = 0)
+    // With mustRest it only turns to headings at which it can lie on the floor.
+    private void TurnToward(Vec3d destination, float dt, float degreesPerSecond, int tolerance = 0, bool mustRest = false)
     {
         double dx = destination.X - entity.Pos.X, dz = destination.Z - entity.Pos.Z;
         if (dx * dx + dz * dz < .01) return;
         float yaw = AnglerfishAttackCycle.SmoothYaw(entity.Pos.Yaw, (float)Math.Atan2(dx, dz), dt, degreesPerSecond);
+        if (mustRest && !CanRest(yaw)) return;
+        TurnTo(yaw, tolerance);
+    }
+
+    private void TurnTo(float yaw, int tolerance = 0)
+    {
         var w = entity.World; int dim = entity.Pos.Dimension; double s = Scale;
         if (Fits(w, entity.Pos.X, entity.Pos.Y, entity.Pos.Z, yaw, dim, s, false, true, tolerance)) { entity.Pos.Yaw = yaw; return; }
         // Blocked by the floor or a reef: lift a little off it to turn.
