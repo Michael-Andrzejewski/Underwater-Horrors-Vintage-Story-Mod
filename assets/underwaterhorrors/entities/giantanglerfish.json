@@ -22,6 +22,16 @@
     "behaviors": [
       {
         "code": "interpolateposition"
+      },
+      {
+        "code": "underwaterhorrors:harvestable",
+        "duration": 5,
+        "fixedweight": true,
+        "drops": [
+          { "type": "item", "code": "game:fish-raw", "quantity": { "avg": 30, "var": 10 } },
+          { "type": "item", "code": "game:bone", "quantity": { "avg": 15, "var": 5 } },
+          { "type": "item", "code": "game:gear-temporal", "quantity": { "avg": 1, "var": 0 } }
+        ]
       }
     ],
     "animations": [
@@ -63,12 +73,22 @@
     "behaviors": [
       {
         "code": "health",
-        "currenthealth": 200,
-        "maxhealth": 200
+        "currenthealth": 100,
+        "maxhealth": 100
       },
       {
         "code": "deaddecay",
         "hoursToDecay": 12
+      },
+      {
+        "code": "underwaterhorrors:harvestable",
+        "duration": 5,
+        "fixedweight": true,
+        "drops": [
+          { "type": "item", "code": "game:fish-raw", "quantity": { "avg": 30, "var": 10 } },
+          { "type": "item", "code": "game:bone", "quantity": { "avg": 15, "var": 5 } },
+          { "type": "item", "code": "game:gear-temporal", "quantity": { "avg": 1, "var": 0 } }
+        ]
       },
       {
         "code": "underwaterhorrors:anglerfishanimation"

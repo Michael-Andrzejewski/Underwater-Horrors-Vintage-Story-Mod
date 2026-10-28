@@ -30,15 +30,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
 
     // Coverage = SegmentCount * SegmentVisualHeight. The kraken sits on the
     // sea floor and the tip rises to the surface (CreatureCeilingY), so the
-    // spline can be 50+ blocks of vertical chord plus arch. With 96 segments
-    // at 0.84 blocks each we cover ~80 blocks of arc length — enough for
-    // even deep-ocean spawns.
-    private const int SegmentCount = 96;
+    // spline can be 50+ blocks of vertical chord plus arch. The mids are
+    // long pieces (three 0.84-block trunks fused, 2.53 blocks): 34 of them,
+    // a base and the claw tip cover ~87 blocks of arc length with 36
+    // entities instead of the 96 short pieces this took before.
+    private const int SegmentCount = 36;
     private const int ClawCount = 4;
 
-    // Visual height of one mid segment in world blocks. Cube4 trunk is 9 voxels
-    // tall; entity client.size is 1.5; 16 voxels per block: 9 * 1.5 / 16 = 0.84.
-    private const double SegmentVisualHeight = 0.84;
+    // Visual height of one long mid piece in world blocks: three Cube4 trunks
+    // of 9 voxels; entity client.size is 1.5; 16 voxels per block:
+    // 27 * 1.5 / 16 = 2.53.
+    private const double SegmentVisualHeight = 2.53125;
 
     // The tip uses krakententsegment_mid_claw — a copy of segment_mid with the
     // claw cubes baked in as additional top-level shape elements (so the claw
@@ -120,6 +122,14 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
     private static readonly AssetLocation TipMidClawAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid_claw");
+    // The long pieces: three mid trunks fused (tools/kraken/build_glow_parts.py),
+    // in three spot patterns.
+    private static readonly AssetLocation[] LongMidAssets =
+    {
+        new AssetLocation("underwaterhorrors", "krakententsegment_long-a"),
+        new AssetLocation("underwaterhorrors", "krakententsegment_long-b"),
+        new AssetLocation("underwaterhorrors", "krakententsegment_long-c"),
+    };
     private static readonly AssetLocation ClawAsset = new AssetLocation("underwaterhorrors", "krakententacleclaw");
     private static readonly AssetLocation BiolightAsset = new AssetLocation("underwaterhorrors", "biolight");
 
@@ -448,7 +458,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     {
         if (chain != null) return;
         chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
-            SegmentInnerAsset, SegmentMidAsset, TipMidClawAsset, TipMidClawVisualHeight);
+            SegmentInnerAsset, SegmentMidAsset, TipMidClawAsset, TipMidClawVisualHeight, LongMidAssets);
     }
 
     private void UpdateChainPositions()

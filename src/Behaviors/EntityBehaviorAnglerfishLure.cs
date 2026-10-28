@@ -15,15 +15,15 @@ namespace UnderwaterHorrors;
 /// - For a player at the surface (swimming, in a boat, or on the shore) it
 ///   hangs above the waves between them and the fish; for a player who
 ///   dives it leads them on down underwater.
-/// - It has 10 health. Any hit startles the fish, which reels it in and
-///   swims off; destroying it drops two temporal gears by the attacker.
+/// - It has 10 health, shown to whoever looks at it. Any hit startles the
+///   fish, which reels it in and swims off; destroying it drops one or two
+///   temporal gears by the attacker, and the fish flees at full speed.
 /// </summary>
 public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
 {
     public const string TipIdAttr = "underwaterhorrors:anglerTipId";
     private static readonly AssetLocation SegmentAsset = new("underwaterhorrors", "anglerfishluresegment");
     private static readonly AssetLocation TemporalGear = new("game", "gear-temporal");
-    private const int GearsDropped = 2;
     private TentacleSegmentChain chain;
     private float elapsed, orphanTime;
     private readonly AnglerfishLureCycle cycle = new();
@@ -161,7 +161,7 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         base.OnEntityDespawn(data);
     }
 
-    // Two temporal gears for whoever broke it. Over open water they would
+    // One or two temporal gears for whoever broke it. Over open water they would
     // sink out of reach, so they land at the attacker's feet when the
     // attacker is close; otherwise where the lure was.
     private void DropGears(Entity attacker)
@@ -171,7 +171,7 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         var at = entity.Pos.XYZ.Add(0, .5, 0);
         if (attacker != null && attacker.Pos.Dimension == entity.Pos.Dimension && attacker.Pos.DistanceTo(entity.Pos.XYZ) < 48)
             at = attacker.Pos.XYZ.Add(0, .6, 0);
-        entity.World.SpawnItemEntity(new ItemStack(item, GearsDropped), at, new Vec3d(0, .05, 0));
+        entity.World.SpawnItemEntity(new ItemStack(item, 1 + entity.World.Rand.Next(2)), at, new Vec3d(0, .05, 0));
     }
 
     // True when the player is at the surface: feet no more than 3 blocks

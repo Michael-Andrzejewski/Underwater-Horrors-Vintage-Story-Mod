@@ -153,7 +153,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentMaxStaySeconds` | float | `480f` | It swims off after this many seconds even if its prey is still at sea, unless a player has hurt it in the last two minutes: then it stays and fights. |
 | `GiantSerpentSoundPitch` | float | `0.6f` | Pitch of its bite and other sounds: the rust serpent's, played slower and deeper. 1 is the rust serpent's own pitch. |
 | `GiantSerpentKillCooldownMinutes` | float | `120f` | After a player kills one, no natural giant comes anywhere on the server for this many real minutes. The time is kept in the save, so it counts on while the server is off. /uh giantcooldown shows or clears it; /uh spawn giantserpent ignores it. |
-| `GiantSerpentPieceRustyGearsMin` | int | `10` | A killed giant breaks apart into its 22 body segments, which sink to the sea floor. Each segment spills these, a random count between the two numbers: rusty gears, temporal gears, 1 to 3 of every kind of Jonas part, raw fish and bones. Fish and bones float up; gears and Jonas parts sink with the segments. |
+| `GiantSerpentPieceRustyGearsMin` | int | `10` | A killed giant breaks apart into its 22 body segments, which sink to the sea floor. Each segment is harvested on its own with a knife, like a carcass, and holds these, a random count between the two numbers: rusty gears, temporal gears, 1 to 3 of every kind of Jonas part, raw fish and bones. |
 | `GiantSerpentPieceRustyGearsMax` | int | `15` |  |
 | `GiantSerpentPieceTemporalGearsMin` | int | `1` |  |
 | `GiantSerpentPieceTemporalGearsMax` | int | `4` |  |
@@ -163,11 +163,12 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentPieceFishMax` | int | `50` |  |
 | `GiantSerpentPieceBonesMin` | int | `20` |  |
 | `GiantSerpentPieceBonesMax` | int | `50` |  |
-| `GiantSerpentLootMinutes` | float | `60f` | Real minutes the giant's loot stays in the world before it despawns (the game's own is 10), counted while a player is near it, so there is time to dive for what sank. |
 | `GiantSerpentPieceDecayHours` | float | `48f` | In-game hours its segments lie on the sea floor before they crumble, each leaving a pile of bones. 0 keeps them for good. |
 | `AnglerfishNightSpawnChance` | float | `0.05f` | ─── Giant anglerfish ──────────────────────────────────────────────── A gigantic angler some 100 blocks long. Like a wobbegong it lies on the sea floor near a coast and creeps toward a player heading for land, casting a glowing temporal gear on a rope from the pole on its head. When its prey comes close to its mouth, it swoops and gulps. Hitting the gear sends it away; destroying the gear (10 health) drops two temporal gears. Chance that a natural spawn at night is the anglerfish instead. Night is outside DayKrakenStartHour..DayKrakenEndHour. It needs a coast within AnglerfishCoastRange blocks of the player with water at least AnglerfishMinWaterDepth deep off it. 0 turns natural anglerfish off; /uh spawn anglerfish always works. A natural one sinks back into the deep at daybreak. |
 | `AnglerfishCoastRange` | float | `160f` |  |
 | `AnglerfishMinWaterDepth` | int | `40` | Water it needs to lie in, in blocks from the surface to the floor. |
+| `AnglerfishShoreCheckSeconds` | float | `60f` | A player on land at night by deep coastal water is checked about this often (seconds): a few columns of water around them are tested, and with AnglerfishShoreSpawnChance an anglerfish comes to lie in one, baiting them from the shore. 0 turns these off. |
+| `AnglerfishShoreSpawnChance` | float | `0.25f` |  |
 | `AnglerfishStrikeRange` | float | `28f` | It swoops once its prey is this close to its mouth, in blocks, or within that range sideways and up to AnglerfishStrikeReachUp blocks above its mouth: it rises from the floor at prey on the surface. |
 | `AnglerfishStrikeReachUp` | float | `60f` |  |
 | `AnglerfishStrikeSpeed` | float | `40f` | Speed of the swoop in blocks per second, the damage of the gulp, and its armor piercing tier. |

@@ -22,13 +22,21 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
 {
     // Same chain config as the attack tentacle — shape and arch logic match.
     // See EntityBehaviorTentacle / TentacleSegmentChain for the math.
-    private const int SegmentCount = 96;
-    private const double SegmentVisualHeight = 0.84;
+    private const int SegmentCount = 36;
+    private const double SegmentVisualHeight = 2.53125;
     private const double TipMidClawVisualHeight = 0.84;
 
     private static readonly AssetLocation SegmentInnerAsset = new AssetLocation("underwaterhorrors", "krakententsegment");
     private static readonly AssetLocation SegmentMidAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid");
     private static readonly AssetLocation TipMidClawAsset   = new AssetLocation("underwaterhorrors", "krakententsegment_mid_claw");
+    // The long pieces: three mid trunks fused (tools/kraken/build_glow_parts.py),
+    // in three spot patterns.
+    private static readonly AssetLocation[] LongMidAssets =
+    {
+        new AssetLocation("underwaterhorrors", "krakententsegment_long-a"),
+        new AssetLocation("underwaterhorrors", "krakententsegment_long-b"),
+        new AssetLocation("underwaterhorrors", "krakententsegment_long-c"),
+    };
 
     // Server-tuning knob shared with the attack tentacle, so raising it
     // speeds up the whole kraken coherently instead of leaving the
@@ -230,7 +238,7 @@ public class EntityBehaviorAmbientTentacle : EntityBehaviorOceanCreature
     {
         if (chain != null) return;
         chain = new TentacleSegmentChain(entity, SegmentCount, SegmentVisualHeight,
-            SegmentInnerAsset, SegmentMidAsset, TipMidClawAsset, TipMidClawVisualHeight);
+            SegmentInnerAsset, SegmentMidAsset, TipMidClawAsset, TipMidClawVisualHeight, LongMidAssets);
     }
 
     private void UpdateChainPositions()

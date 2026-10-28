@@ -566,10 +566,10 @@ public class UnderwaterHorrorsConfig
     // /uh spawn giantserpent ignores it.
     public float GiantSerpentKillCooldownMinutes { get; set; } = 120f;
     // A killed giant breaks apart into its 22 body segments, which sink to
-    // the sea floor. Each segment spills these, a random count between the
-    // two numbers: rusty gears, temporal gears, 1 to 3 of every kind of
-    // Jonas part, raw fish and bones. Fish and bones float up; gears and
-    // Jonas parts sink with the segments.
+    // the sea floor. Each segment is harvested on its own with a knife, like
+    // a carcass, and holds these, a random count between the two numbers:
+    // rusty gears, temporal gears, 1 to 3 of every kind of Jonas part, raw
+    // fish and bones.
     public int GiantSerpentPieceRustyGearsMin { get; set; } = 10;
     public int GiantSerpentPieceRustyGearsMax { get; set; } = 15;
     public int GiantSerpentPieceTemporalGearsMin { get; set; } = 1;
@@ -580,10 +580,6 @@ public class UnderwaterHorrorsConfig
     public int GiantSerpentPieceFishMax { get; set; } = 50;
     public int GiantSerpentPieceBonesMin { get; set; } = 20;
     public int GiantSerpentPieceBonesMax { get; set; } = 50;
-    // Real minutes the giant's loot stays in the world before it despawns
-    // (the game's own is 10), counted while a player is near it, so there is
-    // time to dive for what sank.
-    public float GiantSerpentLootMinutes { get; set; } = 60f;
     // In-game hours its segments lie on the sea floor before they crumble,
     // each leaving a pile of bones. 0 keeps them for good.
     public float GiantSerpentPieceDecayHours { get; set; } = 48f;
@@ -605,6 +601,12 @@ public class UnderwaterHorrorsConfig
     public float AnglerfishCoastRange { get; set; } = 160f;
     // Water it needs to lie in, in blocks from the surface to the floor.
     public int AnglerfishMinWaterDepth { get; set; } = 40;
+    // A player on land at night by deep coastal water is checked about this
+    // often (seconds): a few columns of water around them are tested, and
+    // with AnglerfishShoreSpawnChance an anglerfish comes to lie in one,
+    // baiting them from the shore. 0 turns these off.
+    public float AnglerfishShoreCheckSeconds { get; set; } = 60f;
+    public float AnglerfishShoreSpawnChance { get; set; } = 0.25f;
     // It swoops once its prey is this close to its mouth, in blocks, or
     // within that range sideways and up to AnglerfishStrikeReachUp blocks
     // above its mouth: it rises from the floor at prey on the surface.
@@ -953,7 +955,6 @@ public class UnderwaterHorrorsConfig
         GiantSerpentPieceFishMax = Math.Max(GiantSerpentPieceFishMin, GiantSerpentPieceFishMax);
         GiantSerpentPieceBonesMin = Math.Max(0, GiantSerpentPieceBonesMin);
         GiantSerpentPieceBonesMax = Math.Max(GiantSerpentPieceBonesMin, GiantSerpentPieceBonesMax);
-        GiantSerpentLootMinutes = Math.Max(0f, GiantSerpentLootMinutes);
         GiantSerpentPieceDecayHours = Math.Max(0f, GiantSerpentPieceDecayHours);
 
         // Anglerfish: it must stay under water (its body is about 35 blocks
@@ -961,6 +962,8 @@ public class UnderwaterHorrorsConfig
         AnglerfishNightSpawnChance = Math.Clamp(AnglerfishNightSpawnChance, 0f, 1f);
         AnglerfishMinWaterDepth = Math.Max(16, AnglerfishMinWaterDepth);
         AnglerfishCoastRange = Math.Clamp(AnglerfishCoastRange, 32f, 400f);
+        AnglerfishShoreCheckSeconds = Math.Max(5f, AnglerfishShoreCheckSeconds);
+        AnglerfishShoreSpawnChance = Math.Clamp(AnglerfishShoreSpawnChance, 0f, 1f);
         AnglerfishDamageTier = Math.Clamp(AnglerfishDamageTier, 0, 10);
         AnglerfishStrikeRange = Math.Clamp(AnglerfishStrikeRange, 3f, 40f);
         AnglerfishStrikeReachUp = Math.Clamp(AnglerfishStrikeReachUp, AnglerfishStrikeRange, 60f);

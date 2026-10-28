@@ -31,6 +31,7 @@ import copy
 import json
 import math
 import os
+import random
 import re
 
 SRC = "assets/underwaterhorrors/shapes/entity/seaserpent.json"
@@ -221,6 +222,14 @@ SOLID_MIN = 4.0
 PROXY_STEP_MIN = 0.5
 PROXY_STEP_MAX = 1.2
 
+# The live giant's glow is drawn at run time (GiantSerpentGlow). Its remains
+# keep it as glowing spots baked into the piece shapes, the way the
+# anglerfish's patches are: about as many patches over the whole body as the
+# live glow has, set on the faces of the solid cubes, in the same pale cyan.
+GLOW_TEXTURE = "underwaterhorrors:entity/giantglowdot"
+GLOW_PATCHES = 150
+SPOT_GLOW = 200
+
 
 def mat_mul(a, b):
     return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
@@ -280,6 +289,7 @@ def solid_boxes(root, solid=True):
 
 def write_pieces(out):
     os.makedirs(PIECE_DIR, exist_ok=True)
+    pieces = []
     for i, name in enumerate(SPINE):
         bone = find(out["elements"], name)
         next_bone = SPINE[i + 1] if i + 1 < len(SPINE) else None
@@ -290,6 +300,15 @@ def write_pieces(out):
         piece["from"] = list(sub(piece["from"], origin))
         piece["to"] = list(sub(piece["to"], origin))
         piece["rotationOrigin"] = [0, 0, 0]
+        pieces.append((name, piece))
+
+    # Patches go to the pieces by their solid surface, as on the live body.
+    faces = {name: solid_faces(piece) for name, piece in pieces}
+    total = sum(f[3] for fs in faces.values() for f in fs)
+    for i, (name, piece) in enumerate(pieces):
+        area = sum(f[3] for f in faces[name])
+        rand = random.Random(1000 + i)
+        glow_spots(faces[name], rand, max(1, round(GLOW_PATCHES * area / total)))
         root = {
             "name": "root",
             "from": list(ROOT_AT),
@@ -297,9 +316,73 @@ def write_pieces(out):
             "rotationOrigin": list(ROOT_AT),
             "children": [piece],
         }
-        shape = {k: out[k] for k in ("textureWidth", "textureHeight", "textureSizes", "textures")}
+        shape = {k: copy.deepcopy(out[k]) for k in ("textureWidth", "textureHeight", "textureSizes", "textures")}
+        shape["textures"]["glowdot"] = GLOW_TEXTURE
+        shape["textureSizes"]["glowdot"] = [4, 4]
         shape["elements"] = [root]
         write_shape(f"{PIECE_DIR}/{name}.json", shape)
+
+
+# Face name, the axis it faces along, its side, and the two axes across it.
+FACE_AXES = [("east", 0, 1, 1, 2), ("west", 0, -1, 1, 2), ("up", 1, 1, 0, 2),
+             ("down", 1, -1, 0, 2), ("south", 2, 1, 0, 1), ("north", 2, -1, 0, 1)]
+
+
+def solid_faces(piece):
+    """(element, face, size, area) of every drawn face of the piece's solid
+    cubes, in the cube's own frame."""
+    out = []
+
+    def walk(el):
+        size = [abs(v) for v in sub(el["to"], el["from"])]
+        if el.get("faces") and min(size) >= SOLID_MIN:
+            for face in FACE_AXES:
+                if face[0] in el["faces"]:
+                    out.append((el, face, size, size[face[3]] * size[face[4]]))
+        for c in el.get("children", []):
+            walk(c)
+
+    walk(piece)
+    return out
+
+
+def glow_spots(faces, rand, patches):
+    """Clusters of small glowing spots on random solid faces, picked by area,
+    each spot a thin square raised a hair off its face. Children of the cube
+    they sit on, so they move with it."""
+    if not faces:
+        return
+    total = sum(f[3] for f in faces)
+    n = 0
+    for _ in range(patches):
+        r = rand.random() * total
+        for el, (fname, axis, side, a, b), size, area in faces:
+            r -= area
+            if r <= 0:
+                break
+        u0 = 1 + rand.random() * (size[a] - 2)
+        v0 = 1 + rand.random() * (size[b] - 2)
+        spread = 0.6 + rand.random() * 1.6
+        for d in range(3 + rand.randrange(6)):
+            ang = rand.random() * 2 * math.pi
+            dist = 0 if d == 0 else spread * math.sqrt(rand.random())
+            u = min(max(u0 + math.cos(ang) * dist, 0.6), size[a] - 0.6)
+            v = min(max(v0 + math.sin(ang) * dist, 0.6), size[b] - 0.6)
+            half = (0.45 + rand.random() * 0.35) if d == 0 else (0.2 + rand.random() * 0.3)
+            lo, hi = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+            lo[a], hi[a] = u - half, u + half
+            lo[b], hi[b] = v - half, v + half
+            surface = size[axis] if side > 0 else 0.0
+            lo[axis], hi[axis] = (surface - 0.05, surface + 0.12) if side > 0 else (surface - 0.12, surface + 0.05)
+            n += 1
+            el.setdefault("children", []).append({
+                "name": f"glowspot{n}",
+                "from": [round(x, 3) for x in lo],
+                "to": [round(x, 3) for x in hi],
+                "faces": {f[0]: {"texture": "#glowdot", "uv": [0, 0, 4, 4], "glow": SPOT_GLOW}
+                          for f in FACE_AXES if f[0] != {"east": "west", "west": "east", "up": "down",
+                                                           "down": "up", "south": "north", "north": "south"}[fname]},
+            })
 
 
 def spine_numbers(out, root):

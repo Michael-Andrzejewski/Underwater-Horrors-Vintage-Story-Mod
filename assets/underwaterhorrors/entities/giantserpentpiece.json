@@ -15,16 +15,22 @@
     },
     "client": {
         "renderer": "Shape",
-        "texture": { "base": "underwaterhorrors:entity/serpent" },
+        "textures": {
+            "serpent.png": { "base": "underwaterhorrors:entity/serpent" },
+            "glowdot": { "base": "underwaterhorrors:entity/giantglowdot" }
+        },
         "shape": { "base": "underwaterhorrors:entity/giantserpentpiece/{bone}" },
         "glowLevel": 0,
         "size": 5.0,
         "behaviors": [
-            { "code": "underwaterhorrors:giantserpentmotion", "keepTilt": true }
+            { "code": "underwaterhorrors:giantserpentmotion", "keepTilt": true },
+            { "code": "underwaterhorrors:harvestable", "duration": 3, "fixedweight": true, "drops": [] }
         ]
     },
     "server": {
-        "behaviors": []
+        "behaviors": [
+            { "code": "underwaterhorrors:harvestable", "duration": 3, "fixedweight": true, "drops": [] }
+        ]
     },
     "sounds": {}
 }

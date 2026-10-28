@@ -15,9 +15,9 @@ namespace UnderwaterHorrors;
 /// into one piece per spine bone (GiantSerpentPieceEntity): the head with
 /// its jaws and teeth, each neck and tail segment with its own fins and
 /// spikes. Every piece is laid exactly where and how that bone was drawn,
-/// side wave and all, so the body comes apart in place. Each piece spills
-/// its share of the hoard (DropLoot), drifts a little way from its
-/// neighbours and sinks to the sea floor.
+/// side wave and all, so the body comes apart in place. Each piece holds
+/// its share of the hoard for a knife to harvest, drifts a little way from
+/// its neighbours and sinks to the sea floor.
 ///
 /// Only real deaths break apart (vanilla fires OnEntityDeath for damage
 /// deaths only); a giant that swims out of sight just goes. The corpse is
@@ -144,7 +144,6 @@ public class EntityBehaviorGiantSerpentBreakup : EntityBehavior
             world.SpawnEntity(piece);
             spawned++;
 
-            DropLoot(jx[i], jy[i], jz[i], jx[i + 1], jy[i + 1], jz[i + 1], (float)(ext[4] * size));
             Burst(jx[i], jy[i], jz[i], (float)(ext[4] * size));
         }
 
@@ -164,70 +163,6 @@ public class EntityBehaviorGiantSerpentBreakup : EntityBehavior
         {
             entity.DespawnReason = new EntityDespawnData { Reason = EnumDespawnReason.Removed };
             agent.AllowDespawn = true;
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    //  The hoard
-    // ═══════════════════════════════════════════════════════════════════
-    /// <summary>
-    /// One piece's loot, spilled along its link from (ax..) to (bx..). Fish
-    /// and bone are lighter than water and rise; gears and Jonas parts sink.
-    /// Each stack lasts GiantSerpentLootMinutes before it despawns, instead of
-    /// the game's 10, so there is time to dive for what sank.
-    /// </summary>
-    private void DropLoot(double ax, double ay, double az, double bx, double by, double bz, float halfWidth)
-    {
-        var cfg = UnderwaterHorrorsModSystem.Config;
-        if (cfg == null) return;
-        var rand = entity.World.Rand;
-
-        void Drop(AssetLocation code, int min, int max)
-        {
-            int count = min + rand.Next(Math.Max(0, max - min) + 1);
-            Item item = entity.World.GetItem(code);
-            if (item == null)
-            {
-                entity.Api.Logger.Warning("[underwaterhorrors] giant serpent loot item '{0}' does not exist, dropping nothing for it", code);
-                return;
-            }
-            int stackSize = Math.Max(1, item.MaxStackSize);
-            while (count > 0)
-            {
-                int q = Math.Min(count, stackSize);
-                count -= q;
-                double t = rand.NextDouble();
-                double r = halfWidth * 0.6;
-                var at = new Vec3d(
-                    ax + (bx - ax) * t + (rand.NextDouble() - 0.5) * r,
-                    ay + (by - ay) * t + (rand.NextDouble() - 0.5) * r,
-                    az + (bz - az) * t + (rand.NextDouble() - 0.5) * r);
-                var push = new Vec3d((rand.NextDouble() - 0.5) * 0.15, rand.NextDouble() * 0.08, (rand.NextDouble() - 0.5) * 0.15);
-                Entity dropped = entity.World.SpawnItemEntity(new ItemStack(item, q), at, push);
-                KeepLonger(dropped, cfg.GiantSerpentLootMinutes);
-            }
-        }
-
-        Drop(EntityBehaviorSerpentHarvest.GearAsset, cfg.GiantSerpentPieceRustyGearsMin, cfg.GiantSerpentPieceRustyGearsMax);
-        Drop(new AssetLocation("game", "gear-temporal"), cfg.GiantSerpentPieceTemporalGearsMin, cfg.GiantSerpentPieceTemporalGearsMax);
-        foreach (string type in EntityBehaviorSerpentHarvest.JonasPartTypes)
-        {
-            Drop(new AssetLocation("game", "jonasparts-" + type), cfg.GiantSerpentPieceJonasPartsMin, cfg.GiantSerpentPieceJonasPartsMax);
-        }
-        Drop(EntityBehaviorSerpentHarvest.FishAsset, cfg.GiantSerpentPieceFishMin, cfg.GiantSerpentPieceFishMax);
-        Drop(EntityBehaviorSerpentHarvest.BoneAsset, cfg.GiantSerpentPieceBonesMin, cfg.GiantSerpentPieceBonesMax);
-    }
-
-    // The item entity's despawn behavior reads this attribute when it loads
-    // from the save; the live behavior takes the new time directly.
-    private static void KeepLonger(Entity item, float minutes)
-    {
-        if (item == null || minutes <= 0) return;
-        int seconds = (int)(minutes * 60);
-        item.Attributes.SetInt("minsecondsToDespawn", seconds);
-        foreach (EntityBehavior b in item.SidedProperties?.Behaviors ?? new System.Collections.Generic.List<EntityBehavior>())
-        {
-            if (b is ITimedDespawn timed) timed.DespawnSeconds = seconds;
         }
     }
 

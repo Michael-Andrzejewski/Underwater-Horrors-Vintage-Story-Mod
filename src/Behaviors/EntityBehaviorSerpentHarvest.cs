@@ -4,28 +4,21 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
-using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
 
 /// <summary>
-/// Makes a killed serpent harvestable from ANY of its hit proxies (or
-/// the body itself): right-click with a knife on any part of the dead
-/// body harvests the whole carcass once. Loot is a random assortment
-/// of raw fish fillets and bones; the rust serpent additionally yields
-/// rusty gears and Jonas parts. Harvesting (or the corpse decaying
-/// unharvested) leaves a bonyremains pile on the sea floor below each
-/// hit-proxy offset, so the skeleton of the beast marks where it fell.
-///
-/// The vanilla "harvestable" behavior is not used because its knife
-/// flow keys off the clicked entity having the behavior itself; the
-/// clicked entity here is usually a hit proxy 10+ blocks from the
-/// serpent's center, and the loot must be a single shared pool.
+/// A killed serpent's loot and bones. The carcass is harvested the game's
+/// way (EntityBehaviorRemainsHarvestable: a knife, then the carcass contents
+/// dialog), from any of its hit proxies or the body itself; this behavior
+/// fills it: a random assortment of raw fish fillets and bones, and for the
+/// rust serpent rusty gears and Jonas parts too. When the carcass goes,
+/// emptied or decayed, it leaves a bonyremains pile on the sea floor below
+/// each hit-proxy offset, so the skeleton of the beast marks where it fell.
 /// </summary>
-public class EntityBehaviorSerpentHarvest : EntityBehavior
+public class EntityBehaviorSerpentHarvest : EntityBehavior, IHarvestableDrops
 {
-    public const string HarvestedAttr = "underwaterhorrors:harvested";
     private const string PilesLeftAttr = "underwaterhorrors:bonePilesLeft";
 
     // The vanilla fillet lives in itemtypes/food/fishfillet.json but its
@@ -57,38 +50,6 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
         lootMultiplier = Math.Max(1, attributes["lootMultiplier"].AsInt(1));
     }
 
-    /// <summary>
-    /// Called from SerpentEntity.OnInteract and EntitySerpentHitProxy.
-    /// OnInteract (server side). Returns true when the interaction was
-    /// consumed as a harvest attempt on a dead serpent.
-    /// </summary>
-    public bool TryHarvest(EntityAgent byEntity, ItemSlot slot, Vec3d dropPos)
-    {
-        if (entity.Api.Side != EnumAppSide.Server) return false;
-        if (entity.Alive) return false;
-        if (!entity.WatchedAttributes.GetBool(EntityBehaviorSerpentDeath.DiedForRealAttr)) return false;
-        if (entity.WatchedAttributes.GetBool(HarvestedAttr)) return true;
-
-        IServerPlayer player = (byEntity as EntityPlayer)?.Player as IServerPlayer;
-
-        if (slot?.Itemstack?.Collectible?.Tool != EnumTool.Knife)
-        {
-            player?.SendIngameError("underwaterhorrors-needknife",
-                "You need a knife to harvest the serpent.");
-            return true;
-        }
-
-        entity.WatchedAttributes.SetBool(HarvestedAttr, true);
-
-        SpawnLoot(dropPos ?? entity.Pos.XYZ);
-        LeaveBonePiles();
-
-        // Carcass has been butchered: remove it with the vanilla decay
-        // particle burst instead of leaving a picked-clean body around.
-        entity.GetBehavior<EntityBehaviorDeadDecay>()?.DecayNow();
-        return true;
-    }
-
     public override void OnEntityDespawn(EntityDespawnData despawn)
     {
         // A killed serpent that decays away unharvested still leaves its
@@ -110,49 +71,61 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior
     // ═══════════════════════════════════════════════════════════════════
     //  Loot
     // ═══════════════════════════════════════════════════════════════════
-    private void SpawnLoot(Vec3d dropPos)
+    /// <summary>What the knife finds in the carcass (the harvest asks once).</summary>
+    public ItemStack[] GetHarvestableDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer)
     {
-        var world = entity.World;
         var rand = world.Rand;
-
+        var loot = new List<ItemStack>();
         int m = lootMultiplier;
-        SpawnStack(FishAsset, (3 + rand.Next(4)) * m, dropPos);   // 3-6 raw fillets
-        SpawnStack(BoneAsset, (4 + rand.Next(5)) * m, dropPos);   // 4-8 bones
+        AddStacks(world, loot, FishAsset, (3 + rand.Next(4)) * m);   // 3-6 raw fillets
+        AddStacks(world, loot, BoneAsset, (4 + rand.Next(5)) * m);   // 4-8 bones
 
         if (rustLoot)
         {
-            SpawnStack(GearAsset, (5 + rand.Next(6)) * m, dropPos);   // 5-10 rusty gears
+            AddStacks(world, loot, GearAsset, (5 + rand.Next(6)) * m);   // 5-10 rusty gears
 
             int parts = (2 + rand.Next(3)) * m;                       // 2-4 Jonas parts
             for (int i = 0; i < parts; i++)
             {
                 string type = JonasPartTypes[rand.Next(JonasPartTypes.Length)];
-                SpawnStack(new AssetLocation("game", "jonasparts-" + type), 1, dropPos);
+                AddStacks(world, loot, new AssetLocation("game", "jonasparts-" + type), 1);
             }
         }
+        return loot.ToArray();
     }
 
-    private void SpawnStack(AssetLocation itemCode, int quantity, Vec3d dropPos)
+    /// <summary>
+    /// Adds <paramref name="quantity"/> of an item to the loot, merged into a
+    /// stack of it already there and split at its stack size.
+    /// </summary>
+    internal static void AddStacks(IWorldAccessor world, List<ItemStack> loot, AssetLocation itemCode, int quantity)
     {
         if (quantity <= 0) return;
 
-        Item item = entity.World.GetItem(itemCode);
+        Item item = world.GetItem(itemCode);
         if (item == null)
         {
             // Missing item: skip rather than crash the harvest, but say so.
             // Silently swallowing this hid a typo'd fish code for months.
-            entity.Api.Logger.Warning(
-                "[underwaterhorrors] serpent loot item '{0}' does not exist, dropping nothing for it", itemCode);
+            world.Api.Logger.Warning(
+                "[underwaterhorrors] loot item '{0}' does not exist, dropping nothing for it", itemCode);
             return;
         }
 
-        var rand = entity.World.Rand;
-        Vec3d pos = dropPos.AddCopy(
-            (rand.NextDouble() - 0.5) * 0.8,
-            0.3,
-            (rand.NextDouble() - 0.5) * 0.8);
-
-        entity.World.SpawnItemEntity(new ItemStack(item, quantity), pos);
+        int max = Math.Max(1, item.MaxStackSize);
+        foreach (ItemStack stack in loot)
+        {
+            if (stack.Collectible != item || stack.StackSize >= max) continue;
+            int add = Math.Min(quantity, max - stack.StackSize);
+            stack.StackSize += add;
+            quantity -= add;
+        }
+        while (quantity > 0)
+        {
+            int q = Math.Min(quantity, max);
+            loot.Add(new ItemStack(item, q));
+            quantity -= q;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════

@@ -25,6 +25,7 @@
         "sizeForCulling": 15,
         "behaviors": [
             { "code": "interpolateposition" },
+            { "code": "underwaterhorrors:harvestable", "duration": 5, "fixedweight": true, "drops": [] },
             { "code": "underwaterhorrors:serpentdeath" }
         ]
     },
@@ -34,6 +35,7 @@
             { "code": "deaddecay", "hoursToDecay": 12 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:serpentdeath" },
+            { "code": "underwaterhorrors:harvestable", "duration": 5, "fixedweight": true, "drops": [] },
             { "code": "underwaterhorrors:serpentharvest" },
             { "code": "underwaterhorrors:oceancreature" },
             { "code": "underwaterhorrors:deepserpentai" },

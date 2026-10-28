@@ -46,6 +46,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
     // (one tracked creature per player); the despawn decisions live in
     // SweepCreatureDespawns, which covers every loaded creature.
     private Dictionary<string, long> activeCreatures = new();
+    // When each player ashore is next checked for an anglerfish off the
+    // shore, in world seconds.
+    private readonly Dictionary<string, double> shoreCheckAt = new();
 
     // entityId -> seconds the creature's target player has been out of the
     // water (or unreachable entirely). Spawner-spawned creatures despawn at
@@ -136,6 +139,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpenthitproxies", typeof(EntityBehaviorSerpentHitProxies));
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpentdeath", typeof(EntityBehaviorSerpentDeath));
         api.RegisterEntityBehaviorClass("underwaterhorrors:serpentharvest", typeof(EntityBehaviorSerpentHarvest));
+        api.RegisterEntityBehaviorClass("underwaterhorrors:harvestable", typeof(EntityBehaviorRemainsHarvestable));
         api.RegisterEntityBehaviorClass("underwaterhorrors:spawnerreturn", typeof(EntityBehaviorSpawnerReturn));
 
         api.RegisterBlockEntityClass("UHCreatureSpawner", typeof(BlockEntityCreatureSpawner));
@@ -1930,6 +1934,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 }
             }
 
+            // Ashore at night by deep coastal water: now and then the
+            // anglerfish comes to lie off the shore.
+            if (!spawnAsExtra && !overCap && TryShoreAnglerfish(player) is Entity shoreFish)
+            {
+                livingCreatures++;
+                if (livingCreatures >= cap) overCap = true;
+                activeCreatures[player.PlayerUID] = shoreFish.EntityId;
+                continue;
+            }
+
             // NOTE: mounted players (on boat/raft) no longer skipped —
             // CountSaltwaterDepth scans down to find the water surface
             // when mounted, so spawn can still fire.  The spawned
@@ -2050,6 +2064,35 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// For a player standing on land at night: about every
+    /// AnglerfishShoreCheckSeconds (a little more or less, so players are not
+    /// checked in step), with AnglerfishShoreSpawnChance, a few columns of
+    /// water around them are tested and an anglerfish laid in one deep
+    /// enough. Between checks this is one dictionary lookup.
+    /// </summary>
+    private Entity TryShoreAnglerfish(IServerPlayer player)
+    {
+        if (Config.AnglerfishShoreSpawnChance <= 0) return null;
+        double now = sapi.World.ElapsedMilliseconds / 1000.0;
+        if (shoreCheckAt.TryGetValue(player.PlayerUID, out double at) && now < at) return null;
+        var rand = sapi.World.Rand;
+        shoreCheckAt[player.PlayerUID] = now + Config.AnglerfishShoreCheckSeconds * (0.75 + 0.5 * rand.NextDouble());
+
+        EntityPlayer ep = player.Entity;
+        if (IsDaytime() || ep.MountedOn != null || !ep.OnGround) return null;
+        Block feet = sapi.World.BlockAccessor.GetBlock(ep.Pos.AsBlockPos);
+        if (feet == null || WaterHelper.IsWaterBlock(feet)) return null;
+        if (rand.NextDouble() >= Config.AnglerfishShoreSpawnChance) return null;
+
+        Entity fish = EntityBehaviorAnglerfishAI.SpawnOffShore(sapi, player);
+        if (Config.DebugLogging)
+            DebugLog(sapi, fish != null
+                ? $"SPAWNED anglerfish off the shore for {player.PlayerName} at ({fish.Pos.X:F0}, {fish.Pos.Y:F0}, {fish.Pos.Z:F0})"
+                : $"Shore anglerfish check for {player.PlayerName}: no deep water found nearby");
+        return fish;
     }
 
     // How far above the water surface we're willing to look when finding
@@ -2550,6 +2593,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
                         engaged = PlayerHasSaltwaterBelow(target.Entity, MountedWaterScanDownLimit);
                 }
             }
+
+            // The anglerfish baits players on the shore: while its target is
+            // within its lure's reach it stays (a natural one still leaves at
+            // daybreak).
+            if (!engaged && path == "giantanglerfish" && target?.Entity != null && target.Entity.Alive &&
+                creature.Pos.DistanceTo(target.Entity.Pos) <= EntityBehaviorAnglerfishAI.BaitRange)
+                engaged = true;
 
             if (engaged)
             {

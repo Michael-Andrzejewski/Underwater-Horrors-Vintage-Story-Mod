@@ -96,9 +96,21 @@ public class AnglerfishLureEntity : EntityKrakenPart
 {
     public override bool AlwaysActive => true;
     public override double FrustumSphereRadius => 6;
-    // The gear can be hit (10 health, two temporal gears); the rope pieces,
-    // which share this class, cannot.
+    // The gear can be hit (10 health, one or two temporal gears); the rope
+    // pieces, which share this class, cannot.
     public override bool IsInteractable => Code?.Path == "anglerfishlure";
+
+    // Its health shows in every game mode: the client has no health behavior
+    // of its own, only the server's numbers.
+    public override string GetInfoText()
+    {
+        string text = base.GetInfoText();
+        var health = WatchedAttributes.GetTreeAttribute("health");
+        if (Code?.Path != "anglerfishlure" || health == null) return text;
+        // In creative the game adds its own health line.
+        string line = Lang.Get("Health: {0}/{1}", Math.Round(health.GetFloat("currenthealth"), 1), Math.Round(health.GetFloat("maxhealth"), 1));
+        return text.Contains(line) ? text : line + "\n" + text;
+    }
 }
 
 /// <summary>

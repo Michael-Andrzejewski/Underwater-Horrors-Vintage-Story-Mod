@@ -60,6 +60,8 @@ public class EntityBehaviorGiantSerpentHitProxies : EntityBehaviorSerpentHitProx
         {
             (float)(widths[index] * size), (float)(heights[index] * size)
         }));
+        // A boss fight: its health shows in survival too.
+        proxy.WatchedAttributes.SetBool(EntitySerpentHitProxy.AlwaysShowHealthAttr, true);
     }
 
     protected override double ProxyCenterOffset(int index) => centers[index] * size;

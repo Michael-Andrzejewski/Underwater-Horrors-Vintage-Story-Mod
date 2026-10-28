@@ -54,7 +54,8 @@ public static class KrakenPartStorage
     {
         "krakententacle", "krakenambienttentacle", "krakententacleclaw",
         "krakententsegment", "krakententsegment_mid", "krakententsegment_mid_claw",
-        "krakententsegment_outer", "biolight"
+        "krakententsegment_outer", "krakententsegment_long-a", "krakententsegment_long-b",
+        "krakententsegment_long-c", "biolight"
     };
 
     public static bool ShouldStore(Entity entity) =>

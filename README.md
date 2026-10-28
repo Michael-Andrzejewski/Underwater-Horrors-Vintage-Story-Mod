@@ -15,6 +15,22 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.25.0
+
+- Carcasses are harvested the game's way: hold shift and right click with a knife, then take the loot from the carcass dialog. A dead serpent is harvested from any point on its body, as one carcass; the dialog stays with the part you clicked. Emptied, the carcass goes and leaves its bones on the sea floor.
+- The Rust Leviathan's 22 segments are each harvested on their own, holding the loot they used to spill when the body broke apart (the `GiantSerpentPiece...` settings). An emptied segment crumbles into bones. `GiantSerpentLootMinutes` is gone, since nothing is dropped loose any more.
+- The segments keep the leviathan's glow: pale cyan spots baked into their shapes (`tools/giantserpent/build_shape.py`).
+- Looking at any of the leviathan's hitboxes shows its name and health, in every game mode. The serpent writes its health onto its hitboxes, so this works even when its mouth is beyond your view of entities.
+- Giant anglerfish:
+  - 100 health instead of 200. Killed, it sinks onto the floor and is harvested like a carcass: 20 to 40 raw fish, 10 to 20 bones and a temporal gear.
+  - Its gear shows its 10 health to whoever looks at it. Broken, it drops one or two temporal gears, and the fish flees at 30 blocks a second instead of 10.
+  - A player right over its back, led there by the lure, gets a strike from below however deep the fish lies: it rises, faster for a long rise, strikes and goes back down.
+  - At night a player standing on land by deep coastal water may get one lying off the shore. About once a minute (`AnglerfishShoreCheckSeconds`) each such player is checked: with `AnglerfishShoreSpawnChance` (25%) up to four columns of water around them are tested, one scan down each, and the fish is laid in the first deep enough. Between checks it costs one lookup. An anglerfish now stays while its target is within reach of its lure, ashore or not.
+- Kraken:
+  - Each arm is 36 pieces instead of 96: three of the old 0.84-block trunks fused into one 2.53-block piece (`tools/kraken/build_glow_parts.py`), as the anglerfish's line uses long pieces. A kraken is 297 entities instead of 777. Measured with Pilot's kraken_perf in steady state, a kraken now costs the server about 0.05 ms a tick instead of 1.0 to 1.5, and about 63 KB/s of network instead of about 165.
+  - A piece that has hardly moved since its last update is not updated again, so the server sends nothing for it.
+  - Glowing spots like the anglerfish's, on its arms (three patterns, so the arm does not look striped) and its body.
+
 ### 0.24.3
 
 - New admin command `/uh spawn anglerfish coast` lays an anglerfish off the nearest coast, the way a natural one comes, for testing coastal spots.

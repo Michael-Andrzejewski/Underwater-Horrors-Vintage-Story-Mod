@@ -108,6 +108,8 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
 
     private void UpdateProxies(bool maySpawn, float dt)
     {
+        var health = entity.WatchedAttributes.GetTreeAttribute("health");
+        float hp = health?.GetFloat("currenthealth") ?? 0, maxHp = health?.GetFloat("maxhealth") ?? 0;
         for (int i = 0; i < offsets.Length; i++)
         {
             Entity proxy = proxies[i];
@@ -139,7 +141,18 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
             // drawn body instead of trailing it.
             if (fresh || dt <= 0) proxy.Pos.Motion.Set(0, 0, 0);
             else proxy.Pos.Motion.Set((sx - ox) / dt / 60, (proxy.Pos.Y - oy) / dt / 60, (sz - oz) / dt / 60);
+            MirrorHealth(proxy, hp, maxHp);
         }
+    }
+
+    // The serpent's health on the proxy, for whoever looks at it; sent only
+    // when it changes.
+    private static void MirrorHealth(Entity proxy, float hp, float maxHp)
+    {
+        if (proxy.WatchedAttributes[EntitySerpentHitProxy.OwnerHealthAttr] is FloatArrayAttribute old &&
+            old.value.Length == 2 && old.value[0] == hp && old.value[1] == maxHp) return;
+        proxy.WatchedAttributes[EntitySerpentHitProxy.OwnerHealthAttr] = new FloatArrayAttribute(new[] { hp, maxHp });
+        proxy.WatchedAttributes.MarkPathDirty(EntitySerpentHitProxy.OwnerHealthAttr);
     }
 
     /// <summary>How far above the spine line the middle of proxy
@@ -160,6 +173,7 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         proxy.Pos.Dimension = entity.Pos.Dimension;
         proxy.Pos.SetFrom(proxy.Pos);
         proxy.WatchedAttributes.SetLong(EntityBehaviorDamageRelay.TargetAttr, entity.EntityId);
+        proxy.WatchedAttributes.SetString(EntitySerpentHitProxy.OwnerCodeAttr, entity.Code.ToShortString());
         PrepareProxy(proxy, index);
         entity.World.SpawnEntity(proxy);
 

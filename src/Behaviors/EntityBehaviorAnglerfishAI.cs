@@ -23,11 +23,15 @@ public enum AnglerfishMood { Lurking, Creeping, Striking, Returning, Fleeing }
 /// - Striking: once its prey is within AnglerfishStrikeRange of its mouth,
 ///   or that far sideways and up to AnglerfishStrikeReachUp above it, it
 ///   swoops and gulps. It only strikes prey roughly ahead of it, so it
-///   turns first rather than snapping round.
+///   turns first rather than snapping round. Prey right over its back (led
+///   there by the lure) it rises to and strikes wherever it is.
 /// - Returning: back down to where the strike began.
 /// - Fleeing: a hit on its lure, or losing most of its health, sends it off
-///   into deeper water away from the attacker. It is removed once nobody is
-///   within FleeGoneRange, or after FleeSeconds.
+///   into deeper water away from the attacker; with its lure broken it
+///   flees at FleeFastSpeed. It is removed once nobody is within
+///   FleeGoneRange, or after FleeSeconds.
+///
+/// Killed, it sinks onto the floor and can be harvested like a carcass.
 ///
 /// Offsets below are for the model at entity size 2, in blocks; Scale
 /// stretches them to the entity's real size.
@@ -58,7 +62,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     public const double BaitRange = 160;
     // It creeps toward prey within this many blocks of its lair.
     private const double LairRange = 64;
-    private const double CreepSpeed = 1.5, FleeSpeed = 10, DiveSpeed = 12;
+    private const double CreepSpeed = 1.5, FleeSpeed = 10, FleeFastSpeed = 30, DiveSpeed = 12;
     private const float FleeSeconds = 60;
     // Samples (of 54) a fleeing fish may clip through terrain.
     private const int FleeTolerance = 8;
@@ -70,9 +74,9 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     private readonly Vec3d home = new(), goal = new(), retreat = new();
     private readonly BlockPos scan = new(0, 0, 0, 0);
     private AnglerfishMood mood = AnglerfishMood.Lurking;
-    private bool initialized, lureLost, crept;
+    private bool initialized, lureLost, crept, fleeFast;
     private float lureRetry, stuckTime, creepPause, fleeTime, driftTimer;
-    private double fleeYaw;
+    private double fleeYaw, lungeSpeed = AnglerfishAttackCycle.LungeSpeed;
     private Entity lastAttacker;
     private IPlayer target;
 
@@ -100,8 +104,14 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
 
     public override void OnGameTick(float deltaTime)
     {
-        if (entity.Api.Side != EnumAppSide.Server || !entity.Alive) return;
+        if (entity.Api.Side != EnumAppSide.Server) return;
         float dt = Math.Clamp(deltaTime, 0, .25f);
+        if (!entity.Alive)
+        {
+            // A carcass sinks onto the floor below it.
+            if (initialized) Settle(dt, true);
+            return;
+        }
         if (!initialized)
         {
             initialized = true;
@@ -156,6 +166,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
         // Strike prey in reach of the mouth, once it is roughly ahead.
         if (target == null) StrikeCheck = "no prey in the water";
         else if (cycle.Cooldown > 0) StrikeCheck = $"cooling down {cycle.Cooldown:F1}s";
+        else if (OverItsBack(target) && TryStartStrike(target, rise: true)) return;
         else if (StrikeDistance(target) > StrikeRange) StrikeCheck = $"out of reach ({StrikeDistance(target):F1})";
         else if (TryStartStrike(target)) return;
 
@@ -285,24 +296,41 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
 
     // ── Striking and returning ───────────────────────────────────────────
 
-    private bool TryStartStrike(IPlayer prey)
+    // Prey right over its back: anywhere above it, however deep it lies, and
+    // no further to the side of the body's line than the body is wide (with
+    // a little more).
+    private bool OverItsBack(IPlayer p)
+    {
+        double s = Scale;
+        ModelPoint(-7 * s, BodyCenterUp * s, out var a);
+        ModelPoint(21 * s, BodyCenterUp * s, out var b);
+        var q = p.Entity.Pos;
+        if (q.Y <= a.Y) return false;
+        return AnglerfishAttackCycle.DistanceToSegment(q.X, 0, q.Z, a.X, 0, a.Z, b.X, 0, b.Z) <= 5 * s;
+    }
+
+    // rise: prey over its back; it keeps its heading and swims straight up at
+    // them, mouth first, rather than turning to face them.
+    private bool TryStartStrike(IPlayer prey, bool rise = false)
     {
         double dx = prey.Entity.Pos.X - entity.Pos.X, dz = prey.Entity.Pos.Z - entity.Pos.Z;
-        float yaw = (float)Math.Atan2(dx, dz);
+        float yaw = rise ? entity.Pos.Yaw : (float)Math.Atan2(dx, dz);
         // Turn first rather than snapping a body this size round.
         double off = Math.Abs(GameMath.AngleRadDistance(entity.Pos.Yaw, yaw)) * GameMath.RAD2DEG;
         if (off > StrikeConeDeg) { StrikeCheck = $"turning first ({off:F0} degrees off)"; return false; }
         if (!Fits(entity.World, entity.Pos.X, entity.Pos.Y, entity.Pos.Z, yaw, entity.Pos.Dimension, Scale, true, true)) { StrikeCheck = "no room to turn for the strike"; return false; }
-        if (!cycle.TryBegin(StrikeDistance(prey))) { StrikeCheck = "attack cycle refused"; return false; }
-        StrikeCheck = "striking";
+        if (!cycle.TryBegin(rise ? Math.Min(StrikeDistance(prey), StrikeRange) : StrikeDistance(prey))) { StrikeCheck = "attack cycle refused"; return false; }
+        StrikeCheck = rise ? "rising to strike" : "striking";
         retreat.Set(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
         entity.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", prey.PlayerUID);
         entity.Pos.Yaw = yaw;
         double s = Scale;
         goal.Set(prey.Entity.Pos.X - Math.Sin(yaw) * MouthForward * s,
             prey.Entity.Pos.Y + .6 - MouthUp * s, prey.Entity.Pos.Z - Math.Cos(yaw) * MouthForward * s);
-        double speed = Config?.AnglerfishStrikeSpeed ?? AnglerfishAttackCycle.LungeSpeed;
-        entity.GetBehavior<EntityBehaviorAnglerfishAnimation>()?.PlayLunge((float)(entity.Pos.DistanceTo(goal) / speed));
+        // A long rise from the deep goes faster, to arrive within the lunge.
+        lungeSpeed = Math.Max(Config?.AnglerfishStrikeSpeed ?? AnglerfishAttackCycle.LungeSpeed,
+            entity.Pos.DistanceTo(goal) / (AnglerfishAttackCycle.MaxLungeSeconds * 0.85));
+        entity.GetBehavior<EntityBehaviorAnglerfishAnimation>()?.PlayLunge((float)(entity.Pos.DistanceTo(goal) / lungeSpeed));
         target = prey;
         mood = AnglerfishMood.Striking;
         return true;
@@ -311,8 +339,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     private void Strike(float dt)
     {
         if (cycle.Phase != AnglerfishPhase.Lunging || !ValidTarget(target)) { EndStrike(); return; }
-        double speed = Config?.AnglerfishStrikeSpeed ?? AnglerfishAttackCycle.LungeSpeed;
-        bool clear = MoveToward(goal, speed * dt, true, true);
+        bool clear = MoveToward(goal, lungeSpeed * dt, true, true);
         if (!clear) StrikeCheck = $"strike blocked {entity.Pos.DistanceTo(goal):F1} short";
         if (!clear || entity.Pos.DistanceTo(goal) < .1 || cycle.Phase != AnglerfishPhase.Lunging) EndStrike();
     }
@@ -349,6 +376,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     public void OnLureDestroyed(Entity attacker)
     {
         lureLost = true;
+        fleeFast = true;
         StartFleeing(attacker ?? lastAttacker);
     }
 
@@ -402,7 +430,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
             y += Math.Clamp((floor + surface) / 2 - BodyCenterUp * s - y, -3 * dt, 3 * dt);
         if (y != entity.Pos.Y && Fits(entity.World, entity.Pos.X, y, entity.Pos.Z, entity.Pos.Yaw, entity.Pos.Dimension, s, false, true))
             entity.Pos.SetPos(entity.Pos.X, y, entity.Pos.Z);
-        TurnToward(ahead, dt, 45, FleeTolerance);
+        TurnToward(ahead, dt, fleeFast ? 90 : 45, FleeTolerance);
         // Swim only once it has turned mostly away, never first toward the attacker.
         double off = Math.Abs(GameMath.AngleRadDistance(entity.Pos.Yaw, (float)fleeYaw));
         if (off > 60 * GameMath.DEG2RAD)
@@ -411,7 +439,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
             if (stuckTime > 4) { stuckTime = 0; fleeYaw = PickFleeYaw(lastAttacker) + (entity.World.Rand.NextDouble() - .5) * Math.PI / 2; }
             return;
         }
-        double step = FleeSpeed * dt * (off < 30 * GameMath.DEG2RAD ? 1 : .4);
+        double step = (fleeFast ? FleeFastSpeed : FleeSpeed) * dt * (off < 30 * GameMath.DEG2RAD ? 1 : .4);
         var next = new Vec3d(entity.Pos.X + Math.Sin(entity.Pos.Yaw) * step, entity.Pos.Y, entity.Pos.Z + Math.Cos(entity.Pos.Yaw) * step);
         if (MoveToward(next, step, false, false, FleeTolerance)) { stuckTime = 0; return; }
         stuckTime += dt;
@@ -837,6 +865,33 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
     }
 
     // Its mouth's reach plus the mouth's own distance ahead plus some room.
+    /// <summary>
+    /// For a player standing on land: a few random columns between the
+    /// fish's spawn distance and 48 blocks past it are tested for water
+    /// AnglerfishMinWaterDepth deep, and the fish is laid in the first one it
+    /// fits, facing the player. Each column costs one scan down through the
+    /// water (a land column stops at its first block), so a check is cheap.
+    /// Null when none of them will do.
+    /// </summary>
+    public static Entity SpawnOffShore(ICoreServerAPI api, IServerPlayer player, int tries = 4)
+    {
+        var props = api.World.GetEntityType(new AssetLocation("underwaterhorrors", "giantanglerfish"));
+        if (props == null) return null;
+        int need = UnderwaterHorrorsModSystem.Config?.AnglerfishMinWaterDepth ?? 40;
+        var pos = player.Entity.Pos;
+        double minDist = MinSpawnDistance(ScaleOf(props));
+        for (int i = 0; i < tries; i++)
+        {
+            double angle = api.World.Rand.NextDouble() * Math.PI * 2;
+            double radius = minDist + api.World.Rand.NextDouble() * 48;
+            double x = pos.X + Math.Sin(angle) * radius, z = pos.Z + Math.Cos(angle) * radius;
+            if (WaterDepth(api.World, x, z, pos.Dimension, out _, out _) < need) continue;
+            var fish = PlaceAt(api, props, player, x, z, natural: true);
+            if (fish != null) return fish;
+        }
+        return null;
+    }
+
     private static double MinSpawnDistance(double scale) =>
         (UnderwaterHorrorsModSystem.Config?.AnglerfishStrikeRange ?? 28) + MouthForward * scale + 15;
 

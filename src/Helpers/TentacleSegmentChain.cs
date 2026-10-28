@@ -38,6 +38,7 @@ public class TentacleSegmentChain
     private readonly AssetLocation baseSegmentAsset;
     private readonly AssetLocation midSegmentAsset;
     private readonly AssetLocation tipOuterAsset;
+    private readonly AssetLocation[] midVariants;
 
     private long[] segmentIds;
     private Entity[] segmentEntities;
@@ -75,6 +76,15 @@ public class TentacleSegmentChain
     private bool[] lastWasEmerged;
     private double lastAnchorX = double.NaN, lastAnchorY, lastAnchorZ;
 
+    // What each emerged piece was last given. A piece whose place and tilt
+    // have hardly changed is not written again, so the server sends nothing
+    // for it: an arm lying still, or swaying slowly near its base, costs
+    // little.
+    private const double DeadBandBlocks = 0.02;
+    private const float DeadBandRadians = 0.01f;
+    private double[] writtenX, writtenY, writtenZ;
+    private float[] writtenPitch, writtenRoll;
+
     public int Count => segmentCount;
     public Entity[] Segments => segmentEntities;
     public long[] SegmentIds => segmentIds;
@@ -93,10 +103,18 @@ public class TentacleSegmentChain
     /// (e.g. the krakententacle/claw entity), and chain[N-2] flush
     /// against chain[N-1]. Pass &lt;= 0 to fall back to segmentVisualHeight.
     /// </param>
+    /// <param name="midVariants">
+    /// Optional looks for the mid pieces (the kraken's long pieces come in
+    /// three spot patterns). Each piece takes one, picked from the tip
+    /// entity's id and its place in the chain, so neighbours differ and
+    /// every arm differs.
+    /// </param>
     public TentacleSegmentChain(Entity tipEntity, int segmentCount, double segmentVisualHeight,
         AssetLocation baseSegmentAsset, AssetLocation midSegmentAsset,
-        AssetLocation tipOuterAsset = null, double tipOuterVisualHeight = -1)
+        AssetLocation tipOuterAsset = null, double tipOuterVisualHeight = -1,
+        AssetLocation[] midVariants = null)
     {
+        this.midVariants = midVariants;
         this.tipEntity = tipEntity;
         this.segmentCount = segmentCount;
         this.segmentVisualHeight = segmentVisualHeight;
@@ -122,6 +140,12 @@ public class TentacleSegmentChain
         EntityProperties tipProps  = tipOuterAsset != null
             ? tipEntity.World.GetEntityType(tipOuterAsset)
             : null;
+        EntityProperties[] variantProps = null;
+        if (midVariants != null && midVariants.Length > 0)
+        {
+            variantProps = new EntityProperties[midVariants.Length];
+            for (int v = 0; v < midVariants.Length; v++) variantProps[v] = tipEntity.World.GetEntityType(midVariants[v]);
+        }
 
         if (baseProps == null) return;
 
@@ -139,6 +163,11 @@ public class TentacleSegmentChain
             else if (i == segmentCount - 1 && tipProps != null)
             {
                 props = tipProps;
+            }
+            else if (variantProps != null)
+            {
+                uint h = unchecked((uint)(tipEntity.EntityId * 2654435761L) ^ (uint)(i * 40503));
+                props = variantProps[(h >> 7) % (uint)variantProps.Length] ?? midProps ?? baseProps;
             }
             else
             {
@@ -301,11 +330,12 @@ public class TentacleSegmentChain
                 continue;
             }
 
-            // Emerged segment — always write, both position (the spline
-            // shape can change every tick as the tip moves) and orientation
-            // (tangent depends on neighbor positions which also change).
+            // Emerged segment: the spline can change every tick as the tip
+            // moves, so position and tilt are worked out every tick, but
+            // only written when they have changed by more than the
+            // dead-band.
             Vec3d sp_e = segmentPositions[i];
-            seg.Pos.SetPos(sp_e.X, sp_e.Y, sp_e.Z);
+            bool justEmerged = !lastWasEmerged[i];
             lastWasEmerged[i] = true;
 
             // Tangent = chord to next emerged segment's position, or to
@@ -325,16 +355,24 @@ public class TentacleSegmentChain
             double ty = ny - sp_e.Y;
             double tz = nz - sp_e.Z;
             double tlen = Math.Sqrt(tx * tx + ty * ty + tz * tz);
+            float roll = seg.Pos.Roll, pitch = seg.Pos.Pitch;
             if (tlen > 1e-6)
             {
                 tx /= tlen; ty /= tlen; tz /= tlen;
 
                 double yzLen = Math.Sqrt(ty * ty + tz * tz);
-                float roll  = (float)Math.Atan2(-tx, yzLen);
-                float pitch = (float)Math.Atan2(tz, ty);
-
-                SetOrientation(seg, YawCancelBakedOffset, pitch, roll);
+                roll  = (float)Math.Atan2(-tx, yzLen);
+                pitch = (float)Math.Atan2(tz, ty);
             }
+
+            double mx = sp_e.X - writtenX[i], my = sp_e.Y - writtenY[i], mz = sp_e.Z - writtenZ[i];
+            bool still = !justEmerged && mx * mx + my * my + mz * mz < DeadBandBlocks * DeadBandBlocks
+                && Math.Abs(pitch - writtenPitch[i]) < DeadBandRadians && Math.Abs(roll - writtenRoll[i]) < DeadBandRadians;
+            if (still) continue;
+            seg.Pos.SetPos(sp_e.X, sp_e.Y, sp_e.Z);
+            SetOrientation(seg, YawCancelBakedOffset, pitch, roll);
+            writtenX[i] = sp_e.X; writtenY[i] = sp_e.Y; writtenZ[i] = sp_e.Z;
+            writtenPitch[i] = pitch; writtenRoll[i] = roll;
         }
     }
 
@@ -417,6 +455,8 @@ public class TentacleSegmentChain
         segmentPositions = new Vec3d[n];
         segmentEmerged = new bool[n];
         lastWasEmerged = new bool[n];
+        writtenX = new double[n]; writtenY = new double[n]; writtenZ = new double[n];
+        writtenPitch = new float[n]; writtenRoll = new float[n];
         for (int i = 0; i < n; i++)
         {
             segmentPositions[i] = new Vec3d();

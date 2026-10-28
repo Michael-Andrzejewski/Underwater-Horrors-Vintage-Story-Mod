@@ -475,6 +475,10 @@ public class BioluminescentGlowRenderer : IRenderer
                 !entity.WatchedAttributes.GetBool("underwaterhorrors:bioluminescent", false))
                 continue;
 
+            // A long piece is three trunks: one billboard on each.
+            int trunks = IsLongPiece(entity) ? 3 : 1;
+            for (int k = 0; k < trunks; k++)
+            {
             double cx, cy, cz;
             if (p.UseTrunkOffset)
             {
@@ -488,7 +492,7 @@ public class BioluminescentGlowRenderer : IRenderer
                 // X-Y-Z rotation order. Matches BiolumTextureRenderer.
                 EntityModelTransform.ApplyModelMatrix(
                     entity, scale: 1.5f,
-                    localX: 0.0, localY: 0.281, localZ: 0.0,
+                    localX: 0.0, localY: 0.281 + 0.5625 * k, localZ: 0.0,
                     out cx, out cy, out cz);
             }
             else
@@ -507,8 +511,11 @@ public class BioluminescentGlowRenderer : IRenderer
 
             shaderProg.Uniform("worldPos", (float)dx, (float)dy, (float)dz);
             render.RenderMesh(quadMeshRef);
+            }
         }
     }
+
+    private static bool IsLongPiece(Entity entity) => entity.Code.Path.StartsWith("krakententsegment_long");
 
     /// <summary>
     /// Match the visible chain pieces - heads (krakententacle, krakenamb*)
@@ -523,7 +530,8 @@ public class BioluminescentGlowRenderer : IRenderer
         return path == "krakententsegment"
             || path == "krakententsegment_mid"
             || path == "krakententsegment_mid_claw"
-            || path == "krakententsegment_outer";
+            || path == "krakententsegment_outer"
+            || path.StartsWith("krakententsegment_long");
     }
 
     public void Dispose()

@@ -1,7 +1,12 @@
+using System.Text;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
 
@@ -12,11 +17,17 @@ namespace UnderwaterHorrors;
 /// row of proxies after a reload, so saving them would only produce
 /// orphaned duplicates.
 ///
-/// Right-clicking a proxy forwards to the owning serpent's harvest
-/// behavior, so a dead serpent can be harvested from any point on its
-/// body rather than only the small hitbox at the entity center.
+/// A dead serpent is harvested from any point on its body: the knife asks
+/// the proxy (it is IHarvestable) and the proxy asks the serpent's carcass
+/// (EntityBehaviorRemainsHarvestable); a right click opens the carcass
+/// contents, and the dialog stays with this proxy.
+///
+/// Looking at a proxy names the serpent and shows its health. The serpent
+/// writes its health onto every proxy, so this works even when the
+/// serpent's own position (its mouth, up to 200 blocks along the Rust
+/// Leviathan) is beyond the client's view of entities.
 /// </summary>
-public class EntitySerpentHitProxy : EntityAgent
+public class EntitySerpentHitProxy : EntityAgent, IHarvestable
 {
     /// <summary>
     /// Width and height of this proxy's box, when it differs from the
@@ -26,6 +37,12 @@ public class EntitySerpentHitProxy : EntityAgent
     /// collision box, and vanilla attacks pick the selection box.
     /// </summary>
     public const string BoxAttr = "underwaterhorrors:proxyBox";
+    /// <summary>The serpent's health and max health, written by the serpent.</summary>
+    public const string OwnerHealthAttr = "underwaterhorrors:ownerHealth";
+    /// <summary>The serpent's entity code, for its name when it is out of view.</summary>
+    public const string OwnerCodeAttr = "underwaterhorrors:ownerCode";
+    /// <summary>Show the health in every game mode, not just creative (the Rust Leviathan's).</summary>
+    public const string AlwaysShowHealthAttr = "underwaterhorrors:alwaysShowHealth";
 
     private bool boxApplied;
 
@@ -56,22 +73,61 @@ public class EntitySerpentHitProxy : EntityAgent
     // position updates are never suspended.
     public override bool AlwaysActive => true;
 
+    // ═══════════════════════════════════════════════════════════════════
+    //  Harvesting, for the serpent
+    // ═══════════════════════════════════════════════════════════════════
+    private EntityBehaviorRemainsHarvestable Carcass => Owner?.GetBehavior<EntityBehaviorRemainsHarvestable>();
+
+    public bool IsHarvestable(ItemSlot slot, Entity forEntity) => Carcass?.IsHarvestable(slot, forEntity) == true;
+
+    public float GetHarvestDuration(ItemSlot slot, Entity forEntity) => Carcass?.GetHarvestDuration(slot, forEntity) ?? 5f;
+
+    public void SetHarvested(IPlayer byPlayer, float dropQuantityMultiplier = 1f) => Carcass?.SetHarvested(byPlayer, dropQuantityMultiplier);
+
     public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode)
     {
-        if (mode == EnumInteractMode.Interact && Api.Side == EnumAppSide.Server)
+        if (mode == EnumInteractMode.Interact && Carcass is { IsHarvested: true } carcass)
         {
-            var harvest = Owner?.GetBehavior<EntityBehaviorSerpentHarvest>();
-            if (harvest != null && harvest.TryHarvest(byEntity, itemslot, Pos.XYZ)) return;
+            carcass.OpenContents(byEntity, this);
+            return;
         }
-
         base.OnInteract(byEntity, itemslot, hitPosition, mode);
     }
 
-    // Looking at any part of the body names the serpent and shows its
-    // health, instead of the proxy's own untranslated entity code.
-    public override string GetName() => Owner?.GetName() ?? base.GetName();
+    // The contents dialog sends its slot clicks to the entity it stays with.
+    public override void OnReceivedClientPacket(IServerPlayer player, int packetid, byte[] data)
+    {
+        Entity owner = Owner;
+        if (owner != null && Carcass != null) owner.OnReceivedClientPacket(player, packetid, data);
+        else base.OnReceivedClientPacket(player, packetid, data);
+    }
 
-    public override string GetInfoText() => Owner?.GetInfoText() ?? base.GetInfoText();
+    // ═══════════════════════════════════════════════════════════════════
+    //  Name and health
+    // ═══════════════════════════════════════════════════════════════════
+    public override string GetName()
+    {
+        Entity owner = Owner;
+        if (owner != null) return owner.GetName();
+        string code = WatchedAttributes.GetString(OwnerCodeAttr);
+        if (code == null) return base.GetName();
+        var loc = new AssetLocation(code);
+        return Lang.GetMatching(loc.Domain + ":item-creature-" + loc.Path);
+    }
+
+    public override string GetInfoText()
+    {
+        string ownerText = Owner?.GetInfoText();
+        bool creative = (Api as ICoreClientAPI)?.World.Player?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
+        bool always = WatchedAttributes.GetBool(AlwaysShowHealthAttr);
+        // In creative the serpent's own text already has its health.
+        if (ownerText != null && (creative || !always)) return ownerText;
+        var text = new StringBuilder();
+        if ((creative || always) && WatchedAttributes[OwnerHealthAttr] is FloatArrayAttribute h && h.value.Length >= 2)
+            text.AppendLine(Lang.Get("Health: {0}/{1}", System.Math.Round(h.value[0], 1), System.Math.Round(h.value[1], 1)));
+        if (ownerText != null) text.Append(ownerText);
+        return text.ToString();
+    }
 
     private Entity Owner
     {

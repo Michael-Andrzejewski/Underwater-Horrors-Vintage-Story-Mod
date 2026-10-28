@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -19,15 +20,24 @@ namespace UnderwaterHorrors;
 /// highest point under its two ends and middle, plus the depth of its body
 /// below the pivot once rolled (it falls through air quickly). There it
 /// lies until GiantSerpentPieceDecayHours have passed, then crumbles into a
-/// pile of bones. It moves with the giant's own client smoothing
+/// pile of bones.
+///
+/// Each piece holds its share of the giant's hoard, harvested the game's way
+/// with a knife and the carcass contents dialog
+/// (EntityBehaviorRemainsHarvestable; the loot settings are the
+/// GiantSerpentPiece ones). Emptied, it crumbles at once. Its selection box
+/// is the box around its body at its current heading, which is roomy
+/// whenever it lies diagonally.
+///
+/// It moves with the giant's own client smoothing
 /// (giantserpentmotion, keeping its tilt), and each client rolls it onto its
 /// side or its back about the body as it sinks; the roll comes from the
 /// entity id, so the server rests it at the same height every client draws.
 ///
-/// The pieces are saved with their chunk, cannot be hit or looked at, and
-/// keep ticking while they sink, however far the player is.
+/// The pieces are saved with their chunk, cannot be hit, and keep ticking
+/// while they sink, however far the player is.
 /// </summary>
-public class GiantSerpentPieceEntity : Entity
+public class GiantSerpentPieceEntity : Entity, IHarvestableDrops
 {
     /// <summary>The piece's solid body around its pivot, in blocks, in its
     /// rest frame: back from, back to, below, above, half width.</summary>
@@ -54,10 +64,13 @@ public class GiantSerpentPieceEntity : Entity
 
     private float clientRoll;
     private bool clientRollStarted;
+    private float boxYaw = float.NaN;
 
     public bool Settled => WatchedAttributes.GetBool(SettledAttr);
 
-    public override bool IsInteractable => false;
+    public override bool IsInteractable => true;
+
+    public override bool ShouldReceiveDamage(DamageSource damageSource, float damage) => false;
 
     public override bool AlwaysActive => !Settled;
 
@@ -89,6 +102,7 @@ public class GiantSerpentPieceEntity : Entity
     public override void OnGameTick(float dt)
     {
         base.OnGameTick(dt);
+        UpdateBox();
         if (World.Side == EnumAppSide.Client)
         {
             RollOver(dt);
@@ -196,15 +210,59 @@ public class GiantSerpentPieceEntity : Entity
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Decay (server)
+    //  Selection box (both sides)
     // ═══════════════════════════════════════════════════════════════════
+    // The box around the body at its heading: along its length from the
+    // pivot, as wide as it is, and as deep as its widest part either way,
+    // since it lies rolled.
+    private void UpdateBox()
+    {
+        float[] e = Extent;
+        if (e == null || Math.Abs(Pos.Yaw - boxYaw) < 0.02f) return;
+        boxYaw = Pos.Yaw;
+        double fx = -Math.Sin(Pos.Yaw), fz = -Math.Cos(Pos.Yaw);
+        float r = Math.Max(e[4], Math.Max(Math.Abs(e[2]), Math.Abs(e[3])));
+        float x1 = (float)Math.Min(fx * e[0], fx * e[1]) - r, x2 = (float)Math.Max(fx * e[0], fx * e[1]) + r;
+        float z1 = (float)Math.Min(fz * e[0], fz * e[1]) - r, z2 = (float)Math.Max(fz * e[0], fz * e[1]) + r;
+        SelectionBox = new Cuboidf(x1, -r, z1, x2, r, z2);
+        OriginSelectionBox = SelectionBox.Clone();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Loot and decay (server)
+    // ═══════════════════════════════════════════════════════════════════
+    /// <summary>This piece's share of the hoard, asked once by the harvest.</summary>
+    public ItemStack[] GetHarvestableDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer)
+    {
+        var cfg = UnderwaterHorrorsModSystem.Config;
+        var loot = new List<ItemStack>();
+        if (cfg == null) return loot.ToArray();
+        var rand = world.Rand;
+        void Add(AssetLocation code, int min, int max) =>
+            EntityBehaviorSerpentHarvest.AddStacks(world, loot, code, min + rand.Next(Math.Max(0, max - min) + 1));
+
+        Add(EntityBehaviorSerpentHarvest.GearAsset, cfg.GiantSerpentPieceRustyGearsMin, cfg.GiantSerpentPieceRustyGearsMax);
+        Add(new AssetLocation("game", "gear-temporal"), cfg.GiantSerpentPieceTemporalGearsMin, cfg.GiantSerpentPieceTemporalGearsMax);
+        foreach (string type in EntityBehaviorSerpentHarvest.JonasPartTypes)
+            Add(new AssetLocation("game", "jonasparts-" + type), cfg.GiantSerpentPieceJonasPartsMin, cfg.GiantSerpentPieceJonasPartsMax);
+        Add(EntityBehaviorSerpentHarvest.FishAsset, cfg.GiantSerpentPieceFishMin, cfg.GiantSerpentPieceFishMax);
+        Add(EntityBehaviorSerpentHarvest.BoneAsset, cfg.GiantSerpentPieceBonesMin, cfg.GiantSerpentPieceBonesMax);
+        return loot.ToArray();
+    }
+
     private void CheckDecay()
     {
         float hours = UnderwaterHorrorsModSystem.Config?.GiantSerpentPieceDecayHours ?? 48f;
         if (hours <= 0) return;
         double now = World.Calendar.TotalHours;
         if (now - WatchedAttributes.GetDouble(BornAttr, now) < hours) return;
+        Crumble();
+    }
 
+    /// <summary>Leaves a pile of bones under its middle and goes.</summary>
+    public void Crumble()
+    {
+        if (!Alive || World.Side != EnumAppSide.Server) return;
         float[] e = Extent;
         double mid = e == null ? 0 : (e[0] + e[1]) / 2.0;
         double x = Pos.X - Math.Sin(Pos.Yaw) * mid, z = Pos.Z - Math.Cos(Pos.Yaw) * mid;

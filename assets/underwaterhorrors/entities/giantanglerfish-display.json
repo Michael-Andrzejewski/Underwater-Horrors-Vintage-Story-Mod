@@ -29,7 +29,7 @@
   },
   "server": {
     "behaviors": [
-      { "code": "health", "currenthealth": 200, "maxhealth": 200 },
+      { "code": "health", "currenthealth": 100, "maxhealth": 100 },
       { "code": "deaddecay", "hoursToDecay": 12 },
       { "code": "underwaterhorrors:anglerfishanimation" }
     ],
