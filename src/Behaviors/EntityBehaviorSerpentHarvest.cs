@@ -31,9 +31,11 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior, IHarvestableDrops
     internal static readonly AssetLocation GearAsset = new("game", "gear-rusty");
     internal static readonly AssetLocation BonePileAsset = new("game", "bonyremains-ribcage");
 
+    // The Jonas parts the creatures carry. Not the pump head: nothing needs
+    // one from them.
     internal static readonly string[] JonasPartTypes =
     {
-        "connector01", "cylinder01", "cylinder02", "tank01", "tank02", "valve01", "pumphead"
+        "connector01", "cylinder01", "cylinder02", "tank01", "tank02", "valve01"
     };
 
     // Set on the rust (aggressive surface) serpent via JSON attributes.

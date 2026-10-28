@@ -15,6 +15,12 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.25.1
+
+- Serpents stay in the sea. They pick their surfacing spot only where the water is deep (it used to be any spot 10 to 30 blocks from the player, sand included). Each tick they check ahead along their motion and every 3 blocks along their body, 5 blocks past each end, for 3 blocks of water (seaweed counts as water), and back off any land at 9 blocks a second.
+- The anglerfish's gear hangs 3.5 blocks from its prey instead of 11.5, within reach of a sword. The first blow on it knocks a temporal gear loose at once; breaking it drops another.
+- No more pump heads: they are gone from the serpents', the leviathan segments' and the kraken's loot.
+
 ### 0.25.0
 
 - Carcasses are harvested the game's way: hold shift and right click with a knife, then take the loot from the carcass dialog. A dead serpent is harvested from any point on its body, as one carcass; the dialog stays with the part you clicked. Emptied, the carcass goes and leaves its bones on the sea floor.

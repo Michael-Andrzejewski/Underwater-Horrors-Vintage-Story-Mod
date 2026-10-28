@@ -273,6 +273,8 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         // what gets cancelled. Clamping first would let the same tick
         // command another dive straight back into the sea floor.
         ClampAboveSeaFloor(deltaTime);
+        // Nor out onto the shore.
+        KeepOffLand(HeadForwardOffset);
 
         UpdateFacing(deltaTime);
     }
@@ -283,11 +285,9 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     private void PickSurfacePoint()
     {
         surfacePointPicked = true;
-        var rand = entity.World.Rand;
-        float angle = (float)(rand.NextDouble() * Math.PI * 2);
-        float dist = SurfaceDistMin + (float)(rand.NextDouble() * (SurfaceDistMax - SurfaceDistMin));
-        surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
-        surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
+        // Somewhere around the player with room to come up: near a beach a
+        // random spot could be in the shallows or on the sand.
+        PickDeepSpot(targetPlayer.Entity.Pos.X, targetPlayer.Entity.Pos.Z, SurfaceDistMin, SurfaceDistMax, out surfaceX, out surfaceZ);
     }
 
     // ═══════════════════════════════════════════════════════════════════

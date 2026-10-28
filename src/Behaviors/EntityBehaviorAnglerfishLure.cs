@@ -15,13 +15,15 @@ namespace UnderwaterHorrors;
 /// - For a player at the surface (swimming, in a boat, or on the shore) it
 ///   hangs above the waves between them and the fish; for a player who
 ///   dives it leads them on down underwater.
-/// - It has 10 health, shown to whoever looks at it. Any hit startles the
-///   fish, which reels it in and swims off; destroying it drops one or two
-///   temporal gears by the attacker, and the fish flees at full speed.
+/// - It has 10 health, shown to whoever looks at it. The first hit knocks a
+///   temporal gear loose at once, by the attacker, and startles the fish,
+///   which reels it in and swims off. Destroying it drops another, and the
+///   fish flees at full speed.
 /// </summary>
 public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
 {
     public const string TipIdAttr = "underwaterhorrors:anglerTipId";
+    private const string GearKnockedAttr = "underwaterhorrors:gearKnockedLoose";
     private static readonly AssetLocation SegmentAsset = new("underwaterhorrors", "anglerfishluresegment");
     private static readonly AssetLocation TemporalGear = new("game", "gear-temporal");
     private TentacleSegmentChain chain;
@@ -135,9 +137,16 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
     {
         base.OnEntityReceiveDamage(damageSource, ref damage);
         if (entity.Api.Side != EnumAppSide.Server || damage <= 0 || damageSource?.Type == EnumDamageType.Heal) return;
-        // Only a blow from something (a player, an arrow) startles the fish.
+        // Only a blow from something (a player, an arrow) startles the fish,
+        // and the first knocks a gear loose.
         var cause = damageSource?.GetCauseEntity();
-        if (cause != null) ownerAi?.Startle(cause);
+        if (cause == null) return;
+        if (!entity.Attributes.GetBool(GearKnockedAttr))
+        {
+            entity.Attributes.SetBool(GearKnockedAttr, true);
+            DropGear(cause);
+        }
+        ownerAi?.Startle(cause);
     }
 
     public override void OnEntityDeath(DamageSource damageSource)
@@ -146,7 +155,7 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         {
             chain?.Despawn();
             var cause = damageSource?.GetCauseEntity();
-            if (damageSource != null && damageSource.Type != EnumDamageType.Heal) DropGears(cause);
+            if (damageSource != null && damageSource.Type != EnumDamageType.Heal) DropGear(cause);
             ownerAi?.OnLureDestroyed(cause);
             // A broken gear leaves nothing behind but its drops.
             if (entity.World is IServerWorldAccessor sw)
@@ -161,17 +170,17 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         base.OnEntityDespawn(data);
     }
 
-    // One or two temporal gears for whoever broke it. Over open water they would
-    // sink out of reach, so they land at the attacker's feet when the
+    // A temporal gear for whoever hit or broke it. Over open water it would
+    // sink out of reach, so it lands at the attacker's feet when the
     // attacker is close; otherwise where the lure was.
-    private void DropGears(Entity attacker)
+    private void DropGear(Entity attacker)
     {
         var item = entity.World.GetItem(TemporalGear);
         if (item == null) return;
         var at = entity.Pos.XYZ.Add(0, .5, 0);
         if (attacker != null && attacker.Pos.Dimension == entity.Pos.Dimension && attacker.Pos.DistanceTo(entity.Pos.XYZ) < 48)
             at = attacker.Pos.XYZ.Add(0, .6, 0);
-        entity.World.SpawnItemEntity(new ItemStack(item, 1 + entity.World.Rand.Next(2)), at, new Vec3d(0, .05, 0));
+        entity.World.SpawnItemEntity(new ItemStack(item, 1), at, new Vec3d(0, .05, 0));
     }
 
     // True when the player is at the surface: feet no more than 3 blocks

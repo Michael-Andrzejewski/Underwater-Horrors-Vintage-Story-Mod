@@ -323,6 +323,8 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // what gets cancelled. Clamping first would let the same tick
         // command another dive straight back into the sea floor.
         ClampAboveSeaFloor(deltaTime);
+        // Nor out onto the shore.
+        KeepOffLand(HeadForwardOffset);
 
         UpdateFacing(deltaTime);
     }
@@ -333,16 +335,14 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     private void PickSurfacePoint()
     {
         surfacePointPicked = true;
-        var rand = entity.World.Rand;
-        float angle = (float)(rand.NextDouble() * Math.PI * 2);
-        float dist = SurfaceDistMin + (float)(rand.NextDouble() * (SurfaceDistMax - SurfaceDistMin));
-        surfaceX = targetPlayer.Entity.Pos.X + Math.Cos(angle) * dist;
-        surfaceZ = targetPlayer.Entity.Pos.Z + Math.Sin(angle) * dist;
+        // Somewhere around the player with room to come up: near a beach a
+        // random spot could be in the shallows or on the sand.
+        PickDeepSpot(targetPlayer.Entity.Pos.X, targetPlayer.Entity.Pos.Z, SurfaceDistMin, SurfaceDistMax, out surfaceX, out surfaceZ);
 
         if (config.DebugLogging)
             UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                 $"Serpent surface point: ({surfaceX:F0}, {surfaceZ:F0}), " +
-                $"{dist:F0} blocks from player at angle {angle * 180 / Math.PI:F0}°");
+                $"{Math.Sqrt(Math.Pow(surfaceX - targetPlayer.Entity.Pos.X, 2) + Math.Pow(surfaceZ - targetPlayer.Entity.Pos.Z, 2)):F0} blocks from player");
     }
 
     // ═══════════════════════════════════════════════════════════════════

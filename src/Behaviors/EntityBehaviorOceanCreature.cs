@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -146,6 +147,129 @@ public class EntityBehaviorOceanCreature : EntityBehavior
             entity.Pos.Y = minY;
             if (entity.Pos.Motion.Y < 0) entity.Pos.Motion.Y = 0;
         }
+    }
+
+    // Water at least this deep (the same as ShallowWaterThreshold's default)
+    // counts as somewhere a serpent may swim.
+    private const int ShoreStopDepth = 3;
+    // How fast a serpent with its head or tail over the shore backs off it,
+    // in blocks per 1/60 s (9 blocks a second): quick enough to undo a turn
+    // that swings an end over the sand.
+    private const double ShoreBackOff = 0.15;
+    // How far short of the shore its head and tail keep: it backs off
+    // before an end reaches land, not after.
+    private const double ShoreMargin = 5;
+    private const double ShoreSampleStep = 3;
+    private readonly BlockPos shorePos = new(0);
+    private double bodyFront = double.NaN, bodyBack;
+
+    /// <summary>
+    /// Keeps a serpent in the sea. Its AI steers straight at the player with
+    /// no idea where the shore is, over a beach the floor clamp only holds it
+    /// at sea level, and circling a player by the shore it swept its body
+    /// over the sand. So it slid out onto low ground.
+    ///
+    /// Each tick this checks for ShoreStopDepth of water below sea level:
+    /// ahead along its horizontal motion, past its head and half a second
+    /// further, where land cancels the motion; and every few blocks along its
+    /// body (the span of its hit proxies, or <paramref name="headReach"/>
+    /// each way, and ShoreMargin past each end), where any land drops the
+    /// motion toward it and backs the serpent off it, toward the water side.
+    /// About thirty block reads a tick. Call after the state handlers have
+    /// set the motion.
+    /// </summary>
+    protected void KeepOffLand(double headReach)
+    {
+        if (double.IsNaN(bodyFront))
+        {
+            float[] offsets = entity.GetBehavior<EntityBehaviorSerpentHitProxies>()?.Offsets;
+            bodyFront = offsets is { Length: > 0 } ? Math.Max(headReach, offsets.Max()) : headReach;
+            bodyBack = offsets is { Length: > 0 } ? Math.Max(0, -offsets.Min()) : headReach;
+        }
+        var pos = entity.Pos;
+        var motion = pos.Motion;
+
+        double h = Math.Sqrt(motion.X * motion.X + motion.Z * motion.Z);
+        if (h > 1e-5)
+        {
+            // Motion is in blocks per 1/60 s.
+            double ahead = bodyFront + 2 + h * 60 * 0.5;
+            if (!DeepEnoughAt(pos.X + motion.X / h * ahead, pos.Z + motion.Z / h * ahead))
+            {
+                motion.X = 0;
+                motion.Z = 0;
+            }
+        }
+
+        // Its body lies along its facing, head forward (the hit proxies'
+        // convention). Sample it every ShoreSampleStep blocks.
+        double fx = Math.Sin(pos.Yaw), fz = Math.Cos(pos.Yaw);
+        double from = -(bodyBack + ShoreMargin), to = bodyFront + ShoreMargin;
+        int dry = 0, wet = 0;
+        double dryX = 0, dryZ = 0, wetX = 0, wetZ = 0;
+        for (double k = from; k <= to + 1e-6; k += ShoreSampleStep)
+        {
+            double x = pos.X + fx * k, z = pos.Z + fz * k;
+            if (DeepEnoughAt(x, z)) { wet++; wetX += x; wetZ += z; }
+            else { dry++; dryX += x; dryZ += z; }
+        }
+        if (dry == 0) return;
+
+        // Off the land, toward the water side of its body.
+        double ax, az;
+        if (wet > 0) { ax = wetX / wet - dryX / dry; az = wetZ / wet - dryZ / dry; }
+        else { ax = pos.X - dryX / dry; az = pos.Z - dryZ / dry; }
+        double al = Math.Sqrt(ax * ax + az * az);
+        if (al < 1e-3) { ax = -fx; az = -fz; al = 1; }
+        ax /= al; az /= al;
+        double toward = -(motion.X * ax + motion.Z * az);
+        if (toward > 0)
+        {
+            motion.X += toward * ax;
+            motion.Z += toward * az;
+        }
+        motion.X += ax * ShoreBackOff;
+        motion.Z += az * ShoreBackOff;
+    }
+
+    /// <summary>
+    /// A spot to come up at: the spot and four points a body length (12
+    /// blocks) around it all have ShoreStopDepth of water. Up to eight random
+    /// spots dist blocks from (cx, cz) are tried; with none, the creature's
+    /// own position, which is in the water.
+    /// </summary>
+    protected void PickDeepSpot(double cx, double cz, float distMin, float distMax, out double x, out double z)
+    {
+        var rand = entity.World.Rand;
+        for (int i = 0; i < 8; i++)
+        {
+            double angle = rand.NextDouble() * Math.PI * 2;
+            double dist = distMin + rand.NextDouble() * (distMax - distMin);
+            x = cx + Math.Cos(angle) * dist;
+            z = cz + Math.Sin(angle) * dist;
+            if (DeepEnoughAt(x, z) && DeepEnoughAt(x + 12, z) && DeepEnoughAt(x - 12, z)
+                && DeepEnoughAt(x, z + 12) && DeepEnoughAt(x, z - 12)) return;
+        }
+        x = entity.Pos.X;
+        z = entity.Pos.Z;
+    }
+
+    protected bool DeepEnoughAt(double x, double z)
+    {
+        var accessor = entity.World.BlockAccessor;
+        int top = entity.World.SeaLevel - 1;
+        shorePos.Set((int)Math.Floor(x), top, (int)Math.Floor(z));
+        shorePos.dimension = entity.Pos.Dimension;
+        // Not loaded: no way to tell, so do not hold it back.
+        if (accessor.GetChunkAtBlockPos(shorePos) == null) return true;
+        for (int i = 0; i < ShoreStopDepth; i++)
+        {
+            shorePos.Y = top - i;
+            // The fluid layer: seaweed and coral sit in the water, and the
+            // plain block read would return the plant, not the water.
+            if (!WaterHelper.IsWaterBlock(accessor.GetBlock(shorePos, BlockLayersAccess.Fluid))) return false;
+        }
+        return true;
     }
 
     // Movement speed scale applied inside MoveToward / MoveTowardDamped.

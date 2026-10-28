@@ -12,6 +12,10 @@ public sealed class AnglerfishLureCycle
     public const double SegmentLength = 4;
     public readonly Vec3d Velocity = new();
 
+    // How far ahead of its prey the gear hangs, toward the fish: within
+    // reach of a sword (it was 11.5, out of reach of anything but a bow).
+    public const double LeadDistance = 3.5;
+
     public static Vec3d BaitGoal(Vec3d player, Vec3d anchor, double time)
     {
         double dx=anchor.X-player.X,dz=anchor.Z-player.Z;
@@ -21,16 +25,16 @@ public sealed class AnglerfishLureCycle
         double dy=Math.Min(-.8,(anchor.Y-player.Y)*depthBlend);
         double length=Math.Sqrt(dx*dx+dy*dy+dz*dz);
         double sway=Math.Sin(time*.6)*.65;
-        return new Vec3d(player.X+dx/length*11.5+(horizontal>.001?-dz/horizontal*sway:0),
-            player.Y+dy/length*11.5+Math.Sin(time*.9)*.18,
-            player.Z+dz/length*11.5+(horizontal>.001?dx/horizontal*sway:0));
+        return new Vec3d(player.X+dx/length*LeadDistance+(horizontal>.001?-dz/horizontal*sway:0),
+            player.Y+dy/length*LeadDistance+Math.Sin(time*.9)*.18,
+            player.Z+dz/length*LeadDistance+(horizontal>.001?dx/horizontal*sway:0));
     }
 
     // How high the gear hangs over the waves for prey at the surface.
     public const double HoverHeight = 2.5;
 
     /// <summary>
-    /// For prey at the surface: the gear hangs above the water, 11.5 blocks
+    /// For prey at the surface: the gear hangs above the water, LeadDistance
     /// from them toward the fish and never past it, so following it leads
     /// them over the fish's mouth.
     /// </summary>
@@ -38,7 +42,7 @@ public sealed class AnglerfishLureCycle
     {
         double dx=anchor.X-player.X,dz=anchor.Z-player.Z;
         double horizontal=Math.Sqrt(dx*dx+dz*dz);
-        double reach=Math.Min(11.5,horizontal);
+        double reach=Math.Min(LeadDistance,horizontal);
         double ux=horizontal>.001?dx/horizontal:0,uz=horizontal>.001?dz/horizontal:0;
         double sway=Math.Sin(time*.6)*.65;
         return new Vec3d(player.X+ux*reach-uz*sway,

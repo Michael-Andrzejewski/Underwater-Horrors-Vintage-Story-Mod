@@ -18,8 +18,7 @@
         { "type": "item", "code": "game:jonasparts-cylinder02", "quantity": { "avg": 0.6, "var": 0.5 } },
         { "type": "item", "code": "game:jonasparts-tank01", "quantity": { "avg": 0.6, "var": 0.5 } },
         { "type": "item", "code": "game:jonasparts-tank02", "quantity": { "avg": 0.6, "var": 0.5 } },
-        { "type": "item", "code": "game:jonasparts-valve01", "quantity": { "avg": 0.6, "var": 0.5 } },
-        { "type": "item", "code": "game:jonasparts-pumphead", "quantity": { "avg": 0.6, "var": 0.5 } }
+        { "type": "item", "code": "game:jonasparts-valve01", "quantity": { "avg": 0.6, "var": 0.5 } }
     ],
     "client": {
         "renderer": "Shape",
