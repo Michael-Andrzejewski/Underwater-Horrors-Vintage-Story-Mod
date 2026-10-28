@@ -132,8 +132,11 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentOpenOceanRadius` | float | `50f` | How far around the player the open-ocean test looks, in blocks. |
 | `GiantSerpentOpenOceanDepth` | int | `50` | How deep the saltwater must be at the player and at every tested column. |
 | `GiantSerpentChanceMigrated` | bool | `false` |  |
-| `GiantSerpentMaxHealth` | float | `1500f` | Its health. It can only be hit while its body passes the surface after a strike, about 20 seconds a pass, and it never flees when hurt; a player must finish it before it sinks their boat and kills them in the water. Giants already out keep the health they came with. |
+| `GiantSerpentMaxHealth` | float | `1500f` | Its health. It can only be hit while its body passes the surface after a strike, about 20 seconds a pass; a player must finish it before it sinks their boat and kills them in the water. Giants already out keep the health they came with. |
 | `GiantSerpentHealth1500Migrated` | bool | `false` |  |
+| `GiantSerpentFleeHealthFraction` | float | `0.25f` | Once its health falls below this fraction it flees, once: it swims off to GiantSerpentFleeDistance blocks from its prey, circles there until GiantSerpentFleeSeconds have passed, then comes back and fights to the death. 0 turns fleeing off. |
+| `GiantSerpentFleeSeconds` | float | `60f` |  |
+| `GiantSerpentFleeDistance` | float | `200f` | How far from its prey it flees, in blocks. Kept under 80% of DespawnMaxDistance, so fleeing never gets it removed. At 200 its deep silhouette (drawn out to 230 blocks) stays in sight. |
 | `GiantSerpentBiteDamage` | float | `20f` | Damage of a bite on a swimmer, and its armor piercing tier. |
 | `GiantSerpentDamageTier` | int | `5` |  |
 | `GiantSerpentTierMigrated` | bool | `false` |  |

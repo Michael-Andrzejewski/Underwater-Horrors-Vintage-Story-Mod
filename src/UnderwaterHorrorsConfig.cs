@@ -512,11 +512,21 @@ public class UnderwaterHorrorsConfig
     public int GiantSerpentOpenOceanDepth { get; set; } = 50;
     public bool GiantSerpentChanceMigrated { get; set; } = false;
     // Its health. It can only be hit while its body passes the surface after
-    // a strike, about 20 seconds a pass, and it never flees when hurt; a
-    // player must finish it before it sinks their boat and kills them in
-    // the water. Giants already out keep the health they came with.
+    // a strike, about 20 seconds a pass; a player must finish it before it
+    // sinks their boat and kills them in the water. Giants already out keep
+    // the health they came with.
     public float GiantSerpentMaxHealth { get; set; } = 1500f;
     public bool GiantSerpentHealth1500Migrated { get; set; } = false;
+    // Once its health falls below this fraction it flees, once: it swims off
+    // to GiantSerpentFleeDistance blocks from its prey, circles there until
+    // GiantSerpentFleeSeconds have passed, then comes back and fights to the
+    // death. 0 turns fleeing off.
+    public float GiantSerpentFleeHealthFraction { get; set; } = 0.25f;
+    public float GiantSerpentFleeSeconds { get; set; } = 60f;
+    // How far from its prey it flees, in blocks. Kept under 80% of
+    // DespawnMaxDistance, so fleeing never gets it removed. At 200 its deep
+    // silhouette (drawn out to 230 blocks) stays in sight.
+    public float GiantSerpentFleeDistance { get; set; } = 200f;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
     public int GiantSerpentDamageTier { get; set; } = 5;
@@ -910,6 +920,9 @@ public class UnderwaterHorrorsConfig
         GiantSerpentOpenOceanRadius = Math.Clamp(GiantSerpentOpenOceanRadius, 0f, 200f);
         GiantSerpentOpenOceanDepth = Math.Max(1, GiantSerpentOpenOceanDepth);
         GiantSerpentMaxHealth = Math.Max(1f, GiantSerpentMaxHealth);
+        GiantSerpentFleeHealthFraction = Math.Clamp(GiantSerpentFleeHealthFraction, 0f, 1f);
+        GiantSerpentFleeSeconds = Math.Max(0f, GiantSerpentFleeSeconds);
+        GiantSerpentFleeDistance = Math.Max(20f, GiantSerpentFleeDistance);
         GiantSerpentBiteDamage = Math.Max(0f, GiantSerpentBiteDamage);
         GiantSerpentRiderDamage = Math.Max(0f, GiantSerpentRiderDamage);
         GiantSerpentBitesToSinkBoat = Math.Max(1, GiantSerpentBitesToSinkBoat);

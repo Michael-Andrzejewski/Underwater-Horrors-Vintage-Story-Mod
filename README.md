@@ -15,6 +15,10 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.24.2
+
+- The Rust Leviathan flees again when badly hurt, but only for a while. Below a quarter of its health (`GiantSerpentFleeHealthFraction`) it swims off to 200 blocks from its prey (`GiantSerpentFleeDistance`) and circles there, then after a minute (`GiantSerpentFleeSeconds`) comes back and fights to the death. It flees once in its life, waits for a strike under way to finish first, and never goes far enough to be removed: the flee distance stays under 80% of `DespawnMaxDistance`.
+
 ### 0.24.1
 
 - The Rust Leviathan has 1500 health again (`GiantSerpentMaxHealth`; a config still at 0.23.0's 600 moves up once). Giants already out keep the health they came with.

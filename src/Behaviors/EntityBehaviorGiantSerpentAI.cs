@@ -17,7 +17,8 @@ public enum GiantSerpentState
     Strike,
     Breach,
     Retreat,
-    Withdraw
+    Withdraw,
+    Flee
 }
 
 /// <summary>
@@ -46,8 +47,10 @@ public enum GiantSerpentState
 /// GiantSerpentMaxStaySeconds unless a player has hurt it lately. Either way
 /// it is only removed once its whole body is out of sight of every player;
 /// the creature sweep also removes it after its prey has been ashore for
-/// GiantSerpentDespawnAfterLandSeconds. Hurt, it never flees: it fights to
-/// the death, and a killed giant breaks apart
+/// GiantSerpentDespawnAfterLandSeconds. Badly hurt, it flees once (Flee):
+/// out to GiantSerpentFleeDistance from its prey, where it circles until
+/// GiantSerpentFleeSeconds are up, never far enough to be removed. Then it
+/// comes back and fights to the death, and a killed giant breaks apart
 /// (EntityBehaviorGiantSerpentBreakup).
 /// </summary>
 public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
@@ -77,6 +80,10 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     // A player who hurt it this recently is fighting it: it does not swim
     // off at the end of its stay while the fight goes on.
     private const float FightHoldSeconds = 120f;
+
+    // Set once it has fled, so it flees only once in its life (kept in the
+    // save).
+    public const string FledAttr = "underwaterhorrors:giantFled";
 
     /// <summary>
     /// Set on a giant for screenshots and model inspection: it circles its
@@ -108,6 +115,9 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
     private double circleDuration;
     private bool firstCircle = true;
     private float unreachableTimer, reachableTimer;
+
+    // Fleeing: true once it is out at the flee distance and circling there.
+    private bool fleeHolding;
 
     // Setup and strike
     private bool setupGainingRoom;
@@ -212,6 +222,15 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
                 Log($"stayed {lifeTimer:F0}s, retreating");
                 TransitionTo(GiantSerpentState.Retreat);
             }
+            else if (!Showcase && FleeDue() &&
+                     (state == GiantSerpentState.Approach || state == GiantSerpentState.Circle ||
+                      state == GiantSerpentState.Setup || state == GiantSerpentState.Withdraw))
+            {
+                // A strike under way finishes first: this waits for Circle.
+                Log($"badly hurt ({HealthFraction() * 100:F0}%), fleeing for {config.GiantSerpentFleeSeconds:F0}s");
+                entity.Attributes.SetBool(FledAttr, true);
+                TransitionTo(GiantSerpentState.Flee);
+            }
             else if (!Showcase && (state == GiantSerpentState.Approach ||
                      state == GiantSerpentState.Circle || state == GiantSerpentState.Setup))
             {
@@ -235,6 +254,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             case GiantSerpentState.Breach: OnBreach(dt); break;
             case GiantSerpentState.Retreat: OnRetreat(dt); break;
             case GiantSerpentState.Withdraw: OnWithdraw(dt); break;
+            case GiantSerpentState.Flee: OnFlee(dt); break;
         }
         if (!entity.Alive) return;
 
@@ -424,6 +444,11 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
                 StopAnim(AnimGape);
                 reachableTimer = 0;
                 break;
+            case GiantSerpentState.Flee:
+                StopAnim(AnimGape);
+                PlayDive();
+                fleeHolding = false;
+                break;
             case GiantSerpentState.Approach:
                 unreachableTimer = 0;
                 break;
@@ -611,6 +636,47 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             Log("out of sight, gone");
             entity.Die(EnumDespawnReason.Expire);
         }
+    }
+
+    private void OnFlee(float dt)
+    {
+        if (prey == null) return;
+        // Away from its prey, deep, out to the flee distance; there it
+        // circles, still in sight and well inside the creature sweep's
+        // despawn distance, until its time is up.
+        double fleeDist = Math.Min(config.GiantSerpentFleeDistance, 0.8 * config.DespawnMaxDistance);
+        double ax = entity.Pos.X - prey.Pos.X, az = entity.Pos.Z - prey.Pos.Z;
+        double h = Math.Max(1e-3, Math.Sqrt(ax * ax + az * az));
+        double deepY = CruiseY(StrikeDepth);
+        if (h >= fleeDist) fleeHolding = true;
+        if (fleeHolding)
+        {
+            double ang = Math.Atan2(az, ax) + orbitDir * 25 * GameMath.DEG2RAD;
+            Steer(prey.Pos.X + Math.Cos(ang) * fleeDist, deepY, prey.Pos.Z + Math.Sin(ang) * fleeDist,
+                config.GiantSerpentCruiseSpeed, 14, 10, 25, dt);
+        }
+        else
+        {
+            Steer(entity.Pos.X + ax / h * 100, deepY, entity.Pos.Z + az / h * 100,
+                config.GiantSerpentCruiseSpeed * 1.4, 12, 12, 30, dt);
+        }
+
+        if (stateTimer >= config.GiantSerpentFleeSeconds)
+        {
+            Log("done fleeing, coming back");
+            TransitionTo(GiantSerpentState.Approach);
+        }
+    }
+
+    private bool FleeDue() =>
+        config.GiantSerpentFleeHealthFraction > 0 && !entity.Attributes.GetBool(FledAttr) &&
+        HealthFraction() < config.GiantSerpentFleeHealthFraction;
+
+    private float HealthFraction()
+    {
+        var health = entity.GetBehavior<EntityBehaviorHealth>();
+        if (health == null || health.MaxHealth <= 0) return 1f;
+        return health.Health / health.MaxHealth;
     }
 
     /// <summary>
