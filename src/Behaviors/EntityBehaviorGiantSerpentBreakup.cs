@@ -16,8 +16,8 @@ namespace UnderwaterHorrors;
 /// its jaws and teeth, each neck and tail segment with its own fins and
 /// spikes. Every piece is laid exactly where and how that bone was drawn,
 /// side wave and all, so the body comes apart in place. Each piece holds
-/// its share of the hoard for a knife to harvest, drifts a little way from
-/// its neighbours and sinks to the sea floor.
+/// its share of the hoard until a knife cuts it open, drifts a little way
+/// from its neighbours and sinks to the sea floor.
 ///
 /// Only real deaths break apart (vanilla fires OnEntityDeath for damage
 /// deaths only); a giant that swims out of sight just goes. The corpse is
@@ -144,7 +144,7 @@ public class EntityBehaviorGiantSerpentBreakup : EntityBehavior
             world.SpawnEntity(piece);
             spawned++;
 
-            Burst(jx[i], jy[i], jz[i], (float)(ext[4] * size));
+            Burst(world, jx[i], jy[i], jz[i], (float)(ext[4] * size));
         }
 
         // A few cracks along the body rather than twenty at once.
@@ -166,10 +166,10 @@ public class EntityBehaviorGiantSerpentBreakup : EntityBehavior
         }
     }
 
-    // Rust flakes and a rush of bubbles where the body splits.
-    private void Burst(double x, double y, double z, float halfWidth)
+    // Rust flakes and a rush of bubbles where the body splits, or where a
+    // knife cuts a piece open.
+    internal static void Burst(IWorldAccessor world, double x, double y, double z, float halfWidth)
     {
-        var world = entity.World;
         var flakes = new SimpleParticleProperties(
             20, 35, ColorUtil.ToRgba(255, 120, 62, 28),
             new Vec3d(x - halfWidth, y - halfWidth, z - halfWidth), new Vec3d(x + halfWidth, y + halfWidth, z + halfWidth),

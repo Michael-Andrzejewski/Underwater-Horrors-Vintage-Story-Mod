@@ -15,6 +15,10 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.25.2
+
+- A Rust Leviathan segment is cut open with one right click of a knife: no shift, no wait and no dialog. Its loot spills out along it into the water (fish and bone float up, metal sinks), and the segment crumbles into its bones. The click works anywhere along a segment. Before, the game only let a survival player target a segment within 4.5 blocks of its pivot at one end, so most of a long segment could only be reached in creative. A cut costs the knife 3 durability, as a carcass harvest does. Serpent and anglerfish carcasses still use the carcass dialog.
+
 ### 0.25.1
 
 - Serpents stay in the sea. They pick their surfacing spot only where the water is deep (it used to be any spot 10 to 30 blocks from the player, sand included). Each tick they check ahead along their motion and every 3 blocks along their body, 5 blocks past each end, for 3 blocks of water (seaweed counts as water), and back off any land at 9 blocks a second.

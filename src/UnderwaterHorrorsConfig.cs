@@ -566,10 +566,10 @@ public class UnderwaterHorrorsConfig
     // /uh spawn giantserpent ignores it.
     public float GiantSerpentKillCooldownMinutes { get; set; } = 120f;
     // A killed giant breaks apart into its 22 body segments, which sink to
-    // the sea floor. Each segment is harvested on its own with a knife, like
-    // a carcass, and holds these, a random count between the two numbers:
-    // rusty gears, temporal gears, 1 to 3 of every kind of Jonas part, raw
-    // fish and bones.
+    // the sea floor. One right click with a knife cuts a segment open and
+    // spills its share into the water, a random count between the two
+    // numbers: rusty gears, temporal gears, 1 to 3 of every kind of Jonas
+    // part, raw fish and bones.
     public int GiantSerpentPieceRustyGearsMin { get; set; } = 10;
     public int GiantSerpentPieceRustyGearsMax { get; set; } = 15;
     public int GiantSerpentPieceTemporalGearsMin { get; set; } = 1;

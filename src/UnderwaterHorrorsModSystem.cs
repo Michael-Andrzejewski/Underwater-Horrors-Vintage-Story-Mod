@@ -164,7 +164,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         api.Network.RegisterChannel("underwaterhorrors")
             .RegisterMessageType(typeof(DebugToggleMessage))
-            .RegisterMessageType(typeof(MonsterSoundMessage));
+            .RegisterMessageType(typeof(MonsterSoundMessage))
+            .RegisterMessageType(typeof(SegmentCutMessage));
     }
 
     public override void StartClientSide(ICoreClientAPI api)
@@ -209,6 +210,16 @@ public class UnderwaterHorrorsModSystem : ModSystem
         api.Network.GetChannel("underwaterhorrors")
             .SetMessageHandler<DebugToggleMessage>(OnDebugToggleReceived)
             .SetMessageHandler<MonsterSoundMessage>(OnMonsterSoundReceived);
+
+        capi.Input.InWorldAction += OnInWorldAction;
+    }
+
+    // A knife's right click anywhere on a Rust Leviathan segment, which the
+    // game's own picking misses (GiantSerpentPieceEntity.ClientTryCut).
+    private void OnInWorldAction(EnumEntityAction action, bool on, ref EnumHandling handled)
+    {
+        if (action != EnumEntityAction.InWorldRightMouseDown || !on || handled != EnumHandling.PassThrough) return;
+        if (GiantSerpentPieceEntity.ClientTryCut(capi)) handled = EnumHandling.PreventDefault;
     }
 
     private void OnLevelFinalize()
@@ -256,6 +267,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             capi.Event.LevelFinalize -= OnLevelFinalize;
             capi.Event.LeaveWorld -= OnLeaveWorld;
             capi.Event.ReloadShader -= OnReloadShader;
+            capi.Input.InWorldAction -= OnInWorldAction;
 
             if (spectralRenderer != null)
                 capi.Event.UnregisterRenderer(spectralRenderer, EnumRenderStage.AfterOIT);
@@ -648,6 +660,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         api.Event.PlayerJoin += OnPlayerJoinSyncDebug;
         api.Event.OnEntityLoaded += RemoveSavedKrakenPart;
+        api.Network.GetChannel("underwaterhorrors")
+            .SetMessageHandler<SegmentCutMessage>((player, msg) =>
+            {
+                if (api.World.GetEntityById(msg.EntityId) is GiantSerpentPieceEntity piece) piece.TryCutOpen(player.Entity);
+            });
         api.Event.SaveGameLoaded += LoadGiantKillTime;
         api.Event.GameWorldSave += StoreGiantKillTime;
 

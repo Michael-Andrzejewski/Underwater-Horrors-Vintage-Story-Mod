@@ -23,14 +23,11 @@
         "glowLevel": 0,
         "size": 5.0,
         "behaviors": [
-            { "code": "underwaterhorrors:giantserpentmotion", "keepTilt": true },
-            { "code": "underwaterhorrors:harvestable", "duration": 3, "fixedweight": true, "drops": [] }
+            { "code": "underwaterhorrors:giantserpentmotion", "keepTilt": true }
         ]
     },
     "server": {
-        "behaviors": [
-            { "code": "underwaterhorrors:harvestable", "duration": 3, "fixedweight": true, "drops": [] }
-        ]
+        "behaviors": []
     },
     "sounds": {}
 }

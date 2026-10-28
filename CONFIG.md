@@ -153,7 +153,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentMaxStaySeconds` | float | `480f` | It swims off after this many seconds even if its prey is still at sea, unless a player has hurt it in the last two minutes: then it stays and fights. |
 | `GiantSerpentSoundPitch` | float | `0.6f` | Pitch of its bite and other sounds: the rust serpent's, played slower and deeper. 1 is the rust serpent's own pitch. |
 | `GiantSerpentKillCooldownMinutes` | float | `120f` | After a player kills one, no natural giant comes anywhere on the server for this many real minutes. The time is kept in the save, so it counts on while the server is off. /uh giantcooldown shows or clears it; /uh spawn giantserpent ignores it. |
-| `GiantSerpentPieceRustyGearsMin` | int | `10` | A killed giant breaks apart into its 22 body segments, which sink to the sea floor. Each segment is harvested on its own with a knife, like a carcass, and holds these, a random count between the two numbers: rusty gears, temporal gears, 1 to 3 of every kind of Jonas part, raw fish and bones. |
+| `GiantSerpentPieceRustyGearsMin` | int | `10` | A killed giant breaks apart into its 22 body segments, which sink to the sea floor. One right click with a knife cuts a segment open and spills its share into the water, a random count between the two numbers: rusty gears, temporal gears, 1 to 3 of every kind of Jonas part, raw fish and bones. |
 | `GiantSerpentPieceRustyGearsMax` | int | `15` |  |
 | `GiantSerpentPieceTemporalGearsMin` | int | `1` |  |
 | `GiantSerpentPieceTemporalGearsMax` | int | `4` |  |

@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace UnderwaterHorrors;
@@ -22,12 +25,16 @@ namespace UnderwaterHorrors;
 /// lies until GiantSerpentPieceDecayHours have passed, then crumbles into a
 /// pile of bones.
 ///
-/// Each piece holds its share of the giant's hoard, harvested the game's way
-/// with a knife and the carcass contents dialog
-/// (EntityBehaviorRemainsHarvestable; the loot settings are the
-/// GiantSerpentPiece ones). Emptied, it crumbles at once. Its selection box
-/// is the box around its body at its current heading, which is roomy
-/// whenever it lies diagonally.
+/// Each piece holds its share of the giant's hoard (the GiantSerpentPiece
+/// loot settings). One right click with a knife anywhere on it cuts it open:
+/// the loot spills out along its body into the water, and the piece crumbles
+/// at once. The game itself only picks entities whose position is within
+/// reach of the eye, and a piece's position is its pivot at one end of a body
+/// up to 20 blocks long, so the client casts the click against the piece's
+/// box itself (ClientTryCut) and sends it as a SegmentCutMessage, whose reach
+/// the server also measures to the body. The selection box is the box around
+/// its body at its current heading, which is roomy whenever it lies
+/// diagonally.
 ///
 /// It moves with the giant's own client smoothing
 /// (giantserpentmotion, keeping its tilt), and each client rolls it onto its
@@ -37,7 +44,7 @@ namespace UnderwaterHorrors;
 /// The pieces are saved with their chunk, cannot be hit, and keep ticking
 /// while they sink, however far the player is.
 /// </summary>
-public class GiantSerpentPieceEntity : Entity, IHarvestableDrops
+public class GiantSerpentPieceEntity : Entity
 {
     /// <summary>The piece's solid body around its pivot, in blocks, in its
     /// rest frame: back from, back to, below, above, half width.</summary>
@@ -54,6 +61,9 @@ public class GiantSerpentPieceEntity : Entity, IHarvestableDrops
     private const float DriftDecay = 0.4f;
     private const float LevelRate = 0.35f;
     private const float RollRate = 0.5f;
+    // Durability a cut costs the knife, as much as a vanilla harvest.
+    private const int KnifeWear = 3;
+    private static readonly AssetLocation CutSound = new("game", "sounds/player/scrape");
 
     private float sinkSpeed = 1f;
     private double driftX, driftZ;
@@ -92,6 +102,8 @@ public class GiantSerpentPieceEntity : Entity, IHarvestableDrops
         base.Initialize(properties, api, InChunkIndex3d);
         // Clients keep the far end of a 200-block body in sight too.
         SimulationRange = Math.Max(SimulationRange, 300);
+        // A knife's reach is measured to this box, before the first tick too.
+        UpdateBox();
         if (api.Side != EnumAppSide.Server) return;
         sinkSpeed = SinkSpeedMin + (float)api.World.Rand.NextDouble() * (SinkSpeedMax - SinkSpeedMin);
         driftX = Attributes.GetDouble("driftX");
@@ -229,14 +241,138 @@ public class GiantSerpentPieceEntity : Entity, IHarvestableDrops
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    //  The knife
+    // ═══════════════════════════════════════════════════════════════════
+    private static bool IsKnife(ItemSlot slot) => slot?.Itemstack?.Collectible?.Tool == EnumTool.Knife;
+
+    public override void OnInteract(EntityAgent byEntity, ItemSlot slot, Vec3d hitPosition, EnumInteractMode mode)
+    {
+        if (mode != EnumInteractMode.Interact || !IsKnife(slot))
+        {
+            base.OnInteract(byEntity, slot, hitPosition, mode);
+            return;
+        }
+        if (World.Side == EnumAppSide.Client)
+        {
+            ((ICoreClientAPI)Api).Network.GetChannel("underwaterhorrors").SendPacket(new SegmentCutMessage { EntityId = EntityId });
+        }
+        else if (byEntity is EntityPlayer player)
+        {
+            // The game's own click, when it reaches the server; the message
+            // above then finds the piece gone.
+            TryCutOpen(player);
+        }
+    }
+
+    /// <summary>
+    /// Cuts the piece open for a player holding a knife within reach of its
+    /// body: its loot spills out and it crumbles. False if it cannot.
+    /// </summary>
+    public bool TryCutOpen(EntityPlayer byPlayer)
+    {
+        if (!Alive || World.Side != EnumAppSide.Server || byPlayer?.Player is not IServerPlayer player) return false;
+        ItemSlot slot = player.InventoryManager.ActiveHotbarSlot;
+        if (!IsKnife(slot)) return false;
+        Cuboidd body = SelectionBox.ToDouble().Translate(Pos.X, Pos.Y, Pos.Z);
+        Vec3d eye = byPlayer.Pos.XYZ.Add(byPlayer.LocalEyePos);
+        if (body.ShortestDistanceFrom(eye) > player.WorldData.PickingRange + 1) return false;
+
+        SpillLoot();
+        World.PlaySoundAt(CutSound, byPlayer, null, true, 16);
+        slot.Itemstack.Collectible.DamageItem(World, byPlayer, slot, KnifeWear);
+        Crumble();
+        return true;
+    }
+
+    /// <summary>
+    /// The client's right click, before the game handles it: with a knife in
+    /// hand, the player's look against every nearby piece's box. When a piece
+    /// is the nearest thing it hits, the cut goes to the server and the
+    /// click is taken.
+    /// </summary>
+    internal static bool ClientTryCut(ICoreClientAPI capi)
+    {
+        IClientPlayer plr = capi.World.Player;
+        if (plr?.Entity == null || !IsKnife(plr.InventoryManager.ActiveHotbarSlot)) return false;
+        EntityPlayer ep = plr.Entity;
+        Vec3d eye = ep.Pos.XYZ.Add(ep.LocalEyePos);
+        // The ray the game picks with (GameMain.RayTraceForSelection).
+        Ray ray = Ray.FromAngles(eye, ep.Pos.Pitch, ep.Pos.Yaw, plr.WorldData.PickingRange);
+
+        GiantSerpentPieceEntity hit = null;
+        double best = double.MaxValue;
+        foreach (Entity e in capi.World.LoadedEntities.Values)
+        {
+            if (e is not GiantSerpentPieceEntity piece || !piece.Alive) continue;
+            if (piece.Pos.XYZ.SquareDistanceTo(eye) > ClientCutSearch * ClientCutSearch) continue;
+            Cuboidd box = piece.SelectionBox.ToDouble().Translate(piece.Pos.X, piece.Pos.Y, piece.Pos.Z);
+            if (RayEnters(box, ray, out double d) && d < best)
+            {
+                best = d;
+                hit = piece;
+            }
+        }
+        if (hit == null) return false;
+
+        // Not through a block, or a creature the game picked nearer.
+        BlockSelection bs = plr.CurrentBlockSelection;
+        if (bs != null && new Vec3d(bs.Position.X, bs.Position.InternalY, bs.Position.Z).Add(bs.HitPosition).DistanceTo(eye) < best) return false;
+        EntitySelection es = plr.CurrentEntitySelection;
+        if (es != null && es.Entity != hit && es.Entity.Pos.XYZ.Add(es.HitPosition).DistanceTo(eye) < best) return false;
+
+        capi.Network.GetChannel("underwaterhorrors").SendPacket(new SegmentCutMessage { EntityId = hit.EntityId });
+        return true;
+    }
+
+    // Pivots this far from the eye are looked at: the longest piece, plus reach.
+    private const double ClientCutSearch = 30;
+
+    // How far along the ray it enters the box, within the ray's length.
+    private static bool RayEnters(Cuboidd box, Ray ray, out double distance)
+    {
+        double t0 = 0, t1 = 1;
+        Vec3d o = ray.origin, d = ray.dir;
+        distance = 0;
+        if (!Slab(o.X, d.X, box.X1, box.X2, ref t0, ref t1)) return false;
+        if (!Slab(o.Y, d.Y, box.Y1, box.Y2, ref t0, ref t1)) return false;
+        if (!Slab(o.Z, d.Z, box.Z1, box.Z2, ref t0, ref t1)) return false;
+        distance = t0 * ray.Length;
+        return true;
+    }
+
+    private static bool Slab(double o, double d, double min, double max, ref double t0, ref double t1)
+    {
+        if (Math.Abs(d) < 1e-9) return o >= min && o <= max;
+        double a = (min - o) / d, b = (max - o) / d;
+        if (a > b) (a, b) = (b, a);
+        t0 = Math.Max(t0, a);
+        t1 = Math.Min(t1, b);
+        return t0 <= t1;
+    }
+
+    public override WorldInteraction[] GetInteractionHelp(IClientWorldAccessor world, EntitySelection es, IClientPlayer player)
+    {
+        return new[]
+        {
+            new WorldInteraction
+            {
+                ActionLangCode = "underwaterhorrors:piecehelp-cut",
+                MouseButton = EnumMouseButton.Right,
+                Itemstacks = ObjectCacheUtil.GetToolStacks(world.Api, EnumTool.Knife)
+            }
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     //  Loot and decay (server)
     // ═══════════════════════════════════════════════════════════════════
-    /// <summary>This piece's share of the hoard, asked once by the harvest.</summary>
-    public ItemStack[] GetHarvestableDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer)
+    /// <summary>A fresh roll of this piece's share of the hoard.</summary>
+    public ItemStack[] RollLoot()
     {
         var cfg = UnderwaterHorrorsModSystem.Config;
         var loot = new List<ItemStack>();
         if (cfg == null) return loot.ToArray();
+        IWorldAccessor world = World;
         var rand = world.Rand;
         void Add(AssetLocation code, int min, int max) =>
             EntityBehaviorSerpentHarvest.AddStacks(world, loot, code, min + rand.Next(Math.Max(0, max - min) + 1));
@@ -248,6 +384,42 @@ public class GiantSerpentPieceEntity : Entity, IHarvestableDrops
         Add(EntityBehaviorSerpentHarvest.FishAsset, cfg.GiantSerpentPieceFishMin, cfg.GiantSerpentPieceFishMax);
         Add(EntityBehaviorSerpentHarvest.BoneAsset, cfg.GiantSerpentPieceBonesMin, cfg.GiantSerpentPieceBonesMax);
         return loot.ToArray();
+    }
+
+    // Each stack comes out somewhere along the body with a little push up
+    // and out; the water does the rest: fish and bone float up, metal sinks.
+    private void SpillLoot()
+    {
+        float[] e = Extent;
+        var rand = World.Rand;
+        double fx = -Math.Sin(Pos.Yaw), fz = -Math.Cos(Pos.Yaw);
+        double from = e?[0] ?? 0, to = e?[1] ?? 0, spread = e == null ? 0.5 : e[4] * 0.6;
+        foreach (ItemStack stack in RollLoot())
+        {
+            double along = from + (to - from) * rand.NextDouble();
+            var at = new Vec3d(
+                Pos.X + fx * along + (rand.NextDouble() - 0.5) * spread,
+                Pos.Y + 0.5,
+                Pos.Z + fz * along + (rand.NextDouble() - 0.5) * spread);
+            OutOfTheFloor(at);
+            var push = new Vec3d((rand.NextDouble() - 0.5) * 0.1, 0.05 + rand.NextDouble() * 0.08, (rand.NextDouble() - 0.5) * 0.1);
+            World.SpawnItemEntity(stack, at, push);
+        }
+        double mid = (from + to) / 2;
+        EntityBehaviorGiantSerpentBreakup.Burst(World, Pos.X + fx * mid, Pos.Y, Pos.Z + fz * mid, e == null ? 1f : e[4]);
+    }
+
+    // Up out of any solid block the body lies against.
+    private void OutOfTheFloor(Vec3d at)
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            tmpPos.Set((int)Math.Floor(at.X), (int)Math.Floor(at.Y), (int)Math.Floor(at.Z));
+            tmpPos.dimension = Pos.Dimension;
+            Cuboidf[] boxes = World.BlockAccessor.GetBlock(tmpPos).CollisionBoxes;
+            if (boxes == null || boxes.Length == 0) return;
+            at.Y = tmpPos.Y + 1.2;
+        }
     }
 
     private void CheckDecay()
