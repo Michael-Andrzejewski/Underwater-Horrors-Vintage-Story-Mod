@@ -17,6 +17,7 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ### 0.24.3
 
+- New admin command `/uh spawn anglerfish coast` lays an anglerfish off the nearest coast, the way a natural one comes, for testing coastal spots.
 - The giant anglerfish lies on the sea floor off steep coasts too. On a slope its long body only lies down at some headings, so it now turns toward a distant player only as far as it can still rest on the floor, instead of lifting off and hanging in the water half turned. It still lifts off to face someone beside it or prey nearly in reach, and lies back down along the slope once they leave. A fish waiting on a turn no longer counts as creeping, so it settles meanwhile.
 
 ### 0.24.2

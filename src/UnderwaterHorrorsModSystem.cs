@@ -792,8 +792,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 .HandleWith(OnCmdNatural)
             .EndSubCommand()
             .BeginSubCommand("spawn")
-                .WithDescription("Spawn a creature near the calling player. serpent picks a random variant; anglerfish lurks in nearby deep water; giantserpent starts 100 to 140 blocks out.")
-                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "anglerfish", "giantserpent"))
+                .WithDescription("Spawn a creature near the calling player. serpent picks a random variant; anglerfish lurks in nearby deep water (anglerfish coast: off the nearest coast, as a natural one); giantserpent starts 100 to 140 blocks out.")
+                .WithArgs(api.ChatCommands.Parsers.WordRange("type", "serpent", "rustserpent", "deepserpent", "serpent3", "kraken", "anglerfish", "giantserpent"),
+                    api.ChatCommands.Parsers.OptionalWord("where"))
                 .HandleWith(OnCmdSpawn)
             .EndSubCommand()
             .BeginSubCommand("dungeon")
@@ -1141,8 +1142,11 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private TextCommandResult OnCmdSpawn(TextCommandCallingArgs args)
     {
         string type = (args.Parsers[0].GetValue() as string)?.ToLowerInvariant();
+        string where = (args.Parsers[1].GetValue() as string)?.ToLowerInvariant();
         IServerPlayer caller = args.Caller.Player as IServerPlayer;
         if (caller == null) return TextCommandResult.Error("Must be called by a player");
+        if (where != null && !(type == "anglerfish" && where == "coast"))
+            return TextCommandResult.Error("Only the anglerfish takes a place: /uh spawn anglerfish coast.");
 
         // No fallthrough here: an unrecognized type must error, never
         // silently become a kraken (players hit exactly that with the old
@@ -1155,7 +1159,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
             case "deepserpent": creature = SpawnSerpent(caller, forceDeep: true); break;
             case "serpent3": creature = SpawnSerpent3(caller); break;
             case "kraken": creature = SpawnKraken(caller); break;
-            case "anglerfish": creature = EntityBehaviorAnglerfishAI.Spawn(sapi,caller); break;
+            case "anglerfish":
+                creature = where == "coast"
+                    ? EntityBehaviorAnglerfishAI.SpawnNearCoast(sapi, caller, natural: false)
+                    : EntityBehaviorAnglerfishAI.Spawn(sapi, caller);
+                if (creature == null && where == "coast")
+                    return TextCommandResult.Error($"No coast within {Config.AnglerfishCoastRange:F0} blocks with water {Config.AnglerfishMinWaterDepth} deep off it.");
+                break;
             case "giantserpent": creature = EntityBehaviorGiantSerpentAI.SpawnNear(sapi, caller, 100, 140); break;
             default: return TextCommandResult.Error("Unknown creature type. Use serpent, rustserpent, deepserpent, serpent3, kraken, anglerfish or giantserpent.");
         }
