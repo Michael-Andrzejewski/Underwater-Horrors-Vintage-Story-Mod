@@ -140,7 +140,8 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentBiteDamage` | float | `20f` | Damage of a bite on a swimmer, and its armor piercing tier. |
 | `GiantSerpentDamageTier` | int | `5` |  |
 | `GiantSerpentTierMigrated` | bool | `false` |  |
-| `GiantSerpentRiderDamage` | float | `8f` | Damage to each rider when the giant swallows or breaks their boat. They land in the water, where it can come back for them. |
+| `GiantSerpentDestroysBoats` | bool | `true` | Whether the giant swallows rafts and breaks other boats. Off, boats are never harmed: every bite on a boat hurts its riders by GiantSerpentRiderDamage instead, and they stay aboard. |
+| `GiantSerpentRiderDamage` | float | `8f` | Damage to each rider when the giant swallows or breaks their boat. They land in the water, where it can come back for them. With GiantSerpentDestroysBoats off, the damage of each bite on their boat. |
 | `GiantSerpentBitesToSinkBoat` | int | `3` | Bites it takes to break a boat that is not a raft (the sailboat). A raft always goes down in one gulp. |
 | `GiantSerpentCruiseSpeed` | float | `7f` | Swimming speeds in blocks per second: cruising and circling, and the final rush at its prey. |
 | `GiantSerpentStrikeSpeed` | float | `24f` |  |

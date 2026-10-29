@@ -531,8 +531,13 @@ public class UnderwaterHorrorsConfig
     public float GiantSerpentBiteDamage { get; set; } = 20f;
     public int GiantSerpentDamageTier { get; set; } = 5;
     public bool GiantSerpentTierMigrated { get; set; } = false;
+    // Whether the giant swallows rafts and breaks other boats. Off, boats
+    // are never harmed: every bite on a boat hurts its riders by
+    // GiantSerpentRiderDamage instead, and they stay aboard.
+    public bool GiantSerpentDestroysBoats { get; set; } = true;
     // Damage to each rider when the giant swallows or breaks their boat.
-    // They land in the water, where it can come back for them.
+    // They land in the water, where it can come back for them. With
+    // GiantSerpentDestroysBoats off, the damage of each bite on their boat.
     public float GiantSerpentRiderDamage { get; set; } = 8f;
     // Bites it takes to break a boat that is not a raft (the sailboat).
     // A raft always goes down in one gulp.

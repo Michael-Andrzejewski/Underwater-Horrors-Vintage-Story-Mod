@@ -15,6 +15,10 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.25.3
+
+- New config `GiantSerpentDestroysBoats` (on by default). Turn it off and the Rust Leviathan never swallows or breaks a boat: each bite on a boat hurts its riders by `GiantSerpentRiderDamage` (8), and they stay aboard. The cargo stays too.
+
 ### 0.25.2
 
 - A Rust Leviathan segment is cut open with one right click of a knife: no shift, no wait and no dialog. Its loot spills out along it into the water (fish and bone float up, metal sinks), and the segment crumbles into its bones. The click works anywhere along a segment. Before, the game only let a survival player target a segment within 4.5 blocks of its pivot at one end, so most of a long segment could only be reached in creative. A cut costs the knife 3 durability, as a carcass harvest does. Serpent and anglerfish carcasses still use the carcass dialog.

@@ -35,7 +35,9 @@ public enum GiantSerpentState
 /// strikes. It circles deep under its prey (Circle), dives and lines up
 /// (Setup), then rushes up at it mouth first (Strike). A boat is the prey
 /// when its player sits in one: a raft goes in one gulp, a sailboat breaks
-/// after a few bites, and the riders land in the water. Swimmers are bitten.
+/// after a few bites, and the riders land in the water (unless
+/// GiantSerpentDestroysBoats is off: then each bite hurts the riders and
+/// the boat stays afloat). Swimmers are bitten.
 /// After every strike its head breaks the surface, and it rolls straight
 /// over and dives (Breach), then circles again. It never leaves the water:
 /// the mouth stops at the surface, and it turns away from shallows and
@@ -756,6 +758,13 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             if (p.Entity?.MountedOn?.Entity == boat) riders.Add(p.Entity);
         }
         if (riders.Exists(IsPassiveObserver)) return;
+
+        if (!config.GiantSerpentDestroysBoats)
+        {
+            Log($"bit {boat.Code}, which it may not destroy ({riders.Count} rider(s))");
+            foreach (EntityPlayer rider in riders) BitePlayer(rider, config.GiantSerpentRiderDamage);
+            return;
+        }
 
         int bites = boat.WatchedAttributes.GetInt(BitesAttr) + 1;
         bool raft = IsRaft(boat);
