@@ -289,6 +289,15 @@ public class UnderwaterHorrorsConfig
     // creative player who did not know it was a switch). Servers that
     // want creative admins hunted can turn it off, or use /uh observer.
     public bool IgnoreCreativePlayers { get; set; } = true;
+    // Off (default): a player riding anything (a boat, a raft or a creature)
+    // is safe from the serpents and the kraken, which circle and give up. On:
+    // they attack riders wherever the water under them is at least
+    // ShallowWaterThreshold deep. Serpents bite the rider and leave the boat alone,
+    // the kraken's tentacle pulls the rider off into the water, and the kraken
+    // body's contact damage hits them too. A rider on land or in the shallows
+    // is as safe as anyone on foot there. The Rust Leviathan and the anglerfish
+    // attack boats either way, by their own rules.
+    public bool AttackMountedPlayers { get; set; } = false;
     // One-shot: configs written before 0.20.0 carry the old false default
     // and are moved to true once; after that the value is never touched.
     public bool IgnoreCreativePlayersMigrated { get; set; } = false;

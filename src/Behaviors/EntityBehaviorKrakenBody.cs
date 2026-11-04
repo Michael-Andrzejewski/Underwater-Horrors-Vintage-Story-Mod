@@ -367,7 +367,9 @@ public class EntityBehaviorKrakenBody : EntityBehavior
         foreach (IPlayer player in entity.World.AllOnlinePlayers)
         {
             if (player.Entity == null || !player.Entity.Alive) continue;
-            if (player.Entity.MountedOn != null) continue;
+            // A gripped player takes the grip's damage instead.
+            IMountableSeat seat = player.Entity.MountedOn;
+            if (seat != null && (!config.AttackMountedPlayers || seat is TentacleGripSeat)) continue;
 
             // Observer mode: creative/spectator players swim through the
             // body unharmed. Checked per player, not per target, since

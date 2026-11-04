@@ -14,6 +14,10 @@ public static class TargetingHelper
     // Reusable BlockPos for water scanning
     private static readonly BlockPos scanPos = new BlockPos(0, 0, 0, 0);
 
+    // How far below a rider to look for the water surface: boats sit a block
+    // or two above it, and a tall creature mount a little more.
+    private const int MountedWaterScanDown = 5;
+
     private struct ShallowWaterCache
     {
         public bool isShallow;
@@ -67,6 +71,18 @@ public static class TargetingHelper
 
         scanPos.Set(startX, startY, startZ);
         scanPos.dimension = player.Entity.Pos.Dimension;
+
+        // A rider's own block is air: start from the water under their boat or
+        // mount. A rider over solid ground has none, which reads as shallow.
+        if (player.Entity.MountedOn != null)
+        {
+            for (int i = 0; i < MountedWaterScanDown && startY > 0; i++, startY--)
+            {
+                scanPos.Y = startY;
+                if (accessor.GetBlock(scanPos, BlockLayersAccess.Fluid).Id != 0) break;
+                if (accessor.GetBlock(scanPos, BlockLayersAccess.Solid).Id != 0) break;
+            }
+        }
 
         int waterCount = 0;
 
