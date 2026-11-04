@@ -798,8 +798,13 @@ public class UnderwaterHorrorsConfig
     // Only one sound plays at a time per player; a bite overrides whatever
     // is playing.
     public bool MonsterSoundsEnabled { get; set; } = true;
-    // Global volume applied to every monster sound. Each individual sound below
-    // has its own multiplier on top of this, so you can balance them.
+    // Global volume for every creature sound: all the serpents and the Rust
+    // Leviathan, its death included (the kraken and the anglerfish make no
+    // sounds). 0.5 is half, 0 is silent, and above 1 is no louder, because the
+    // game's sound engine stops at 1. /uh sound volume sets it live. Each
+    // sound below has its own multiplier on top of this, so you can balance
+    // them. Players can also lower the game's own sliders: Entity Sound level
+    // for these, and Effects Sound level for the screech.
     public float MonsterSoundVolume { get; set; } = 1.0f;
     // Per-sound volume multipliers (multiplied with MonsterSoundVolume). 1.0 = no
     // change. The screech has its own multiplier further down.
@@ -961,6 +966,8 @@ public class UnderwaterHorrorsConfig
         GiantSerpentPieceBonesMin = Math.Max(0, GiantSerpentPieceBonesMin);
         GiantSerpentPieceBonesMax = Math.Max(GiantSerpentPieceBonesMin, GiantSerpentPieceBonesMax);
         GiantSerpentPieceDecayHours = Math.Max(0f, GiantSerpentPieceDecayHours);
+
+        MonsterSoundVolume = Math.Max(0f, MonsterSoundVolume);
 
         // Anglerfish: it must stay under water (its body is about 35 blocks
         // tall), and a swoop needs some reach and speed.
