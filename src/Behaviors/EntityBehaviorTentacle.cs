@@ -794,6 +794,14 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             UnderwaterHorrorsModSystem.DebugLog(entity.Api, "Tentacle: restored player movement");
     }
 
+    /// <summary>Drops any build-up and goes straight after this player.</summary>
+    public void HuntNow(IPlayer player)
+    {
+        if (state == TentacleState.Dragging || state == TentacleState.Sinking || state == TentacleState.Retreating) return;
+        RetargetTo(player);
+        if (state != TentacleState.Reaching) TransitionTo(TentacleState.Reaching);
+    }
+
     // --- State transitions ---
 
     private void TransitionTo(TentacleState newState)

@@ -655,6 +655,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         int spawnInterval = (int)(Config.SpawnCheckIntervalSeconds * 1000);
         int despawnInterval = (int)(Config.DespawnCheckIntervalSeconds * 1000);
 
+        api.Event.OnPlayerInteractEntity += CageGuard.OnPlayerInteractEntity;
+
         api.Event.RegisterGameTickListener(OnSpawnCheck, spawnInterval);
         api.Event.RegisterGameTickListener(OnDespawnCheck, despawnInterval);
 

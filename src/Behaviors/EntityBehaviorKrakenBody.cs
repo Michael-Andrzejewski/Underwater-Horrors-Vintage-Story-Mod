@@ -7,7 +7,7 @@ using Vintagestory.API.Server;
 
 namespace UnderwaterHorrors;
 
-public class EntityBehaviorKrakenBody : EntityBehavior
+public class EntityBehaviorKrakenBody : EntityBehavior, ICageRage
 {
     // Tentacles are never saved (KrakenPartStorage), so this starts false
     // on every load and the body grows its full set again.
@@ -399,6 +399,18 @@ public class EntityBehaviorKrakenBody : EntityBehavior
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"Kraken body hit {player.PlayerName} for {damage} contact damage (dist: {Math.Sqrt(distSq):F1})");
             }
         }
+    }
+
+    /// <summary>
+    /// Someone tried to cage part of it: its attack tentacle hunts them at
+    /// once, and if it has none right now the next one comes without the wait.
+    /// </summary>
+    public void OnCageAttempt(IPlayer byPlayer)
+    {
+        if (!entity.Alive) return;
+        entity.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", byPlayer.PlayerUID);
+        if (waitingToRespawnTentacle) tentacleRespawnTimer = 0;
+        else entity.World.GetEntityById(attackTentacleId)?.GetBehavior<EntityBehaviorTentacle>()?.HuntNow(byPlayer);
     }
 
     public override void OnEntityDespawn(EntityDespawnData despawn)
