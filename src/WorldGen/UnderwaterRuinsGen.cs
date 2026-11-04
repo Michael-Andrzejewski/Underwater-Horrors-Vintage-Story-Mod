@@ -979,7 +979,15 @@ public class UnderwaterRuinsGen : ModSystem
             if (data != null && data.Length > 0)
             {
                 var loaded = Vintagestory.API.Util.SerializerUtil.Deserialize<List<PendingFeature>>(data);
-                if (loaded != null) lock (pendingLock) pending = loaded;
+                if (loaded != null)
+                {
+                    // Piles queued before 0.20.0 carry their old rolls, so a
+                    // config change never reached them. Roll them when placed,
+                    // like every pile queued since.
+                    foreach (PendingFeature f in loaded)
+                        if (f != null && f.IsIngots) f.RerollLoot = true;
+                    lock (pendingLock) pending = loaded;
+                }
             }
         }
         catch (Exception e) { sapi.Logger.Warning("[UH ruins] could not load pending features: {0}", e.Message); }
