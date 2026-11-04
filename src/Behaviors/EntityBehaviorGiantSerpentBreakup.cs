@@ -147,13 +147,19 @@ public class EntityBehaviorGiantSerpentBreakup : EntityBehavior
             Burst(world, jx[i], jy[i], jz[i], (float)(ext[4] * size));
         }
 
-        // A few cracks along the body rather than twenty at once.
-        for (int k = 0; k <= 3; k++)
+        // A few cracks along the body rather than twenty at once. Same switch
+        // and volume as every other creature sound.
+        var cfg = UnderwaterHorrorsModSystem.Config;
+        if (cfg == null || cfg.MonsterSoundsEnabled)
         {
-            int i = Math.Min(n, k * n / 3);
-            world.PlaySoundAt(CrackSound, jx[i], jy[i], jz[i], null, 0.45f + (float)rand.NextDouble() * 0.15f, 96, 1f);
+            float volume = cfg?.MonsterSoundVolume ?? 1f;
+            for (int k = 0; k <= 3; k++)
+            {
+                int i = Math.Min(n, k * n / 3);
+                world.PlaySoundAt(CrackSound, jx[i], jy[i], jz[i], null, 0.45f + (float)rand.NextDouble() * 0.15f, 96, volume);
+            }
+            world.PlaySoundAt(GroanSound, jx[n / 2], jy[n / 2], jz[n / 2], null, 0.5f, 128, volume);
         }
-        world.PlaySoundAt(GroanSound, jx[n / 2], jy[n / 2], jz[n / 2], null, 0.5f, 128, 1f);
 
         entity.Api.Logger.Notification("[underwaterhorrors] Rust Leviathan at ({0:F0}, {1:F0}, {2:F0}) broke apart into {3} pieces",
             entity.Pos.X, entity.Pos.Y, entity.Pos.Z, spawned);
