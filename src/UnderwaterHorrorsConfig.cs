@@ -276,6 +276,12 @@ public class UnderwaterHorrorsConfig
     // not roll flee-from-damage and will not disengage after a strike,
     // so it keeps pressing repeat attacks for at least this long.
     public float SerpentEnrageSeconds { get; set; } = 10f;
+    // What happens when a player swings an Animal Cages cage at one of these
+    // creatures. "rage" (default): the cage catches nothing and the creature
+    // turns on that player. "refuse": the cage catches nothing and the creature
+    // does not react. "allow": Animal Cages decides, following its own config.
+    public string CageAttemptResponse { get; set; } = "rage";
+    public const string CageRage = "rage", CageRefuse = "refuse", CageAllow = "allow";
     // Observer mode for creative players: when true, the creatures
     // never attack a player who is in creative or spectator mode.
     // Serpents skip every attack trigger (spiral-complete strike,
@@ -871,6 +877,8 @@ public class UnderwaterHorrorsConfig
         SerpentFleeAggroSuppressSeconds = Math.Max(0f, SerpentFleeAggroSuppressSeconds);
         SerpentProvokeChance = Math.Clamp(SerpentProvokeChance, 0f, 1f);
         SerpentEnrageSeconds = Math.Max(0f, SerpentEnrageSeconds);
+        CageAttemptResponse = CageAttemptResponse?.Trim().ToLowerInvariant();
+        if (CageAttemptResponse != CageRefuse && CageAttemptResponse != CageAllow) CageAttemptResponse = CageRage;
 
         // Negative drag speed would push the player away / invert the grab.
         TentacleDragSpeed = Math.Max(0f, TentacleDragSpeed);

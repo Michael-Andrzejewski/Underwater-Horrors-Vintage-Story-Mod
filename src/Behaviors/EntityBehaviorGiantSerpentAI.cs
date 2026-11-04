@@ -55,7 +55,7 @@ public enum GiantSerpentState
 /// comes back and fights to the death, and a killed giant breaks apart
 /// (EntityBehaviorGiantSerpentBreakup).
 /// </summary>
-public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
+public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature, ICageRage
 {
     public const string BitesAttr = "underwaterhorrors:giantSerpentBites";
 
@@ -1027,6 +1027,15 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         {
             circleDuration = stateTimer + 5;
         }
+    }
+
+    /// <summary>Someone tried to cage it: it turns on them, and the next strike comes at once.</summary>
+    public void OnCageAttempt(IPlayer byPlayer)
+    {
+        if (!entity.Alive || state == GiantSerpentState.Retreat) return;
+        RetargetTo(byPlayer);
+        playerHurtAt = lifeTimer;
+        if (state == GiantSerpentState.Circle) circleDuration = Math.Min(circleDuration, stateTimer);
     }
 
     public override void OnEntityDeath(DamageSource damageSourceForDeath)

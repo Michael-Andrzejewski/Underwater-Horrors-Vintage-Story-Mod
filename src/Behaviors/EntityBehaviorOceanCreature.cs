@@ -48,6 +48,14 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         targetPlayer = TargetingHelper.ResolveTarget(entity);
     }
 
+    /// <summary>Makes this creature hunt the given player from now on.</summary>
+    protected void RetargetTo(IPlayer player)
+    {
+        targetPlayer = player;
+        targetResolved = true;
+        entity.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
+    }
+
     /// <summary>
     /// True when IgnoreCreativePlayers is enabled and the target player
     /// is in creative or spectator mode. The serpent AIs and the kraken

@@ -36,7 +36,7 @@ public enum AnglerfishMood { Lurking, Creeping, Striking, Returning, Fleeing }
 /// Offsets below are for the model at entity size 2, in blocks; Scale
 /// stretches them to the entity's real size.
 /// </summary>
-public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
+public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
 {
     public const string LureIdAttr = "underwaterhorrors:anglerLureId";
     public const string OwnerIdAttr = "underwaterhorrors:anglerOwnerId";
@@ -361,6 +361,17 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior
             else retreat.Set(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
         }
         if (entity.Pos.DistanceTo(retreat) < .3) { cycle.ArriveHome(); mood = AnglerfishMood.Lurking; }
+    }
+
+    /// <summary>
+    /// Someone tried to cage it: it strikes at them if it can reach them. The
+    /// usual limits stay: prey in the water or a boat, in range of the mouth.
+    /// </summary>
+    public void OnCageAttempt(IPlayer byPlayer)
+    {
+        if (!entity.Alive || mood == AnglerfishMood.Fleeing || mood == AnglerfishMood.Striking) return;
+        if (!ValidTarget(byPlayer)) return;
+        TryStartStrike(byPlayer, rise: OverItsBack(byPlayer));
     }
 
     // ── Fleeing ─────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ public enum SerpentState
     Retreating
 }
 
-public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
+public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature, ICageRage
 {
     // Server-tuning knob: scales all movement done through the base-class
     // movers; the direct Motion writes below multiply it in themselves.
@@ -972,6 +972,16 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     //  serpent stays enraged for SerpentEnrageSeconds: no flee rolls and
     //  no post-strike disengage until the window expires.
     // ═══════════════════════════════════════════════════════════════════
+    /// <summary>Someone tried to cage it: it turns on them, enraged.</summary>
+    public void OnCageAttempt(IPlayer byPlayer)
+    {
+        if (!entity.Alive || state == SerpentState.Retreating) return;
+        RetargetTo(byPlayer);
+        fleeAggroSuppressTimer = 0;
+        enrageTimer = config.SerpentEnrageSeconds;
+        if (state != SerpentState.Attacking) TransitionTo(SerpentState.Attacking);
+    }
+
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
     {
         base.OnEntityReceiveDamage(damageSource, ref damage);
