@@ -25,7 +25,9 @@ public class IngotPileType
 
 public class UnderwaterHorrorsConfig
 {
-    // Debug
+    // ─── Debug ────────────────────────────────────────
+    // Sends the mod's debug messages to chat. /uh debug sets it. Noisy, so
+    // leave it off in normal play.
     public bool DebugLogging { get; set; } = false;
 
     // One-shot migration flag. Earlier mod versions shipped with
@@ -34,10 +36,14 @@ public class UnderwaterHorrorsConfig
     // this flag to true; from then on we never touch DebugLogging again,
     // so /uh debug on (or hand-editing the config) sticks across restarts.
     public bool DebugLoggingResetApplied { get; set; } = false;
+    // Debug view from /uh glow: all the mod's creatures at full brightness.
+    // Kept across restarts.
     public bool GlowDebugActive { get; set; } = false;
+    // Debug view from /uh spectral: outlines through blocks around the mod's
+    // creatures and spawner blocks. Kept across restarts.
     public bool SpectralDebugActive { get; set; } = false;
 
-    // Spawn system
+    // ─── Spawn system ────────────────────────────────────────
     // How often (seconds) each player in deep water is rolled for a spawn.
     public float SpawnCheckIntervalSeconds { get; set; } = 5f;
     // Water under the player must be at least this deep for anything to
@@ -63,7 +69,7 @@ public class UnderwaterHorrorsConfig
     // Master switch for kraken in NATURAL spawn checks. /uh spawn kraken
     // always works; this just gates the random per-player spawn roll
     // from picking a kraken. The kraken is a heavyweight encounter (one
-    // body plus 8 tentacles, each with a 96-segment chain, roughly 780
+    // body plus 8 tentacles, each with a chain of 36 pieces, roughly 300
     // entities) so it is kept rare via the day/night chances below and
     // can be turned off entirely here if a server or client struggles
     // near it.
@@ -81,6 +87,7 @@ public class UnderwaterHorrorsConfig
     // the more common night krakens are the bioluminescent ones.
     // (These replace the old SerpentSpawnWeight split.)
     public float KrakenSpawnChanceDay { get; set; } = 0.05f;
+    // The same chance at night.
     public float KrakenSpawnChanceNight { get; set; } = 0.10f;
 
     // ─── Temporal storms ─────────────────────────────────────────────────
@@ -109,6 +116,7 @@ public class UnderwaterHorrorsConfig
     // storm lasts (on top of SerpentSpeedMultiplier and
     // TentacleSpeedMultiplier). The leviathan and the anglerfish do not.
     public float StormSerpentSpeedMultiplier { get; set; } = 1.5f;
+    // The same for kraken tentacles.
     public float StormTentacleSpeedMultiplier { get; set; } = 3f;
     // GiantSerpentSpawnChance during a storm. Its open-ocean test, its kill
     // cooldown and its behavior stay the same.
@@ -125,6 +133,7 @@ public class UnderwaterHorrorsConfig
     // creatures keep their current health; they despawn quickly anyway).
     // The entity JSON defaults are 200 rust and 100 deep, matching these.
     public float RustSerpentMaxHealth { get; set; } = 200f;
+    // The same for the deep sea serpent.
     public float DeepSerpentMaxHealth { get; set; } = 100f;
 
     // Movement speed multiplier for both serpent variants. One knob that
@@ -150,17 +159,21 @@ public class UnderwaterHorrorsConfig
     /// <summary>Inverse-scaled probability for timid reactions like fleeing: higher aggression = less likely.</summary>
     public float AggroInverseChance(float chance) => chance / SerpentAggressionMultiplier;
 
-    // Day/night threshold for kraken bioluminescence. Krakens spawning
+    // Hour the kraken's day starts. Day/night threshold for kraken bioluminescence. Krakens spawning
     // during [DayKrakenStartHour, DayKrakenEndHour) on the VS calendar
     // get NO glow; outside this window they get a pulsing cyan glow
     // matching biolumtest mode 10. Defaults: 6 AM to 10 PM = "day".
     public float DayKrakenStartHour { get; set; } = 6f;
+    // Hour the kraken's day ends.
     public float DayKrakenEndHour { get; set; } = 22f;
 
-    // Serpent spawn offsets. Horizontal position is randomized uniformly
-    // within a circle of the given max radius around the player.
+    // Fewest blocks below the player a natural serpent spawns. The spot is
+    // then moved into open water (SerpentSpawnWaterClearance).
     public int SerpentSpawnDepthMin { get; set; } = 25;
+    // Most blocks below the player a natural serpent spawns.
     public int SerpentSpawnDepthMax { get; set; } = 40;
+    // Farthest a natural serpent spawns from the player, sideways, in
+    // blocks.
     public int SerpentSpawnHorizontalRadiusMax { get; set; } = 50;
 
     // How many blocks of clear water a serpent keeps under itself. A
@@ -197,24 +210,25 @@ public class UnderwaterHorrorsConfig
     // BodyDwellDurationMin/Max: random dwell time (seconds) before aggro
     //   kicks in if the player stays within body range.
     public float SerpentProximityHeadTriggerRange { get; set; } = 6f;
+    // Blocks from its body at which the wait below starts.
     public float SerpentProximityBodyTriggerRange { get; set; } = 5f;
+    // Shortest wait in seconds before it turns on a player who stays that
+    // close.
     public float SerpentProximityBodyDwellMin { get; set; } = 5f;
+    // Longest wait in seconds before it turns on a player who stays that
+    // close.
     public float SerpentProximityBodyDwellMax { get; set; } = 15f;
 
-    // Stalk depth configuration.
-    //   NormalSubmergeDepth — the regular serpent's usual cruise
-    //     depth below the water surface.  Deeper = less visible.
-    //   SurfaceSubmergeDepth — depth used during a "surface peek"
-    //     orbit step (serpent briefly rises for visibility) and when
-    //     the target player is mounted (both variants rise to boat
-    //     level).
-    //   SerpentSurfacePeekChance / DeepSerpentSurfacePeekChance —
-    //     per-spiral-step probability that the next orbit is at
-    //     surface depth instead of normal depth.  Higher for the
-    //     regular serpent; the deep variant should mostly stay deep.
+    // The rust serpent's usual depth below the surface while it circles, in
+    // blocks. Deeper is harder to see.
     public float SerpentNormalSubmergeDepth { get; set; } = 5f;
+    // Depth during a surface peek, when a serpent briefly rises into view, and
+    // whenever its target rides a boat (both serpents rise to boat level).
     public float SerpentSurfaceSubmergeDepth { get; set; } = 1f;
+    // Chance (0 to 1), each spiral step, that the rust serpent circles at
+    // surface depth for that step.
     public float SerpentSurfacePeekChance { get; set; } = 0.4f;
+    // The same chance for the deep sea serpent, which mostly stays deep.
     public float DeepSerpentSurfacePeekChance { get; set; } = 0.1f;
 
     // Boat boredom: while the player stays in a boat, the serpent circles for
@@ -222,6 +236,7 @@ public class UnderwaterHorrorsConfig
     // creature doesn't haunt forever (a new one can spawn later). The time is
     // rolled once when the serpent starts circling the boat.
     public float BoatBoredomMinSeconds { get; set; } = 90f;
+    // Longest it circles a boat before it gives up, in seconds.
     public float BoatBoredomMaxSeconds { get; set; } = 240f;
 
     // Boat surface/submerge oscillation: while the player is in a boat, the
@@ -229,19 +244,22 @@ public class UnderwaterHorrorsConfig
     // below the water for a random SubmergeDuration, looping. (This is the
     // up/down cycle; the boat boredom above is the separate eventual give-up.)
     public float BoatSurfaceDurationMin { get; set; } = 5f;
+    // Longest surface phase, in seconds.
     public float BoatSurfaceDurationMax { get; set; } = 15f;
+    // Shortest time below the water between surface phases, in seconds.
     public float BoatSubmergeDurationMin { get; set; } = 15f;
+    // Longest time below the water between surface phases, in seconds.
     public float BoatSubmergeDurationMax { get; set; } = 75f;
 
     // Chance per spawn check that a SECOND creature spawns even if the
-    // player already has one tracked.  Untracked — the second creature
-    // manages its own lifecycle via the AI state machine.
+    // player already has one. It looks after itself: the mod does not count
+    // it as that player's creature.
     public float SecondCreatureSpawnChance { get; set; } = 0.005f;
 
-    // Vertical-motion smoothing for the regular serpent.  Matches the
-    // deep variant — playtesting showed 2x leeway was still too jittery
-    // on the long body.
+    // Fastest the rust serpent moves up or down while circling, in blocks per
+    // 1/60 second. Any faster looked jittery on the long body.
     public float SerpentMaxVerticalSpeed { get; set; } = 0.012f;
+    // Most that vertical speed may change per second, so it does not bob.
     public float SerpentVerticalSlewPerSec { get; set; } = 0.04f;
 
     // Maximum turning speed (degrees per second) for both serpent
@@ -250,6 +268,7 @@ public class UnderwaterHorrorsConfig
     // instead of a snap turn. The attack value applies while the
     // serpent is charging a player and needs to track them.
     public float SerpentTurnSpeedDegPerSec { get; set; } = 45f;
+    // The same limit while it charges a player.
     public float SerpentAttackTurnSpeedDegPerSec { get; set; } = 120f;
 
     // Flee-after-damage: every hit rolls (damage x chance-per-damage)
@@ -259,6 +278,7 @@ public class UnderwaterHorrorsConfig
     // than fists. The rust (aggressive surface) serpent uses the Rust
     // value, which is halved so it presses the attack harder.
     public float SerpentFleeChancePerDamage { get; set; } = 0.10f;
+    // The same chance for the rust serpent, half as likely.
     public float RustSerpentFleeChancePerDamage { get; set; } = 0.05f;
     // After a successful flee roll, proximity aggro and stalk-timeout
     // attacks are suppressed for this many seconds so the serpent
@@ -293,9 +313,10 @@ public class UnderwaterHorrorsConfig
     // and are moved to true once; after that the value is never touched.
     public bool IgnoreCreativePlayersMigrated { get; set; } = false;
 
-    // Serpent spawner block. A creative-only block (looks like a vanilla
-    // locust nest cage) that watches for a player who is in the water and
-    // within SpawnerTriggerRange blocks, then spawns one sea serpent and
+    // ─── Spawner blocks ────────────────────────────────────────
+    // Serpent spawner block. A block (it looks like a vanilla locust nest
+    // cage) that watches for a player who is in the water and
+    // within SpawnerTriggerRange blocks, then spawns one rust serpent and
     // removes itself. When that serpent despawns on its own (the player
     // left the water, so it retreats) the block reappears in the exact
     // same spot and re-arms. If the serpent is killed instead, the block
@@ -318,19 +339,19 @@ public class UnderwaterHorrorsConfig
     // rarely on deep ocean floors, each with collapsed loot chests and a
     // chance of a serpent (or, rarely, kraken) spawner inside.
     public bool UnderwaterRuinsEnabled { get; set; } = true;
-    // Average of one ruin per this many deep-ocean chunk columns. Higher =
-    // rarer. Drop it to see them more often.
+    // Average of one ruin per this many ocean chunk columns. Higher is rarer:
+    // 107 is about one column in 107, and 10 gives about ten times as many
+    // ruins, not fewer. Only chunks generated after the change are affected.
     public int RuinRarity { get; set; } = 107;
     // One-shot migration: configs written with the old sparser default (320)
     // are bumped to the new one on first load; see Validate().
     public bool RuinRarityMigrated { get; set; } = false;
-    // The sea floor must be at least this many blocks below sea level for a
-    // ruin to place, so they only appear in genuinely deep water. Each
-    // structure additionally requires enough depth to fit fully underwater
-    // (tall structures like the city and the shipwrecks only generate where
-    // the ocean is deep enough to cover them), and the water around the
-    // structure's footprint is checked too, so ruins no longer generate on
-    // shore banks with their tops poking out of the waves.
+    // The sea floor under a ruin's center must be at least this many blocks
+    // below sea level. Each structure also needs enough depth to fit fully
+    // underwater, so the shipwrecks need 19 to 30 and the city 18. Water at
+    // least half this deep (4 at the least) must reach the structure's edge,
+    // checked out to 24 blocks at most. At the default a small ruin can sit on
+    // a steep coast. Raise this to keep ruins further out in new chunks.
     public int RuinMinOceanDepth { get; set; } = 12;
     // The glowing ghostlight orbs placed inside generated ruins. Turn this
     // off to generate ruins without any lights (existing ruins keep the
@@ -339,16 +360,17 @@ public class UnderwaterHorrorsConfig
     // Loot amount per structure type. A target count is rolled between Min
     // and Max each time a structure generates and that many randomly chosen
     // scripted spots are used; the rest stay empty. Counts are capped at how
-    // many spots the structure actually defines, and the defaults below ARE
-    // those spot counts, so out of the box every spot is used. Structures
-    // missing from the map use every spot too.
+    // many spots the structure actually defines. Structures missing from the
+    // map use every spot. Fixed when the chunk generates.
     public Dictionary<string, MinMaxCount> RuinLootChestsPerStructure { get; set; } = DefaultChestCounts();
+    // Ingot piles per structure, in the same form as the chest counts above.
+    // See the table below.
     public Dictionary<string, MinMaxCount> RuinIngotPilesPerStructure { get; set; } = DefaultIngotPileCounts();
 
     // What an ingot pile contains, per metal: relative pick weight plus the
-    // pile size range. Keys are vanilla ingot codes (game:ingot-<key>).
-    // Defaults are HALF the pre-0.15 pile sizes. Add or remove metals
-    // freely; setting a structure's pile count to 0 disables its ingots.
+    // pile size range. Keys are vanilla ingot codes (game:ingot-<key>). Add
+    // or remove metals freely; setting a structure's pile count to 0
+    // disables its ingots.
     public Dictionary<string, IngotPileType> RuinIngotTypes { get; set; } = DefaultIngotTypes();
 
     // 0.20.0 cut the big structures to about a third of the 0.15 counts.
@@ -421,8 +443,11 @@ public class UnderwaterHorrorsConfig
     // moved to the sea-level default on first load; see Validate().
     public bool CreatureMaxYMigrated { get; set; } = false;
 
-    // Despawn system
+    // ─── Despawn system ────────────────────────────────────────
+    // Seconds between the sweeps that decide which creatures to remove.
     public float DespawnCheckIntervalSeconds { get; set; } = 2f;
+    // Seconds a creature stays after its target leaves the water. Then it is
+    // removed.
     public float DespawnAfterLandSeconds { get; set; } = 30f;
     // Despawn immediately if creature drifts farther than this from its
     // target player (e.g. player escaped by boat, or respawned far after
@@ -431,37 +456,65 @@ public class UnderwaterHorrorsConfig
 
     // Off (default): a killed serpent sinks to the sea floor and has to be
     // dived for. On: the corpse rises to just under the surface so a kill
-    // from a boat can be harvested from the boat. The author prefers the
-    // sink; the switch is there for servers that do not.
+    // from a boat can be harvested from the boat.
     public bool SerpentCorpseFloats { get; set; } = false;
 
-    // Sea serpent
+    // ─── Sea serpents, rust and deep ────────────────────────────────────────
+    // The rust serpent's closest circle, in blocks. When its spiral reaches
+    // this it attacks.
     public float SerpentOrbitRadius { get; set; } = 8f;
+    // How fast both serpents circle at their closest orbit. Wider orbits
+    // turn more slowly in proportion.
     public float SerpentOrbitSpeed { get; set; } = 0.5f;
+    // Shortest time the rust serpent circles after backing off from a bite,
+    // in seconds.
     public float SerpentStalkDurationMin { get; set; } = 15f;
+    // Longest time the rust serpent circles after backing off from a bite,
+    // in seconds.
     public float SerpentStalkDurationMax { get; set; } = 45f;
+    // How fast both serpents rise toward the surface, in blocks per 1/60
+    // second. 0.04 is 2.4 blocks a second.
     public float SerpentRiseSpeed { get; set; } = 0.04f;
+    // How fast both serpents swim toward their surfacing spot, in the same
+    // units. Circling and retreating use twice this.
     public float SerpentApproachSpeed { get; set; } = 0.03f;
+    // How fast both serpents charge a player, in the same units. 0.08 is 4.8
+    // blocks a second.
     public float SerpentAttackSpeed { get; set; } = 0.08f;
+    // Damage of one bite, for both serpents.
     public float SerpentAttackDamage { get; set; } = 10f;
+    // Seconds between bites, for both serpents.
     public float SerpentAttackCooldown { get; set; } = 2f;
+    // Not used yet.
     public float SerpentAttackRange { get; set; } = 2.5f;
+    // Chance (0 to 1) that the rust serpent backs off to circle after a bite
+    // instead of pressing on.
     public float SerpentReStalkChance { get; set; } = 0.5f;
+    // Armor piercing tier of both serpents' bites.
     public int SerpentDamageTier { get; set; } = 3;
 
-    // Kraken damage tier
+    // Armor piercing tier of the kraken's contact damage.
     public int KrakenDamageTier { get; set; } = 3;
 
-    // Serpent spiral approach
+    // ─── Rust serpent spiral ────────────────────────────────────────
+    // It closes in on its prey in a shrinking spiral, one step at a time.
+    // Smallest circle it starts from, in blocks.
     public float SerpentInitialOrbitRadiusMin { get; set; } = 30f;
+    // Largest circle it starts from, in blocks.
     public float SerpentInitialOrbitRadiusMax { get; set; } = 50f;
+    // Shortest time for one step, in seconds.
     public float SerpentSpiralStepDurationMin { get; set; } = 5f;
+    // Longest time for one step, in seconds.
     public float SerpentSpiralStepDurationMax { get; set; } = 15f;
+    // Fewest blocks the circle tightens in one step.
     public float SerpentSpiralReductionMin { get; set; } = 5f;
+    // Most blocks the circle tightens in one step.
     public float SerpentSpiralReductionMax { get; set; } = 15f;
 
-    // Deep serpent variant (stays deep, orbits in huge arcs, rises only to strike)
-    public float DeepSerpentSpawnWeight { get; set; } = 0.9f;       // 90% deep, 10% rust (aggressive surface) serpent
+    // ─── Deep sea serpent ────────────────────────────────────────
+    // It stays deep, circles in huge arcs and rises only to strike.
+    // Share of natural serpents that are this one. 0.9 is 90% deep, 10% rust.
+    public float DeepSerpentSpawnWeight { get; set; } = 0.9f;
     // One-shot migration flag: configs written before the rust serpent
     // rebalance carry the old 0.75 weight; the first load raises it to
     // 0.9 and sets this flag, after which user tuning is left alone.
@@ -469,26 +522,35 @@ public class UnderwaterHorrorsConfig
     // One-shot migration flag: configs whose ingot map still carries the
     // exact old default steel entry get it swapped for iron; see Validate().
     public bool RuinIngotIronMigrated { get; set; } = false;
-    public float DeepSerpentStalkDepthMin { get; set; } = 10f;      // 10 blocks below surface
-    public float DeepSerpentStalkDepthMax { get; set; } = 30f;      // 30 blocks below surface
-    public float DeepSerpentOrbitRadius { get; set; } = 15f;        // final approach radius
+    // Shallowest it circles, in blocks below the surface. It picks one depth
+    // for its life.
+    public float DeepSerpentStalkDepthMin { get; set; } = 10f;
+    // Deepest it circles, in blocks below the surface.
+    public float DeepSerpentStalkDepthMax { get; set; } = 30f;
+    // Its closest circle, in blocks. When its spiral reaches this it attacks.
+    public float DeepSerpentOrbitRadius { get; set; } = 15f;
+    // Smallest circle it starts from, in blocks.
     public float DeepSerpentInitialOrbitRadiusMin { get; set; } = 50f;
+    // Largest circle it starts from, in blocks.
     public float DeepSerpentInitialOrbitRadiusMax { get; set; } = 80f;
+    // Shortest time for one spiral step, in seconds.
     public float DeepSerpentSpiralStepDurationMin { get; set; } = 15f;
+    // Longest time for one spiral step, in seconds.
     public float DeepSerpentSpiralStepDurationMax { get; set; } = 30f;
+    // Fewest blocks the circle tightens in one step.
     public float DeepSerpentSpiralReductionMin { get; set; } = 5f;
+    // Most blocks the circle tightens in one step.
     public float DeepSerpentSpiralReductionMax { get; set; } = 15f;
-    public float DeepSerpentMaxPitchRad { get; set; } = 0.005f;     // ~0.3° — nearly horizontal
-    public float DeepSerpentPitchInterpRate { get; set; } = 0.3f;   // very slow tilt lerp
+    // Not used yet.
+    public float DeepSerpentMaxPitchRad { get; set; } = 0.005f;
+    // Not used yet.
+    public float DeepSerpentPitchInterpRate { get; set; } = 0.3f;
 
-    // Vertical-motion smoothing for the damped controller.
-    // DeepSerpentMaxVerticalSpeed: hard cap on |Motion.Y| (blocks/tick
-    //   units that VS physics uses).  Much smaller than horizontal speed
-    //   so the body glides up/down very slowly even when dy is large.
-    // DeepSerpentVerticalSlewPerSec: max change in Motion.Y per second.
-    //   Prevents snap from e.g. +0.01 to -0.01 between ticks, smoothing
-    //   the moment where the serpent crosses through its target depth.
+    // Fastest it moves up or down while circling, in blocks per 1/60 second.
+    // Much slower than it swims, so the long body glides.
     public float DeepSerpentMaxVerticalSpeed { get; set; } = 0.012f;
+    // Most that vertical speed may change per second, so it does not snap as
+    // it crosses its target depth.
     public float DeepSerpentVerticalSlewPerSec { get; set; } = 0.04f;
 
     // ─── Giant serpent ───────────────────────────────────────────────────
@@ -522,6 +584,7 @@ public class UnderwaterHorrorsConfig
     // GiantSerpentFleeSeconds have passed, then comes back and fights to the
     // death. 0 turns fleeing off.
     public float GiantSerpentFleeHealthFraction { get; set; } = 0.25f;
+    // Seconds from the start of its flight until it comes back.
     public float GiantSerpentFleeSeconds { get; set; } = 60f;
     // How far from its prey it flees, in blocks. Kept under 80% of
     // DespawnMaxDistance, so fleeing never gets it removed. At 200 its deep
@@ -529,6 +592,7 @@ public class UnderwaterHorrorsConfig
     public float GiantSerpentFleeDistance { get; set; } = 200f;
     // Damage of a bite on a swimmer, and its armor piercing tier.
     public float GiantSerpentBiteDamage { get; set; } = 20f;
+    // Armor piercing tier of its bite.
     public int GiantSerpentDamageTier { get; set; } = 5;
     public bool GiantSerpentTierMigrated { get; set; } = false;
     // Whether the giant swallows rafts and breaks other boats. Off, boats
@@ -545,11 +609,15 @@ public class UnderwaterHorrorsConfig
     // Swimming speeds in blocks per second: cruising and circling, and the
     // final rush at its prey.
     public float GiantSerpentCruiseSpeed { get; set; } = 7f;
+    // Speed of the final rush at its prey, in blocks per second.
     public float GiantSerpentStrikeSpeed { get; set; } = 24f;
     // Seconds it circles below before the first strike, and between strikes.
     public float GiantSerpentStalkSecondsMin { get; set; } = 25f;
+    // Longest it circles before its first strike, in seconds.
     public float GiantSerpentStalkSecondsMax { get; set; } = 50f;
+    // Shortest it circles between strikes, in seconds.
     public float GiantSerpentStrikeCooldownMin { get; set; } = 15f;
+    // Longest it circles between strikes, in seconds.
     public float GiantSerpentStrikeCooldownMax { get; set; } = 30f;
     // It only strikes prey over water at least this deep. When its prey is
     // over shallower water or ashore, it swims off into the deep, and comes
@@ -576,14 +644,23 @@ public class UnderwaterHorrorsConfig
     // numbers: rusty gears, temporal gears, 1 to 3 of every kind of Jonas
     // part, raw fish and bones.
     public int GiantSerpentPieceRustyGearsMin { get; set; } = 10;
+    // Most rusty gears in one segment.
     public int GiantSerpentPieceRustyGearsMax { get; set; } = 15;
+    // Fewest temporal gears in one segment.
     public int GiantSerpentPieceTemporalGearsMin { get; set; } = 1;
+    // Most temporal gears in one segment.
     public int GiantSerpentPieceTemporalGearsMax { get; set; } = 4;
+    // Fewest of each kind of Jonas part in one segment.
     public int GiantSerpentPieceJonasPartsMin { get; set; } = 1;
+    // Most of each kind of Jonas part in one segment.
     public int GiantSerpentPieceJonasPartsMax { get; set; } = 3;
+    // Fewest raw fish in one segment.
     public int GiantSerpentPieceFishMin { get; set; } = 20;
+    // Most raw fish in one segment.
     public int GiantSerpentPieceFishMax { get; set; } = 50;
+    // Fewest bones in one segment.
     public int GiantSerpentPieceBonesMin { get; set; } = 20;
+    // Most bones in one segment.
     public int GiantSerpentPieceBonesMax { get; set; } = 50;
     // In-game hours its segments lie on the sea floor before they crumble,
     // each leaving a pile of bones. 0 keeps them for good.
@@ -594,8 +671,8 @@ public class UnderwaterHorrorsConfig
     // the sea floor near a coast and creeps toward a player heading for
     // land, casting a glowing temporal gear on a rope from the pole on its
     // head. When its prey comes close to its mouth, it swoops and gulps.
-    // Hitting the gear sends it away; destroying the gear (10 health) drops
-    // two temporal gears.
+    // The first blow on the gear knocks a temporal gear loose and sends the
+    // fish away; breaking the gear (10 health) drops another.
     // Chance that a natural spawn at night is the anglerfish instead. Night
     // is outside DayKrakenStartHour..DayKrakenEndHour. It needs a coast
     // within AnglerfishCoastRange blocks of the player with water at least
@@ -603,6 +680,7 @@ public class UnderwaterHorrorsConfig
     // /uh spawn anglerfish always works. A natural one sinks back into the
     // deep at daybreak.
     public float AnglerfishNightSpawnChance { get; set; } = 0.05f;
+    // How far from the player it looks for a coast, in blocks.
     public float AnglerfishCoastRange { get; set; } = 160f;
     // Water it needs to lie in, in blocks from the surface to the floor.
     public int AnglerfishMinWaterDepth { get; set; } = 40;
@@ -611,30 +689,35 @@ public class UnderwaterHorrorsConfig
     // with AnglerfishShoreSpawnChance an anglerfish comes to lie in one,
     // baiting them from the shore. 0 turns these off.
     public float AnglerfishShoreCheckSeconds { get; set; } = 60f;
+    // Chance (0 to 1) that one such check brings an anglerfish. 0 turns
+    // these off.
     public float AnglerfishShoreSpawnChance { get; set; } = 0.25f;
     // It swoops once its prey is this close to its mouth, in blocks, or
     // within that range sideways and up to AnglerfishStrikeReachUp blocks
     // above its mouth: it rises from the floor at prey on the surface.
     public float AnglerfishStrikeRange { get; set; } = 28f;
+    // How far above its mouth it can reach prey, in blocks.
     public float AnglerfishStrikeReachUp { get; set; } = 60f;
-    // Speed of the swoop in blocks per second, the damage of the gulp, and
-    // its armor piercing tier.
+    // Speed of the swoop, in blocks per second.
     public float AnglerfishStrikeSpeed { get; set; } = 40f;
+    // Damage of the gulp.
     public float AnglerfishBiteDamage { get; set; } = 50f;
+    // Armor piercing tier of the gulp.
     public int AnglerfishDamageTier { get; set; } = 3;
     public bool AnglerfishGiantMigrated { get; set; } = false;
 
-    // Kraken body
+    // ─── Kraken body ────────────────────────────────────────
+    // Damage each second to a player touching the kraken's body.
     public float KrakenContactDamage { get; set; } = 25f;
+    // How close to the body counts as touching it, in blocks.
     public float KrakenContactRange { get; set; } = 3f;
-    // 4 ambient risers + 4 ground wanderers + 1 attack tentacle = 9 total
-    // (3 ambient risers in older versions; the 4th makes the kraken feel
-    // larger when one of the 3 surface risers transitions into the attack
-    // tentacle slot via promotion).
+    // Arms that rise to the surface and circle. With the ground tentacles
+    // below and the one attack tentacle, the default is 8 arms.
     public int KrakenAmbientTentacleCount { get; set; } = 3;
     // Ground tentacles slither across the sea floor instead of rising.
     // They make the kraken's footprint feel huge and obviously alive.
     public int KrakenGroundTentacleCount { get; set; } = 4;
+    // How far from the body its arms start, in blocks.
     public float KrakenTentacleSpawnRadius { get; set; } = 5f;
 
     // (TentacleKrakenDeathFallDuration was removed here. Tentacles no
@@ -648,15 +731,22 @@ public class UnderwaterHorrorsConfig
     // kraken, since it keeps their relative pacing intact.
     public float TentacleSpeedMultiplier { get; set; } = 1f;
 
-    // Attack tentacle
+    // ─── Attack tentacle ────────────────────────────────────────
+    // Seconds a new attack tentacle waits before it starts to rise.
     public float TentacleIdleDuration { get; set; } = 2f;
     // Pursuit speed: how fast the attack tentacle closes on the player
     // once it has surfaced and started hunting. Scaled by
     // TentacleSpeedMultiplier on top of this.
     public float TentacleReachSpeed { get; set; } = 0.06f;
+    // How close to the player it grabs, in blocks.
     public float TentacleGrabRange { get; set; } = 2f;
+    // How fast a grabbed player is dragged to the body, in blocks per
+    // second.
     public float TentacleDragSpeed { get; set; } = 2.0f;
+    // Height of the tentacle's head relative to the gripped player's feet,
+    // in blocks.
     public float TentacleGrabYOffset { get; set; } = -0.5f;
+    // Seconds it sinks after letting go, before it is removed.
     public float TentacleSinkDuration { get; set; } = 30f;
     // (TentacleRespawnDelayMin/Max were removed here. They read like the
     // wait before a new attack tentacle appears, but nothing ever consulted
@@ -667,7 +757,9 @@ public class UnderwaterHorrorsConfig
     // kraken body's own contact damage skips mounted players, so this is
     // what hurts you while you are being dragged.
     public bool TentacleGrabDamageEnabled { get; set; } = true;
+    // Damage of each squeeze.
     public float TentacleGrabDamage { get; set; } = 1f;
+    // Seconds between squeezes.
     public float TentacleGrabDamageIntervalSeconds { get; set; } = 2f;
 
     // Proximity aggro. When the kraken picks its next attack tentacle, a
@@ -677,6 +769,7 @@ public class UnderwaterHorrorsConfig
     // the one that comes for you. The promotion cooldown below is still
     // honoured first, so this changes WHICH tentacle moves in, not when.
     public bool TentacleProximityAggroEnabled { get; set; } = true;
+    // How close a player must be to a tentacle for that, in blocks.
     public float TentacleProximityAggroRange { get; set; } = 3f;
 
     // Where a dead tentacle's remains land, and what it leaves. Tentacles
@@ -694,33 +787,49 @@ public class UnderwaterHorrorsConfig
     // ten to fifteen seconds, well inside the timeout above.
     public float TentacleDeathSinkSpeed { get; set; } = 0.08f;
 
-    // Tentacle spline rendering
+    // ─── Tentacle shape ────────────────────────────────────────
+    // How high an arm curves up between the body and its tip, as a share of
+    // the distance between them.
     public float TentacleArchHeightFactor { get; set; } = 0.4f;
+    // Not used.
     public float TentacleTipLerpSpeed { get; set; } = 5f;
 
-    // Ambient tentacle - rising and orbiting
+    // ─── Risers: arms that rise to the surface and circle ────────────────────────────────────────
+    // How fast a riser climbs, in blocks per 1/60 second.
     public float AmbientTentacleRiseSpeed { get; set; } = 0.04f;
+    // Size of the circle a riser swims at the surface, in blocks.
     public float AmbientTentacleOrbitRadius { get; set; } = 4f;
+    // How fast it circles.
     public float AmbientTentacleOrbitSpeed { get; set; } = 0.4f;
+    // How far it bobs up and down, in blocks.
     public float AmbientTentacleBobAmplitude { get; set; } = 1.5f;
+    // How fast it bobs.
     public float AmbientTentacleBobSpeed { get; set; } = 0.7f;
+    // Not used yet.
     public float AmbientTentacleSurfaceRange { get; set; } = 10f;
 
-    // Attack tentacle - rising and lingering
+    // ─── Attack tentacle at the surface ────────────────────────────────────────
+    // How fast it rises, in blocks per 1/60 second.
     public float TentacleRiseSpeed { get; set; } = 0.025f;
+    // Seconds it lingers at the surface before it hunts.
     public float TentacleLingerDuration { get; set; } = 7f;
+    // How far from the player it comes up, at most, in blocks.
     public float TentacleSurfaceRange { get; set; } = 10f;
 
-    // Shallow water retreat
+    // ─── Shallow water retreat ────────────────────────────────────────
+    // Water around the player counts as shallow when it is fewer than this
+    // many blocks deep. Serpents and tentacles turn back there.
     public int ShallowWaterThreshold { get; set; } = 3;
+    // How fast a retreating tentacle sinks, in blocks per 1/60 second.
     public float RetreatSpeed { get; set; } = 0.06f;
+    // Seconds it sinks before it is removed.
     public float RetreatDuration { get; set; } = 8f;
 
     // Stalling state: the attack tentacle enters Stalling the moment
     // the player leaves the water OR mounts a boat. While stalling it
     // either drifts slowly back toward the kraken body (player on land)
-    // or wanders in a slow circle around the player (player on boat) —
-    // it does NOT actively chase. If the player returns to a chase-able
+    // or wanders in a slow circle around the player (player on boat). It
+    // does NOT actively chase. If the player returns to a chase-able
     // state (back in water, dismounted) before the timer expires the
     // tentacle resumes Reaching from where it stalled. Otherwise the
     // tentacle transitions to Retreating and despawns gracefully.
@@ -729,48 +838,38 @@ public class UnderwaterHorrorsConfig
     // grinding along the side of any boat the player was sitting in).
     public float TentacleStallOrbitRadius   { get; set; } = 7f;
     public bool TentacleStallOrbitMigrated  { get; set; } = false;
+    // How fast its circle around a boat turns.
     public float TentacleStallOrbitSpeed    { get; set; } = 0.3f;
     // Drift speeds during Stalling. Slow on purpose so the visible
     // intent reads as "lurking" rather than "leaving".
     public float TentacleStallDriftSpeed    { get; set; } = 0.018f;
+    // How fast it swims on that circle, in blocks per 1/60 second.
     public float TentacleStallBoatSpeed     { get; set; } = 0.03f;
 
-    // Ambient tentacle wandering — used for both the post-rise scatter
-    // (when the attack tentacle starts pursuing) and for the 4 ground
-    // tentacles that crawl the sea floor from the moment they spawn.
-    // Range is centered on the kraken body. Min=5 so they pick varied
-    // distances (not always the perimeter), giving the floor-crawling
-    // motion a more natural, hypnotic feel as they reach + re-target
-    // continuously. Idle is short (1.5–4s) so they're nearly always in
-    // motion.
+    // How the ground tentacles crawl the sea floor, here and in the settings
+    // below. Nearest point they pick to crawl to, in blocks from the body.
     public float AmbientTentacleWanderRangeMin { get; set; } = 5f;
+    // Farthest point they pick, in blocks from the body.
     public float AmbientTentacleWanderRangeMax { get; set; } = 80f;
+    // How fast they crawl, in blocks per 1/60 second.
     public float AmbientTentacleWanderSpeed { get; set; } = 0.05f;
+    // Shortest pause between crawls, in seconds.
     public float AmbientTentacleWanderIdleMin { get; set; } = 1.5f;
+    // Longest pause between crawls, in seconds.
     public float AmbientTentacleWanderIdleMax { get; set; } = 4f;
-    // Maximum per-tick Y change while a ground tentacle is wandering. When
-    // terrain rises/drops between two adjacent XZ steps, FindSeaFloorYBelow
-    // returns a different floor height — applying it raw makes the tip
-    // teleport up by the full delta, which the user described as "kind of
-    // teleport up when something is in the way". Clamping the per-tick Y
-    // delta turns that into a smooth climb (≈3 blocks/s at 30Hz).
+    // Most a ground tentacle may move up or down each tick. Where the floor
+    // jumps, this makes it climb smoothly (about 3 blocks a second) instead
+    // of leaping.
     public float AmbientTentacleVerticalStepMax { get; set; } = 0.1f;
 
-    // Post-scatter risers: when the attack tentacle starts pursuing, the
-    // 3 surface-orbiting risers leave Orbiting and run a two-phase
-    // sequence — first a brief sink (visually "they're done with the
-    // surface, retreating") and then a midwater wander that mirrors the
-    // ground tentacles' hypnotic crawl but in open water above the body.
-    //
-    // ScatterSinkDuration: seconds spent descending toward midwater
-    // before the SurfaceWandering wander kicks in.
-    // SurfaceWanderRangeMin/Max: horizontal radius (blocks) around the
-    // kraken body for picking the next midwater target.
-    // SurfaceWanderDepthMax: how far below the surface the deepest
-    // midwater target can be (Y in [surface - DepthMax, surface]).
+    // When the attack tentacle starts hunting, the risers leave the surface.
+    // They sink toward midwater for this many seconds, then wander there.
     public float AmbientScatterSinkDuration { get; set; } = 10f;
+    // Nearest midwater point they pick, in blocks from the body.
     public float AmbientSurfaceWanderRangeMin { get; set; } = 5f;
+    // Farthest midwater point they pick, in blocks from the body.
     public float AmbientSurfaceWanderRangeMax { get; set; } = 30f;
+    // Deepest midwater point they pick, in blocks below the surface.
     public float AmbientSurfaceWanderDepthMax { get; set; } = 20f;
     // Promotion: when the attack tentacle dies, kraken body waits this
     // long, then picks a surviving ambient tentacle (any of them, risers
@@ -779,20 +878,29 @@ public class UnderwaterHorrorsConfig
     // room you get after killing a grabber; TentacleProximityAggroRange
     // decides which tentacle steps up once it elapses.
     public float AmbientPromoteToAttackDelayMin { get; set; } = 5f;
+    // Longest wait in seconds. The setting above is the shortest.
     public float AmbientPromoteToAttackDelayMax { get; set; } = 20f;
     // One-shot migration: configs written with the old 30/120 defaults are
     // moved to the new, much shorter ones on first load; see Validate().
     public bool PromoteDelayMigrated { get; set; } = false;
 
-    // Bioluminescence — pulsing glow that travels along tentacles
+    // ─── Kraken glow ────────────────────────────────────────
+    // A pulsing glow that travels along the tentacles. /uh kraken biolum sets it.
     public bool BiolumActive { get; set; } = false;
+    // Whether the glow pulses. /uh kraken biolum pulse sets it.
     public bool BiolumPulsing { get; set; } = false;
+    // How fast it pulses.
     public float BiolumPulseSpeed { get; set; } = 1.4f;
+    // Not used yet.
     public int BiolumGlowMin { get; set; } = 32;
+    // Not used yet.
     public int BiolumGlowMax { get; set; } = 200;
+    // Not used yet.
     public int BiolumBodyGlowMin { get; set; } = 16;
+    // Not used yet.
     public int BiolumBodyGlowMax { get; set; } = 128;
 
+    // ─── Sounds ────────────────────────────────────────
     // Sea monster sounds. The serpent plays ambient dread sounds while it
     // stalks, plus action stingers when it surfaces, dives, and bites.
     // Only one sound plays at a time per player; a bite overrides whatever
@@ -815,7 +923,9 @@ public class UnderwaterHorrorsConfig
     // 1.0 and 0.2 since 0.20.0 (was 1.5 and 0.5: "too loud and does not
     // fade" was the most common sound complaint).
     public float MonsterSoundScreechVolume { get; set; } = 1.0f;
+    // How far the screech carries, in blocks.
     public float MonsterSoundScreechRange { get; set; } = 25f;
+    // Share of full volume at the edge of that range.
     public float MonsterSoundScreechMinVolumeFactor { get; set; } = 0.2f;
     public bool ScreechVolumeMigrated { get; set; } = false;
     // Audible range (blocks) for the positional monster sounds. Players
@@ -833,6 +943,7 @@ public class UnderwaterHorrorsConfig
     // occasionally rather than constantly. After each ambient sound the
     // creature waits a random time in this range before the next one.
     public float MonsterSoundAmbientGapMin { get; set; } = 14f;
+    // Longest gap, in seconds. The setting above is the shortest.
     public float MonsterSoundAmbientGapMax { get; set; } = 34f;
 
     /// <summary>
