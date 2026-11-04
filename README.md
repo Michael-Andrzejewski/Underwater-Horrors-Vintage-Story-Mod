@@ -15,6 +15,20 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.26.0
+
+- Creatures no longer give up on a swimmer over seaweed or coral.
+- Ingot piles queued before 0.20.0 now follow the current loot config.
+- Rust Leviathan bite damage on a boat fades by one bite per in-game day (`GiantSerpentBoatBiteForgiveHours`, default 24, 0 keeps bites for good). Three quick bites still sink a boat.
+- New setting `AnglerfishLureDropsGears` (default true) can stop the anglerfish lure giving temporal gears.
+- `MonsterSoundVolume` now also covers the Rust Leviathan's death sounds.
+- Creature sounds now fade with distance and come from a direction. Six clips were stereo, and the game's sound engine neither moves nor fades stereo sounds.
+- New setting `AttackMountedPlayers` (default false) removes boat and mount safety from serpents and the kraken.
+- Swinging an Animal Cages cage at a creature no longer throws an error. It enrages the creature instead (`CageAttemptResponse`: rage, refuse or allow).
+- Handbook text corrected for serpent drops, ruin depth, spawners and boats.
+- Every config setting now has a description in CONFIG.md, which also ships in the mod zip. `RuinRarity` states its direction: higher is rarer.
+- The loudest ambient clip now plays at 0.55 to match the other (`MonsterSoundBelow2Volume`).
+
 ### 0.25.3
 
 - New config `GiantSerpentDestroysBoats` (on by default). Turn it off and the Rust Leviathan never swallows or breaks a boat: each bite on a boat hurts its riders by `GiantSerpentRiderDamage` (8), and they stay aboard. The cargo stays too.
