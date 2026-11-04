@@ -47,6 +47,7 @@
     <ItemGroup>
       <PackageFiles Include="$(TargetPath)" />
       <PackageFiles Include="modinfo.json" />
+      <PackageFiles Include="CONFIG.md" />
       <AssetFiles Include="assets\**\*" />
       <!-- Clean up older versioned zips so only the current one is deployed -->
       <OldZipsBin Include="$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\UnderwaterHorrors*.zip" />

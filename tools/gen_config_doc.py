@@ -14,6 +14,15 @@ OUT = os.path.join(ROOT, "CONFIG.md")
 
 PROP = re.compile(r'^\s*public\s+([\w<>\[\], ]+?)\s+(\w+)\s*\{\s*get;\s*set;\s*\}\s*(?:=\s*(.+?);)?\s*(?://\s*(.*))?$')
 
+# Rows described here instead of in the source, for keys whose line in the
+# config class is best left free of a comment.
+FILL = {
+    "MonsterSoundBelow2Volume": "Multiplier for the second ambient clip.",
+    "MonsterSoundNearbyVolume": "Multiplier for the sound of a creature close by at the surface.",
+    "MonsterSoundDiveVolume": "Multiplier for the dive sound.",
+    "MonsterSoundBiteVolume": "Multiplier for the bite.",
+}
+
 rows = []
 comment = []
 in_class = False
@@ -27,7 +36,14 @@ for line in open(SRC, encoding="utf-8"):
         continue
     st = s.strip()
     if st.startswith("//"):
-        comment.append(st.lstrip("/").strip())
+        text = st.lstrip("/").strip()
+        # A banner line ("// --- Temporal storms ---", drawn with box lines)
+        # starts a section. Everything else is description.
+        if text.startswith("\u2500"):
+            rows.append(("__header__", text.strip("\u2500 "), "", ""))
+            comment = []
+        else:
+            comment.append(text)
         continue
     m = PROP.match(s)
     if m:
@@ -37,11 +53,8 @@ for line in open(SRC, encoding="utf-8"):
             desc = (desc + " " + trail.strip()).strip()
         if default and default.startswith("Default") and default.endswith("()"):
             default = "see table below" if "Count" in name or "Types" in name else default
-        # A one-line comment of a few words with no period is a section
-        # header ("Spawn system", "Sea serpent"), not a description.
-        if len(comment) == 1 and len(desc.split()) <= 3 and not desc.endswith(".") and not trail:
-            rows.append(("__header__", desc, "", ""))
-            desc = ""
+        if not desc:
+            desc = FILL.get(name, "One-shot upgrade marker." if name.endswith(("Migrated", "Applied")) else "")
         rows.append((name, typ.strip(), (default or "").strip(), desc))
         comment = []
         continue
