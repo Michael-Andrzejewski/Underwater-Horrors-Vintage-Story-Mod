@@ -70,11 +70,15 @@ public static class TargetingHelper
 
         int waterCount = 0;
 
+        // The fluid layer: seaweed and coral sit in the water, and the plain
+        // block read returns the plant. A swimmer over a kelp bed read as
+        // shallow water, and the creature turned back and despawned.
+
         // Count water below (including player's block)
         for (int y = startY; y >= 0; y--)
         {
             scanPos.Y = y;
-            Block block = accessor.GetBlock(scanPos);
+            Block block = accessor.GetBlock(scanPos, BlockLayersAccess.Fluid);
             if (block == null || !WaterHelper.IsWaterBlock(block)) break;
             waterCount++;
             // Early exit: if we already know it's deep enough, no need to keep counting
@@ -85,7 +89,7 @@ public static class TargetingHelper
         for (int y = startY + 1; y < mapHeight; y++)
         {
             scanPos.Y = y;
-            Block block = accessor.GetBlock(scanPos);
+            Block block = accessor.GetBlock(scanPos, BlockLayersAccess.Fluid);
             if (block == null || !WaterHelper.IsWaterBlock(block)) break;
             waterCount++;
             if (waterCount >= threshold) return false;
