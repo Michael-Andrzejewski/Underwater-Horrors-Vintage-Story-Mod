@@ -912,7 +912,10 @@ public class UnderwaterHorrorsConfig
     // Per-sound volume multipliers (multiplied with MonsterSoundVolume). 1.0 = no
     // change. The screech has its own multiplier further down.
     public float MonsterSoundBelow1Volume { get; set; } = 1.0f;
-    public float MonsterSoundBelow2Volume { get; set; } = 1.0f;
+    // The second clip is about 5 dB louder than the first as recorded, so it
+    // plays at 0.55 to match it.
+    public float MonsterSoundBelow2Volume { get; set; } = 0.55f;
+    public bool MonsterSoundBelow2Migrated { get; set; } = false;
     public float MonsterSoundNearbyVolume { get; set; } = 1.0f;
     public float MonsterSoundDiveVolume { get; set; } = 1.0f;
     public float MonsterSoundBiteVolume { get; set; } = 0.75f;
@@ -1208,6 +1211,11 @@ public class UnderwaterHorrorsConfig
             if (MonsterSoundScreechVolume == 1.5f) MonsterSoundScreechVolume = 1.0f;
             if (MonsterSoundScreechMinVolumeFactor == 0.5f) MonsterSoundScreechMinVolumeFactor = 0.2f;
             ScreechVolumeMigrated = true;
+        }
+        if (!MonsterSoundBelow2Migrated)
+        {
+            if (MonsterSoundBelow2Volume == 1f) MonsterSoundBelow2Volume = 0.55f;
+            MonsterSoundBelow2Migrated = true;
         }
         if (!TentacleStallOrbitMigrated)
         {

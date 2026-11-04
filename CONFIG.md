@@ -254,7 +254,8 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `MonsterSoundsEnabled` | bool | `true` | Sea monster sounds. The serpent plays ambient dread sounds while it stalks, plus action stingers when it surfaces, dives, and bites. Only one sound plays at a time per player; a bite overrides whatever is playing. |
 | `MonsterSoundVolume` | float | `1.0f` | Global volume applied to every monster sound. Each individual sound below has its own multiplier on top of this, so you can balance them. |
 | `MonsterSoundBelow1Volume` | float | `1.0f` | Per-sound volume multipliers (multiplied with MonsterSoundVolume). 1.0 = no change. The screech has its own multiplier further down. |
-| `MonsterSoundBelow2Volume` | float | `1.0f` | Multiplier for the second ambient clip. |
+| `MonsterSoundBelow2Volume` | float | `0.55f` | The second clip is about 5 dB louder than the first as recorded, so it plays at 0.55 to match it. |
+| `MonsterSoundBelow2Migrated` | bool | `false` | One-shot upgrade marker. |
 | `MonsterSoundNearbyVolume` | float | `1.0f` | Multiplier for the sound of a creature close by at the surface. |
 | `MonsterSoundDiveVolume` | float | `1.0f` | Multiplier for the dive sound. |
 | `MonsterSoundBiteVolume` | float | `0.75f` | Multiplier for the bite. |
