@@ -611,6 +611,10 @@ public class UnderwaterHorrorsConfig
     public float AnglerfishCoastRange { get; set; } = 160f;
     // Water it needs to lie in, in blocks from the surface to the floor.
     public int AnglerfishMinWaterDepth { get; set; } = 40;
+    // Whether its lure gives temporal gears: one on the first blow and one
+    // when it breaks. Off, the lure gives none. Killing the fish still gives
+    // the temporal gear in its carcass.
+    public bool AnglerfishLureDropsGears { get; set; } = true;
     // A player on land at night by deep coastal water is checked about this
     // often (seconds): a few columns of water around them are tested, and
     // with AnglerfishShoreSpawnChance an anglerfish comes to lie in one,
