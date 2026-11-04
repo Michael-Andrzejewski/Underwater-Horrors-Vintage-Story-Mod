@@ -287,7 +287,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // spawn loop (mounted spawns are no longer blocked).
         if (state == SerpentState.Stalking || state == SerpentState.Attacking)
         {
-            if (targetPlayer?.Entity?.MountedOn != null)
+            if (TargetSafeOnMount)
             {
                 UpdateBoatPhase(deltaTime);
                 if (UpdateBoatBoredom(deltaTime))
@@ -656,7 +656,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
     {
         if (targetPlayer?.Entity == null) return;
 
-        bool playerMounted = targetPlayer.Entity.MountedOn != null;
+        bool playerMounted = TargetSafeOnMount;
 
         float radius;
         if (useSpiralApproach)
@@ -819,7 +819,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
             return;
         }
 
-        if (targetPlayer.Entity.MountedOn != null)
+        if (TargetSafeOnMount)
         {
             if (config.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api,
@@ -1034,7 +1034,7 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature
         // Boredom-committed retreats don't revert — they see it through.
         if (!committedRetreat &&
             targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
-            targetPlayer.Entity.MountedOn == null && !IsInShallowWater)
+            !TargetSafeOnMount && !IsInShallowWater)
         {
             if (config.DebugLogging)
                 UnderwaterHorrorsModSystem.DebugLog(entity.Api,

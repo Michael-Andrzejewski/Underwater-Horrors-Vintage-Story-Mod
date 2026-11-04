@@ -237,7 +237,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         // Boat boredom — see regular serpent for commentary.
         if (state == SerpentState.Stalking || state == SerpentState.Attacking)
         {
-            if (targetPlayer?.Entity?.MountedOn != null)
+            if (TargetSafeOnMount)
             {
                 UpdateBoatPhase(deltaTime);
                 if (UpdateBoatBoredom(deltaTime))
@@ -591,7 +591,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
     {
         if (targetPlayer?.Entity == null) return;
 
-        bool playerMounted = targetPlayer.Entity.MountedOn != null;
+        bool playerMounted = TargetSafeOnMount;
 
         float radius;
         if (useSpiralApproach)
@@ -742,7 +742,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
             return;
         }
 
-        if (targetPlayer.Entity.MountedOn != null)
+        if (TargetSafeOnMount)
         {
             TransitionTo(SerpentState.Stalking);
             return;
@@ -930,7 +930,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature
         // Boredom-committed retreats see it through; don't revert.
         if (!committedRetreat &&
             targetPlayer?.Entity != null && targetPlayer.Entity.Alive &&
-            targetPlayer.Entity.MountedOn == null && !IsInShallowWater)
+            !TargetSafeOnMount && !IsInShallowWater)
         {
             TransitionTo(SerpentState.Stalking);
             return;

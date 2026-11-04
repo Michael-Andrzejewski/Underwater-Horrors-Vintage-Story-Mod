@@ -314,8 +314,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
             // Our own grip mounts the player too, so "is the player on a
             // boat" has to exclude this tentacle's seat, or the drag would
             // stall itself on the very tick it grabs someone.
-            IMountableSeat mount = targetPlayer?.Entity?.MountedOn;
-            bool playerMounted = mount != null && mount.Entity != entity;
+            bool playerMounted = TargetSafeOnMount;
             if (IsInShallowWater || playerMounted)
             {
                 if (config.DebugLogging)
@@ -1034,7 +1033,7 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
         // Recompute the trigger conditions each tick. The shallow-water
         // check is throttled to 0.5s so it's cheap.
         UpdateShallowWaterCheck(deltaTime);
-        bool playerMounted = targetPlayer.Entity.MountedOn != null;
+        bool playerMounted = TargetSafeOnMount;
         bool playerOutOfWater = IsInShallowWater;
 
         // Player came back into chase-able state — resume Reaching.

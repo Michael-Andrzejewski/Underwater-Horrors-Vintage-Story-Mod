@@ -67,6 +67,20 @@ public class EntityBehaviorOceanCreature : EntityBehavior
     }
 
     /// <summary>
+    /// True while what the target rides keeps them safe: any mount, unless
+    /// AttackMountedPlayers is on. A tentacle holding the player does not
+    /// count as something they ride.
+    /// </summary>
+    protected bool TargetSafeOnMount
+    {
+        get
+        {
+            IMountableSeat mount = targetPlayer?.Entity?.MountedOn;
+            return mount != null && mount.Entity != entity && !config.AttackMountedPlayers;
+        }
+    }
+
+    /// <summary>
     /// The highest Y this creature may swim to. Resolved against the live
     /// world so the -1 config default tracks the actual sea level on any
     /// map height, instead of assuming the default 256-tall world.
@@ -458,7 +472,7 @@ public class EntityBehaviorOceanCreature : EntityBehavior
             IMountableSeat mount = targetPlayer?.Entity?.MountedOn;
             bool onSomethingElse = mount != null && mount.Entity != entity;
 
-            lastShallowWaterResult = !onSomethingElse &&
+            lastShallowWaterResult = (!onSomethingElse || config.AttackMountedPlayers) &&
                 TargetingHelper.IsPlayerInShallowWater(entity, targetPlayer, config.ShallowWaterThreshold);
         }
     }
