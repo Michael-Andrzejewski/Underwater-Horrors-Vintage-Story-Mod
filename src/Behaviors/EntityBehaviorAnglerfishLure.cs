@@ -175,6 +175,7 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
     // attacker is close; otherwise where the lure was.
     private void DropGear(Entity attacker)
     {
+        if (UnderwaterHorrorsModSystem.Config?.AnglerfishLureDropsGears == false) return;
         var item = entity.World.GetItem(TemporalGear);
         if (item == null) return;
         var at = entity.Pos.XYZ.Add(0, .5, 0);
