@@ -2207,7 +2207,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         for (int y = startY; y >= limit; y--)
         {
             reusableBlockPos.Y = y;
-            Block block = accessor.GetBlock(reusableBlockPos);
+            Block block = accessor.GetBlock(reusableBlockPos, BlockLayersAccess.Fluid);
             if (block != null && IsSpawnWater(block)) return true;
         }
         return false;
@@ -2584,7 +2584,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     continue;
                 }
 
-                Block feet = sapi.World.BlockAccessor.GetBlock(target.Entity.Pos.AsBlockPos);
+                // The fluid layer: a swimmer in seaweed or coral is in the water,
+                // though the plain block read returns the plant.
+                Block feet = sapi.World.BlockAccessor.GetBlock(target.Entity.Pos.AsBlockPos, BlockLayersAccess.Fluid);
                 if (fromSpawner)
                 {
                     // Spawner encounters can sit in fresh water (a /uh
@@ -2596,7 +2598,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                         for(int below=0;below<MountedWaterScanDownLimit && !engaged;below++)
                         {
                             waterPos.Y--;
-                            engaged=WaterHelper.IsWaterBlock(sapi.World.BlockAccessor.GetBlock(waterPos));
+                            engaged=WaterHelper.IsWaterBlock(sapi.World.BlockAccessor.GetBlock(waterPos, BlockLayersAccess.Fluid));
                         }
                     }
                 }
