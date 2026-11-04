@@ -542,6 +542,11 @@ public class UnderwaterHorrorsConfig
     // Bites it takes to break a boat that is not a raft (the sailboat).
     // A raft always goes down in one gulp.
     public int GiantSerpentBitesToSinkBoat { get; set; } = 3;
+    // Damage on a boat fades, since nothing can repair it. One bite is
+    // forgiven for every this many in-game hours since the boat's last bite,
+    // so 24 is one bite a day. 0 means bites stay on the boat for good. The
+    // count and the time are kept on the boat, in the save.
+    public float GiantSerpentBoatBiteForgiveHours { get; set; } = 24f;
     // Swimming speeds in blocks per second: cruising and circling, and the
     // final rush at its prey.
     public float GiantSerpentCruiseSpeed { get; set; } = 7f;
@@ -933,6 +938,7 @@ public class UnderwaterHorrorsConfig
         GiantSerpentBiteDamage = Math.Max(0f, GiantSerpentBiteDamage);
         GiantSerpentRiderDamage = Math.Max(0f, GiantSerpentRiderDamage);
         GiantSerpentBitesToSinkBoat = Math.Max(1, GiantSerpentBitesToSinkBoat);
+        GiantSerpentBoatBiteForgiveHours = Math.Max(0f, GiantSerpentBoatBiteForgiveHours);
         GiantSerpentCruiseSpeed = Math.Clamp(GiantSerpentCruiseSpeed, 0.5f, 60f);
         GiantSerpentStrikeSpeed = Math.Clamp(GiantSerpentStrikeSpeed, GiantSerpentCruiseSpeed, 80f);
         GiantSerpentStalkSecondsMin = Math.Max(0f, GiantSerpentStalkSecondsMin);

@@ -143,6 +143,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `GiantSerpentDestroysBoats` | bool | `true` | Whether the giant swallows rafts and breaks other boats. Off, boats are never harmed: every bite on a boat hurts its riders by GiantSerpentRiderDamage instead, and they stay aboard. |
 | `GiantSerpentRiderDamage` | float | `8f` | Damage to each rider when the giant swallows or breaks their boat. They land in the water, where it can come back for them. With GiantSerpentDestroysBoats off, the damage of each bite on their boat. |
 | `GiantSerpentBitesToSinkBoat` | int | `3` | Bites it takes to break a boat that is not a raft (the sailboat). A raft always goes down in one gulp. |
+| `GiantSerpentBoatBiteForgiveHours` | float | `24f` | Damage on a boat fades, since nothing can repair it. One bite is forgiven for every this many in-game hours since the boat's last bite, so 24 is one bite a day. 0 means bites stay on the boat for good. The count and the time are kept on the boat, in the save. |
 | `GiantSerpentCruiseSpeed` | float | `7f` | Swimming speeds in blocks per second: cruising and circling, and the final rush at its prey. |
 | `GiantSerpentStrikeSpeed` | float | `24f` |  |
 | `GiantSerpentStalkSecondsMin` | float | `25f` | Seconds it circles below before the first strike, and between strikes. |

@@ -58,6 +58,9 @@ public enum GiantSerpentState
 public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
 {
     public const string BitesAttr = "underwaterhorrors:giantSerpentBites";
+    // In-game hour of the boat's last bite. Kept beside the count, so both
+    // are saved with the boat.
+    public const string LastBiteHourAttr = "underwaterhorrors:giantSerpentLastBiteHour";
 
     private const string AnimIdle = "idle";
     private const string AnimGape = "gape";
@@ -766,7 +769,10 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
             return;
         }
 
-        int bites = boat.WatchedAttributes.GetInt(BitesAttr) + 1;
+        var boatAttrs = boat.WatchedAttributes;
+        double nowHours = entity.World.Calendar.TotalHours;
+        int bites = BitesStillCounted(boatAttrs.GetInt(BitesAttr), boatAttrs.GetDouble(LastBiteHourAttr, -1),
+            nowHours, config.GiantSerpentBoatBiteForgiveHours) + 1;
         bool raft = IsRaft(boat);
         if (raft || bites >= config.GiantSerpentBitesToSinkBoat)
         {
@@ -787,9 +793,25 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature
         }
         else
         {
-            boat.WatchedAttributes.SetInt(BitesAttr, bites);
+            boatAttrs.SetInt(BitesAttr, bites);
+            boatAttrs.SetDouble(LastBiteHourAttr, nowHours);
             Log($"bit {boat.Code}, {bites}/{config.GiantSerpentBitesToSinkBoat} bites to sink it");
         }
+    }
+
+    /// <summary>
+    /// How many earlier bites still count against a boat. One is forgiven for
+    /// every forgiveHours since its last bite, and a new bite restarts that
+    /// clock. forgiveHours of 0 keeps every bite. A boat bitten before this
+    /// rule has a count but no time on record (lastBiteHour below 0): when it
+    /// was bitten is unknown, so those bites are forgiven.
+    /// </summary>
+    public static int BitesStillCounted(int bites, double lastBiteHour, double nowHours, float forgiveHours)
+    {
+        if (bites <= 0 || forgiveHours <= 0) return Math.Max(0, bites);
+        if (lastBiteHour < 0) return 0;
+        double forgiven = Math.Floor(Math.Max(0, nowHours - lastBiteHour) / forgiveHours);
+        return forgiven >= bites ? 0 : bites - (int)forgiven;
     }
 
     /// <summary>
