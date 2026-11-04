@@ -17,7 +17,6 @@ PROP = re.compile(r'^\s*public\s+([\w<>\[\], ]+?)\s+(\w+)\s*\{\s*get;\s*set;\s*\
 # Rows described here instead of in the source, for keys whose line in the
 # config class is best left free of a comment.
 FILL = {
-    "MonsterSoundBelow2Volume": "Multiplier for the second ambient clip.",
     "MonsterSoundNearbyVolume": "Multiplier for the sound of a creature close by at the surface.",
     "MonsterSoundDiveVolume": "Multiplier for the dive sound.",
     "MonsterSoundBiteVolume": "Multiplier for the bite.",
