@@ -42,6 +42,9 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
     public const string OwnerIdAttr = "underwaterhorrors:anglerOwnerId";
     // Set on anglerfish from natural spawning; they leave at daybreak.
     public const string NaturalAttr = "underwaterhorrors:anglerNatural";
+    // In-game time (Calendar.TotalHours) a natural one arrived; it leaves
+    // after AnglerfishMaxStayHours.
+    public const string SpawnedAtHoursAttr = "underwaterhorrors:anglerSpawnedAtHours";
     private static readonly AssetLocation LureAsset = new("underwaterhorrors", "anglerfishlure");
 
     // tools/anglerfish/build_angler.py, at entity size 2: the front of the
@@ -935,7 +938,11 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
         var fish = api.World.ClassRegistry.CreateEntity(props);
         fish.Pos.SetPos(x, y, z); fish.Pos.Yaw = yaw; fish.Pos.Dimension = dim;
         fish.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", player.PlayerUID);
-        if (natural) fish.WatchedAttributes.SetBool(NaturalAttr, true);
+        if (natural)
+        {
+            fish.WatchedAttributes.SetBool(NaturalAttr, true);
+            fish.WatchedAttributes.SetDouble(SpawnedAtHoursAttr, api.World.Calendar.TotalHours);
+        }
         api.World.SpawnEntity(fish);
         return fish;
     }

@@ -699,7 +699,10 @@ public class UnderwaterHorrorsConfig
     // AnglerfishMinWaterDepth deep off it. 0 turns natural anglerfish off;
     // /uh spawn anglerfish always works. A natural one sinks back into the
     // deep at daybreak.
-    public float AnglerfishNightSpawnChance { get; set; } = 0.05f;
+    public float AnglerfishNightSpawnChance { get; set; } = 0.005f;
+    // A natural anglerfish leaves after this many in-game hours, even with a
+    // player close by (it also leaves at daybreak).
+    public float AnglerfishMaxStayHours { get; set; } = 3f;
     // How far from the player it looks for a coast, in blocks.
     public float AnglerfishCoastRange { get; set; } = 160f;
     // Water it needs to lie in, in blocks from the surface to the floor.
@@ -715,7 +718,7 @@ public class UnderwaterHorrorsConfig
     public float AnglerfishShoreCheckSeconds { get; set; } = 60f;
     // Chance (0 to 1) that one such check brings an anglerfish. 0 turns
     // these off.
-    public float AnglerfishShoreSpawnChance { get; set; } = 0.25f;
+    public float AnglerfishShoreSpawnChance { get; set; } = 0.025f;
     // It swoops once its prey is this close to its mouth, in blocks, or
     // within that range sideways and up to AnglerfishStrikeReachUp blocks
     // above its mouth: it rises from the floor at prey on the surface.
@@ -729,6 +732,8 @@ public class UnderwaterHorrorsConfig
     // Armor piercing tier of the gulp.
     public int AnglerfishDamageTier { get; set; } = 3;
     public bool AnglerfishGiantMigrated { get; set; } = false;
+    // One-shot migration flag for the ten times rarer anglerfish; see Validate().
+    public bool AnglerfishRarityMigrated { get; set; } = false;
 
     // ─── Kraken body ────────────────────────────────────────
     // Damage each second to a player touching the kraken's body.
@@ -1117,6 +1122,7 @@ public class UnderwaterHorrorsConfig
         AnglerfishCoastRange = Math.Clamp(AnglerfishCoastRange, 32f, 400f);
         AnglerfishShoreCheckSeconds = Math.Max(5f, AnglerfishShoreCheckSeconds);
         AnglerfishShoreSpawnChance = Math.Clamp(AnglerfishShoreSpawnChance, 0f, 1f);
+        AnglerfishMaxStayHours = Math.Clamp(AnglerfishMaxStayHours, 0.25f, 24f);
         AnglerfishDamageTier = Math.Clamp(AnglerfishDamageTier, 0, 10);
         AnglerfishStrikeRange = Math.Clamp(AnglerfishStrikeRange, 3f, 40f);
         AnglerfishStrikeReachUp = Math.Clamp(AnglerfishStrikeReachUp, AnglerfishStrikeRange, 60f);
@@ -1219,6 +1225,14 @@ public class UnderwaterHorrorsConfig
             if (AnglerfishStrikeSpeed == 28f) AnglerfishStrikeSpeed = 40f;
             if (AnglerfishMinWaterDepth == 32) AnglerfishMinWaterDepth = 40;
             AnglerfishGiantMigrated = true;
+        }
+        if (!AnglerfishRarityMigrated)
+        {
+            // Natural anglerfish became ten times rarer: chances still at the
+            // old defaults move to the new ones. Tuned values stay.
+            if (AnglerfishNightSpawnChance == 0.05f) AnglerfishNightSpawnChance = 0.005f;
+            if (AnglerfishShoreSpawnChance == 0.25f) AnglerfishShoreSpawnChance = 0.025f;
+            AnglerfishRarityMigrated = true;
         }
         if (!GiantSerpentTierMigrated)
         {

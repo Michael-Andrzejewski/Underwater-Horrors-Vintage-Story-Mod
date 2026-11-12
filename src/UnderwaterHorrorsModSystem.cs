@@ -2557,6 +2557,21 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     landTimers.Remove(id);
                     continue;
                 }
+                // It also leaves after AnglerfishMaxStayHours, near a player or
+                // not. Without this, a player who lives by the coast kept it
+                // forever (it stays while they are within its bait range by
+                // night or 48 blocks by day), and since tracking is lost on a
+                // restart and unloaded fish are not counted, more piled up off
+                // the same shore. One with no arrival time predates this
+                // rule and is one of those stale ones, so it goes too.
+                double arrived = creature.WatchedAttributes.GetDouble(EntityBehaviorAnglerfishAI.SpawnedAtHoursAttr, -1);
+                if (arrived < 0 || sapi.World.Calendar.TotalHours - arrived >= Config.AnglerfishMaxStayHours)
+                {
+                    if (Config.DebugLogging) DebugLog(sapi, $"DESPAWNING natural anglerfish (id {id}): stayed its time");
+                    creature.Die(EnumDespawnReason.Expire);
+                    landTimers.Remove(id);
+                    continue;
+                }
             }
             bool fromSpawner = creature.WatchedAttributes.GetBool(BlockEntityCreatureSpawner.FromSpawnerAttr);
 

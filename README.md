@@ -28,6 +28,8 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 - Handbook text corrected for serpent drops, ruin depth, spawners and boats.
 - Every config setting now has a description in CONFIG.md, which also ships in the mod zip. `RuinRarity` states its direction: higher is rarer.
 - The loudest ambient clip now plays at 0.55 to match the other (`MonsterSoundBelow2Volume`).
+- Natural anglerfish no longer pile up off a coast where a player lives. Each one leaves after `AnglerfishMaxStayHours` (3 in-game hours) even with a player close by; before, one stayed as long as its target was within 160 blocks at night or 48 by day, and a restart let more come. Stale ones from older versions leave on load.
+- Natural anglerfish are ten times rarer: `AnglerfishNightSpawnChance` 0.05 to 0.005 and `AnglerfishShoreSpawnChance` 0.25 to 0.025. Configs still at the old defaults move over; tuned values stay.
 
 ### 0.25.3
 
@@ -53,7 +55,7 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
   - 100 health instead of 200. Killed, it sinks onto the floor and is harvested like a carcass: 20 to 40 raw fish, 10 to 20 bones and a temporal gear.
   - Its gear shows its 10 health to whoever looks at it. Broken, it drops one or two temporal gears, and the fish flees at 30 blocks a second instead of 10.
   - A player right over its back, led there by the lure, gets a strike from below however deep the fish lies: it rises, faster for a long rise, strikes and goes back down.
-  - At night a player standing on land by deep coastal water may get one lying off the shore. About once a minute (`AnglerfishShoreCheckSeconds`) each such player is checked: with `AnglerfishShoreSpawnChance` (25%) up to four columns of water around them are tested, one scan down each, and the fish is laid in the first deep enough. Between checks it costs one lookup. An anglerfish now stays while its target is within reach of its lure, ashore or not.
+  - At night a player standing on land by deep coastal water may get one lying off the shore. About once a minute (`AnglerfishShoreCheckSeconds`) each such player is checked: with `AnglerfishShoreSpawnChance` (2.5%) up to four columns of water around them are tested, one scan down each, and the fish is laid in the first deep enough. Between checks it costs one lookup. An anglerfish now stays while its target is within reach of its lure, ashore or not.
 - Kraken:
   - Each arm is 36 pieces instead of 96: three of the old 0.84-block trunks fused into one 2.53-block piece (`tools/kraken/build_glow_parts.py`), as the anglerfish's line uses long pieces. A kraken is 297 entities instead of 777. Measured with Pilot's kraken_perf in steady state, a kraken now costs the server about 0.05 ms a tick instead of 1.0 to 1.5, and about 63 KB/s of network instead of about 165.
   - A piece that has hardly moved since its last update is not updated again, so the server sends nothing for it.
@@ -139,11 +141,12 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
   wide (entity size 6). `/uh spawn anglerfish` lays one on the floor in
   nearby deep water, facing you; `/uhangler show` places a still model.
 - It lies off coasts like a wobbegong. At night, now and then, a natural
-  spawn is the anglerfish (`AnglerfishNightSpawnChance`, default 0.05): it
+  spawn is the anglerfish (`AnglerfishNightSpawnChance`, default 0.005): it
   finds the nearest coast within `AnglerfishCoastRange` (160) of the player
   and lies on the floor in the first water off it at least
   `AnglerfishMinWaterDepth` (40) deep. A natural one sinks back into the
-  deep at daybreak once nobody is near it.
+  deep at daybreak once nobody is near it, and after
+  `AnglerfishMaxStayHours` (3 in-game hours) in any case.
 - It creeps along the floor toward its prey, over slopes and among blocks,
   but never into water too shallow for it and never far from its lair. It
   turns to face any player within 15 blocks of its body, ashore or afloat.
