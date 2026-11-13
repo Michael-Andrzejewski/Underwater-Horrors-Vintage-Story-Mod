@@ -54,7 +54,12 @@ void Validate()
             var first=(JObject)a["keyframes"].First["elements"];
             var last=(JObject)a["keyframes"].Last["elements"];
             foreach(var p in first.Properties()) foreach(var axis in ((JObject)p.Value).Properties())
-                if(Math.Abs(axis.Value.Value<double>() - last[p.Name][axis.Name].Value<double>())>0.00001) throw new Exception("Discontinuous loop "+a["code"]);
+            {
+                double gap=Math.Abs(axis.Value.Value<double>() - last[p.Name][axis.Name].Value<double>());
+                // A full turn ends where it began: 360 and 0 are the same pose.
+                if(axis.Name.StartsWith("rotation")) { gap%=360; gap=Math.Min(gap,360-gap); }
+                if(gap>0.00001) throw new Exception("Discontinuous loop "+a["code"]);
+            }
         }
     }
     shape.InitForAnimations(null,"anglerfish");

@@ -1469,7 +1469,7 @@
      "frame": 479,
      "elements": {
       "gearspin": {
-       "rotationX": 0.0,
+       "rotationX": 360.0,
        "rotShortestDistanceX": true,
        "rotationY": 0.0,
        "rotationZ": 0.0

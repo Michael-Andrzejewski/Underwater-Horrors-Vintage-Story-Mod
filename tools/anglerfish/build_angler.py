@@ -1273,7 +1273,10 @@ def lure_animations():
     keys = []
     for i in range(steps + 1):
         f = min(frames - 1, i * frames // steps)
-        keys.append((f, {"gearspin": {"rotationX": (360.0 * i / steps) % 360, "rotShortestDistanceX": True}}))
+        # The last key is 360, not 0: the game blends keys by their plain
+        # values, so a key of 0 there would turn the gear all the way back.
+        # The flag makes the wrap from the last frame to the first a no-op.
+        keys.append((f, {"gearspin": {"rotationX": 360.0 * i / steps, "rotShortestDistanceX": True}}))
     return [clip("spin", frames, keys)]
 
 
