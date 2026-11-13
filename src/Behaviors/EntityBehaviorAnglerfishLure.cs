@@ -128,9 +128,36 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         }
         entity.Pos.Yaw = AnglerfishAttackCycle.SmoothYaw(entity.Pos.Yaw, owner.Pos.Yaw, dt, 45);
         entity.Pos.Roll = Docked ? 0 : (float)Math.Sin(elapsed * .8) * .12f;
+        Spin(Docked ? 1f : 2.5f);
         entity.Pos.Motion.Set(0, 0, 0);
         // Long casts sag underwater instead of arching above the surface.
         chain.UpdateRope(anchor.X, anchor.Y, anchor.Z, ai.LureStack(), -.015f);
+    }
+
+    // The gear turns slowly about its own axis (the shape's "spin" clip, once
+    // in 16 seconds at speed 1), faster while it is cast. Started here on the
+    // server, which sends running animations to clients, the same way the
+    // fish's own clips play.
+    private float spinSpeed;
+    private void Spin(float speed)
+    {
+        if (entity.AnimManager == null || spinSpeed == speed) return;
+        if (spinSpeed != 0 && entity.AnimManager.ActiveAnimationsByAnimCode.TryGetValue("spin", out var running))
+        {
+            // Change the speed in place: a restart would jump the gear back
+            // to its starting angle.
+            running.AnimationSpeed = speed;
+            entity.AnimManager.AnimationsDirty = true;
+        }
+        else
+        {
+            entity.AnimManager.StartAnimation(new AnimationMetaData
+            {
+                Code = "spin", Animation = "spin", AnimationSpeed = speed,
+                EaseInSpeed = 1000, EaseOutSpeed = 1000, BlendMode = EnumAnimationBlendMode.Add
+            }.Init());
+        }
+        spinSpeed = speed;
     }
 
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)

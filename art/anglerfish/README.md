@@ -50,16 +50,25 @@ them over into the script.
 - The texture is painted from 3D positions: each texel knows where it sits
   on the fish. Blotches, pores, scars, the lateral line and the gill slit
   run across faces without seams.
-- The gear is the vanilla temporal gear upscaled: its bars from
-  `assets/survival/shapes/item/gear-temporal.json` laid on a half-unit grid
-  and merged into 13 boxes that never overlap, so no two faces share a
-  plane, then painted from the vanilla texture's own pixels. It is 4.5
-  blocks across on the pole and as the live lure, and glows at full strength.
-  The build reads that texture from the installed game.
+- The gear is the vanilla temporal gear upscaled: all eight bars from
+  `assets/survival/shapes/item/gear-temporal.json` (two uprights crossed by
+  two rails, so it has the square hole in the middle and eight stub teeth)
+  laid on a half-unit grid and merged into 16 boxes that never overlap, so
+  no two faces share a plane, then painted from the vanilla texture's own
+  pixels. It is 4.5 blocks across on the pole and as the live lure, and
+  glows at full strength. The build reads that texture from the installed
+  game.
+- The gear hangs from a bone at its centre, `gearspin`. The live lure's
+  `spin` clip turns it about its own axis, once in 16 seconds; the lure
+  behavior plays it 2.5 times faster while the lure is cast.
 - The eyes glow faintly, so two pale eyes show behind the lure in the dark.
-- 26 faint patches of cyan spots (145 small boxes) sit in the hide's
-  plates, mostly on the flanks and back, clear of the eyes, lips and gill.
-  Each spot is a child of its plate's bone, so it bends with the body.
+- Cyan spots that glow at full strength sit in the hide's plates
+  (312 small boxes), clear of the eyes, lips and gill. Two dotted rows
+  run down each flank from the gill to the tail, the spots shrinking toward
+  the tail, and 34 clusters (one larger spot ringed by small ones) are
+  scattered over the flanks, back and head. At night they trace the fish's
+  outline. Each spot is a child of its plate's bone, so it bends with the
+  body.
 
 ## Scale and rig
 
@@ -84,14 +93,16 @@ toward the tail.
 
 | Clip | Frames at 30 fps | End | What it does |
 | --- | --- | --- | --- |
-| idle | 150 | Loop | Lurking: gills flare, jaw works slowly |
-| swim | 90 | Loop | Body wave down the spine |
+| idle | 150 | Loop | Lurking: two breaths through the gills, the head nods and the jaw works with each |
+| swim | 90 | Loop | Body wave down the spine with a faster ripple on top; the body rolls into each tail beat |
 | swimfast | 45 | Loop | Bigger, faster wave, jaw ajar |
-| lure | 180 | Loop | Nearly still, rod and gear sway |
-| bite | 76 | Hold | Opens to 58 degrees, snaps shut at frame 49 |
-| swallow | 106 | Hold | Opens to 64 degrees, gulps at frame 57 |
-| hurt | 28 | Hold | Flinch |
-| die | 121 | Hold | Rolls belly up, jaw slack |
+| lure | 180 | Loop | Nearly still, rod and gear sway (not used by the AI yet) |
+| bite | 76 | Hold | Coils back, opens both ways (jaw 58 degrees down, skull 6 up) with gills flung wide and fins spread, snaps shut at frame 49, bounces, shakes its head |
+| swallow | 106 | Hold | The same with a 64 degree gape, snaps at frame 57, then three gulps |
+| hurt | 28 | Hold | Hard flinch with the mouth thrown open, then two smaller swings |
+| die | 121 | Hold | A shudder down the spine, then rolls belly up, jaw slack |
+
+The live lure has one clip of its own, `spin` (480 frames, loop).
 
 The AI in `src/Behaviors/EntityBehaviorAnglerfishAI.cs` uses block offsets
 taken from this model at size 2 and scales them by the entity's size:

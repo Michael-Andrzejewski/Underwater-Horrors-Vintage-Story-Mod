@@ -34,1068 +34,1445 @@
    ],
    "children": [
     {
-     "name": "tgear0",
+     "name": "gearspin",
      "from": [
-      1.791,
-      1.2537,
-      -2.1493
+      0.0,
+      12.0,
+      0.0
      ],
      "to": [
-      5.3731,
-      6.6269,
-      2.1493
+      0.0,
+      12.0,
+      0.0
      ],
      "rotationOrigin": [
       0.0,
       12.0,
       0.0
      ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        645.0,
-        495.0,
-        649.0,
-        501.0
+     "children": [
+      {
+       "name": "tgear0",
+       "from": [
+        -5.3731,
+        -10.7463,
+        -2.1493
        ],
-       "glow": 255
+       "to": [
+        -1.791,
+        -5.3731,
+        2.1493
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          874.0,
+          495.0,
+          878.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          818.0,
+          495.0,
+          823.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          880.0,
+          495.0,
+          884.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          825.0,
+          495.0,
+          830.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          532.0,
+          539.0,
+          536.0,
+          544.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          538.0,
+          539.0,
+          542.0,
+          544.0
+         ],
+         "glow": 255
+        }
+       }
       },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        617.0,
-        495.0,
-        622.0,
-        501.0
+      {
+       "name": "tgear1",
+       "from": [
+        1.791,
+        -10.7463,
+        -2.1493
        ],
-       "glow": 255
+       "to": [
+        5.3731,
+        -5.3731,
+        2.1493
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          886.0,
+          495.0,
+          890.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          832.0,
+          495.0,
+          837.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          892.0,
+          495.0,
+          896.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          839.0,
+          495.0,
+          844.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          544.0,
+          539.0,
+          548.0,
+          544.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          550.0,
+          539.0,
+          554.0,
+          544.0
+         ],
+         "glow": 255
+        }
+       }
       },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        651.0,
-        495.0,
-        655.0,
-        501.0
+      {
+       "name": "tgear2",
+       "from": [
+        -8.9552,
+        -8.9552,
+        -1.791
        ],
-       "glow": 255
+       "to": [
+        -5.3731,
+        -5.3731,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          523.0,
+          750.0,
+          527.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          529.0,
+          750.0,
+          533.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          535.0,
+          750.0,
+          539.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          541.0,
+          750.0,
+          545.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          547.0,
+          750.0,
+          551.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          553.0,
+          750.0,
+          557.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
       },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        624.0,
-        495.0,
-        629.0,
-        501.0
+      {
+       "name": "tgear3",
+       "from": [
+        -1.791,
+        -8.9552,
+        -1.791
        ],
-       "glow": 255
+       "to": [
+        1.791,
+        -5.3731,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          559.0,
+          750.0,
+          563.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          565.0,
+          750.0,
+          569.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          571.0,
+          750.0,
+          575.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          577.0,
+          750.0,
+          581.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          583.0,
+          750.0,
+          587.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          589.0,
+          750.0,
+          593.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
       },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        92.0,
-        539.0,
-        96.0,
-        544.0
+      {
+       "name": "tgear4",
+       "from": [
+        5.3731,
+        -8.9552,
+        -1.791
        ],
-       "glow": 255
+       "to": [
+        8.9552,
+        -5.3731,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          595.0,
+          750.0,
+          599.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          601.0,
+          750.0,
+          605.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          607.0,
+          750.0,
+          611.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          613.0,
+          750.0,
+          617.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          619.0,
+          750.0,
+          623.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          625.0,
+          750.0,
+          629.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
       },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        98.0,
-        539.0,
-        102.0,
-        544.0
+      {
+       "name": "tgear5",
+       "from": [
+        -10.7463,
+        -5.3731,
+        -2.5075
        ],
-       "glow": 255
+       "to": [
+        10.7463,
+        -1.791,
+        2.5075
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          241.0,
+          606.0,
+          263.0,
+          610.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          183.0,
+          744.0,
+          188.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          265.0,
+          606.0,
+          287.0,
+          610.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          190.0,
+          744.0,
+          195.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          855.0,
+          525.0,
+          877.0,
+          530.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          879.0,
+          525.0,
+          901.0,
+          530.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear6",
+       "from": [
+        -8.9552,
+        -1.791,
+        -1.791
+       ],
+       "to": [
+        -5.3731,
+        1.791,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          631.0,
+          750.0,
+          635.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          637.0,
+          750.0,
+          641.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          643.0,
+          750.0,
+          647.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          649.0,
+          750.0,
+          653.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          655.0,
+          750.0,
+          659.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          661.0,
+          750.0,
+          665.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear7",
+       "from": [
+        -5.3731,
+        -1.791,
+        -2.1493
+       ],
+       "to": [
+        -1.791,
+        1.791,
+        2.1493
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          667.0,
+          750.0,
+          671.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          197.0,
+          744.0,
+          202.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          673.0,
+          750.0,
+          677.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          204.0,
+          744.0,
+          209.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          556.0,
+          539.0,
+          560.0,
+          544.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          562.0,
+          539.0,
+          566.0,
+          544.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear8",
+       "from": [
+        1.791,
+        -1.791,
+        -2.1493
+       ],
+       "to": [
+        5.3731,
+        1.791,
+        2.1493
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          679.0,
+          750.0,
+          683.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          211.0,
+          744.0,
+          216.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          685.0,
+          750.0,
+          689.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          218.0,
+          744.0,
+          223.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          568.0,
+          539.0,
+          572.0,
+          544.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          574.0,
+          539.0,
+          578.0,
+          544.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear9",
+       "from": [
+        5.3731,
+        -1.791,
+        -1.791
+       ],
+       "to": [
+        8.9552,
+        1.791,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          691.0,
+          750.0,
+          695.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          697.0,
+          750.0,
+          701.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          703.0,
+          750.0,
+          707.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          709.0,
+          750.0,
+          713.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          715.0,
+          750.0,
+          719.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          721.0,
+          750.0,
+          725.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear10",
+       "from": [
+        -10.7463,
+        1.791,
+        -2.5075
+       ],
+       "to": [
+        10.7463,
+        5.3731,
+        2.5075
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          289.0,
+          606.0,
+          311.0,
+          610.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          225.0,
+          744.0,
+          230.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          313.0,
+          606.0,
+          335.0,
+          610.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          232.0,
+          744.0,
+          237.0,
+          748.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          903.0,
+          525.0,
+          925.0,
+          530.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          927.0,
+          525.0,
+          949.0,
+          530.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear11",
+       "from": [
+        -8.9552,
+        5.3731,
+        -1.791
+       ],
+       "to": [
+        -5.3731,
+        8.9552,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          727.0,
+          750.0,
+          731.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          733.0,
+          750.0,
+          737.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          739.0,
+          750.0,
+          743.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          745.0,
+          750.0,
+          749.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          751.0,
+          750.0,
+          755.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          757.0,
+          750.0,
+          761.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear12",
+       "from": [
+        -5.3731,
+        5.3731,
+        -2.1493
+       ],
+       "to": [
+        -1.791,
+        10.7463,
+        2.1493
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          898.0,
+          495.0,
+          902.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          846.0,
+          495.0,
+          851.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          904.0,
+          495.0,
+          908.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          853.0,
+          495.0,
+          858.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          580.0,
+          539.0,
+          584.0,
+          544.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          586.0,
+          539.0,
+          590.0,
+          544.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear13",
+       "from": [
+        -1.791,
+        5.3731,
+        -1.791
+       ],
+       "to": [
+        1.791,
+        8.9552,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          763.0,
+          750.0,
+          767.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          769.0,
+          750.0,
+          773.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          775.0,
+          750.0,
+          779.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          781.0,
+          750.0,
+          785.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          787.0,
+          750.0,
+          791.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          793.0,
+          750.0,
+          797.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear14",
+       "from": [
+        1.791,
+        5.3731,
+        -2.1493
+       ],
+       "to": [
+        5.3731,
+        10.7463,
+        2.1493
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          910.0,
+          495.0,
+          914.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          860.0,
+          495.0,
+          865.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          916.0,
+          495.0,
+          920.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          867.0,
+          495.0,
+          872.0,
+          501.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          592.0,
+          539.0,
+          596.0,
+          544.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          598.0,
+          539.0,
+          602.0,
+          544.0
+         ],
+         "glow": 255
+        }
+       }
+      },
+      {
+       "name": "tgear15",
+       "from": [
+        5.3731,
+        5.3731,
+        -1.791
+       ],
+       "to": [
+        8.9552,
+        8.9552,
+        1.791
+       ],
+       "rotationOrigin": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "rotationX": 22.5,
+       "rotationY": -90.0,
+       "faces": {
+        "north": {
+         "texture": "#anglerfish",
+         "uv": [
+          799.0,
+          750.0,
+          803.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "east": {
+         "texture": "#anglerfish",
+         "uv": [
+          805.0,
+          750.0,
+          809.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "south": {
+         "texture": "#anglerfish",
+         "uv": [
+          811.0,
+          750.0,
+          815.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "west": {
+         "texture": "#anglerfish",
+         "uv": [
+          817.0,
+          750.0,
+          821.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "up": {
+         "texture": "#anglerfish",
+         "uv": [
+          823.0,
+          750.0,
+          827.0,
+          754.0
+         ],
+         "glow": 255
+        },
+        "down": {
+         "texture": "#anglerfish",
+         "uv": [
+          829.0,
+          750.0,
+          833.0,
+          754.0
+         ],
+         "glow": 255
+        }
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": [
+  {
+   "name": "spin",
+   "code": "spin",
+   "version": 0,
+   "quantityframes": 480,
+   "onActivityStopped": "EaseOut",
+   "onAnimationEnd": "Repeat",
+   "keyframes": [
+    {
+     "frame": 0,
+     "elements": {
+      "gearspin": {
+       "rotationX": 0.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear1",
-     "from": [
-      -8.9552,
-      3.0448,
-      -1.791
-     ],
-     "to": [
-      -5.3731,
-      6.6269,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        601.0,
-        744.0,
-        605.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        607.0,
-        744.0,
-        611.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        613.0,
-        744.0,
-        617.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        619.0,
-        744.0,
-        623.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        625.0,
-        744.0,
-        629.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        631.0,
-        744.0,
-        635.0,
-        748.0
-       ],
-       "glow": 255
+     "frame": 60,
+     "elements": {
+      "gearspin": {
+       "rotationX": 45.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear2",
-     "from": [
-      -1.791,
-      3.0448,
-      -1.791
-     ],
-     "to": [
-      1.791,
-      6.6269,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        637.0,
-        744.0,
-        641.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        643.0,
-        744.0,
-        647.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        649.0,
-        744.0,
-        653.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        655.0,
-        744.0,
-        659.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        661.0,
-        744.0,
-        665.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        667.0,
-        744.0,
-        671.0,
-        748.0
-       ],
-       "glow": 255
+     "frame": 120,
+     "elements": {
+      "gearspin": {
+       "rotationX": 90.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear3",
-     "from": [
-      5.3731,
-      3.0448,
-      -1.791
-     ],
-     "to": [
-      8.9552,
-      6.6269,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        673.0,
-        744.0,
-        677.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        679.0,
-        744.0,
-        683.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        685.0,
-        744.0,
-        689.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        691.0,
-        744.0,
-        695.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        697.0,
-        744.0,
-        701.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        703.0,
-        744.0,
-        707.0,
-        748.0
-       ],
-       "glow": 255
+     "frame": 180,
+     "elements": {
+      "gearspin": {
+       "rotationX": 135.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear4",
-     "from": [
-      -10.7463,
-      6.6269,
-      -2.5075
-     ],
-     "to": [
-      10.7463,
-      10.209,
-      2.5075
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        841.0,
-        600.0,
-        863.0,
-        604.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        861.0,
-        738.0,
-        866.0,
-        742.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        865.0,
-        600.0,
-        887.0,
-        604.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        868.0,
-        738.0,
-        873.0,
-        742.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        561.0,
-        525.0,
-        583.0,
-        530.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        585.0,
-        525.0,
-        607.0,
-        530.0
-       ],
-       "glow": 255
+     "frame": 240,
+     "elements": {
+      "gearspin": {
+       "rotationX": 180.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear5",
-     "from": [
-      -8.9552,
-      10.209,
-      -1.791
-     ],
-     "to": [
-      -5.3731,
-      13.791,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        709.0,
-        744.0,
-        713.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        715.0,
-        744.0,
-        719.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        721.0,
-        744.0,
-        725.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        727.0,
-        744.0,
-        731.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        733.0,
-        744.0,
-        737.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        739.0,
-        744.0,
-        743.0,
-        748.0
-       ],
-       "glow": 255
+     "frame": 300,
+     "elements": {
+      "gearspin": {
+       "rotationX": 225.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear6",
-     "from": [
-      1.791,
-      10.209,
-      -2.1493
-     ],
-     "to": [
-      5.3731,
-      13.791,
-      2.1493
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        745.0,
-        744.0,
-        749.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        875.0,
-        738.0,
-        880.0,
-        742.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        751.0,
-        744.0,
-        755.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        882.0,
-        738.0,
-        887.0,
-        742.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        104.0,
-        539.0,
-        108.0,
-        544.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        110.0,
-        539.0,
-        114.0,
-        544.0
-       ],
-       "glow": 255
+     "frame": 360,
+     "elements": {
+      "gearspin": {
+       "rotationX": 270.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear7",
-     "from": [
-      5.3731,
-      10.209,
-      -1.791
-     ],
-     "to": [
-      8.9552,
-      13.791,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        757.0,
-        744.0,
-        761.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        763.0,
-        744.0,
-        767.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        769.0,
-        744.0,
-        773.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        775.0,
-        744.0,
-        779.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        781.0,
-        744.0,
-        785.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        787.0,
-        744.0,
-        791.0,
-        748.0
-       ],
-       "glow": 255
+     "frame": 420,
+     "elements": {
+      "gearspin": {
+       "rotationX": 315.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     },
     {
-     "name": "tgear8",
-     "from": [
-      -10.7463,
-      13.791,
-      -2.5075
-     ],
-     "to": [
-      10.7463,
-      17.3731,
-      2.5075
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        889.0,
-        600.0,
-        911.0,
-        604.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        889.0,
-        738.0,
-        894.0,
-        742.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        913.0,
-        600.0,
-        935.0,
-        604.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        896.0,
-        738.0,
-        901.0,
-        742.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        609.0,
-        525.0,
-        631.0,
-        530.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        633.0,
-        525.0,
-        655.0,
-        530.0
-       ],
-       "glow": 255
-      }
-     }
-    },
-    {
-     "name": "tgear9",
-     "from": [
-      -8.9552,
-      17.3731,
-      -1.791
-     ],
-     "to": [
-      -5.3731,
-      20.9552,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        793.0,
-        744.0,
-        797.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        799.0,
-        744.0,
-        803.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        805.0,
-        744.0,
-        809.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        811.0,
-        744.0,
-        815.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        817.0,
-        744.0,
-        821.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        823.0,
-        744.0,
-        827.0,
-        748.0
-       ],
-       "glow": 255
-      }
-     }
-    },
-    {
-     "name": "tgear10",
-     "from": [
-      -1.791,
-      17.3731,
-      -1.791
-     ],
-     "to": [
-      1.791,
-      20.9552,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        829.0,
-        744.0,
-        833.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        835.0,
-        744.0,
-        839.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        841.0,
-        744.0,
-        845.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        847.0,
-        744.0,
-        851.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        853.0,
-        744.0,
-        857.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        859.0,
-        744.0,
-        863.0,
-        748.0
-       ],
-       "glow": 255
-      }
-     }
-    },
-    {
-     "name": "tgear11",
-     "from": [
-      1.791,
-      17.3731,
-      -2.1493
-     ],
-     "to": [
-      5.3731,
-      22.7463,
-      2.1493
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        657.0,
-        495.0,
-        661.0,
-        501.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        631.0,
-        495.0,
-        636.0,
-        501.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        663.0,
-        495.0,
-        667.0,
-        501.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        638.0,
-        495.0,
-        643.0,
-        501.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        116.0,
-        539.0,
-        120.0,
-        544.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        122.0,
-        539.0,
-        126.0,
-        544.0
-       ],
-       "glow": 255
-      }
-     }
-    },
-    {
-     "name": "tgear12",
-     "from": [
-      5.3731,
-      17.3731,
-      -1.791
-     ],
-     "to": [
-      8.9552,
-      20.9552,
-      1.791
-     ],
-     "rotationOrigin": [
-      0.0,
-      12.0,
-      0.0
-     ],
-     "rotationX": 22.5,
-     "rotationY": -90.0,
-     "faces": {
-      "north": {
-       "texture": "#anglerfish",
-       "uv": [
-        865.0,
-        744.0,
-        869.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "east": {
-       "texture": "#anglerfish",
-       "uv": [
-        871.0,
-        744.0,
-        875.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "south": {
-       "texture": "#anglerfish",
-       "uv": [
-        877.0,
-        744.0,
-        881.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "west": {
-       "texture": "#anglerfish",
-       "uv": [
-        883.0,
-        744.0,
-        887.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "up": {
-       "texture": "#anglerfish",
-       "uv": [
-        889.0,
-        744.0,
-        893.0,
-        748.0
-       ],
-       "glow": 255
-      },
-      "down": {
-       "texture": "#anglerfish",
-       "uv": [
-        895.0,
-        744.0,
-        899.0,
-        748.0
-       ],
-       "glow": 255
+     "frame": 479,
+     "elements": {
+      "gearspin": {
+       "rotationX": 0.0,
+       "rotShortestDistanceX": true,
+       "rotationY": 0.0,
+       "rotationZ": 0.0
       }
      }
     }

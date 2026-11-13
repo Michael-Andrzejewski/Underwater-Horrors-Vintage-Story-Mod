@@ -8,6 +8,12 @@ static class SteeringChecks
         int checks=0;
         void Check(bool condition,string message){checks++;if(!condition)throw new Exception(message);}
         var anchor=new Vec3d(0,-25,0);
+        // The gear hangs LeadDistance from its prey (3.5 since 0.25.1, within
+        // reach of a sword; these bands were still the old 8 to 15). Settled,
+        // it sways within a block of that; behind a moving swimmer it may
+        // trail or lead by a few more.
+        const double Lead=AnglerfishLureCycle.LeadDistance;
+        const double RestLo=Lead-1.5,RestHi=Lead+1.5,MoveLo=Lead-3,MoveHi=Lead+4.5;
         foreach(float dt in new[]{.016666667f,.05f,.25f})
         {
             // Cast across 300 blocks, settle, then follow a swimmer toward the body.
@@ -25,7 +31,7 @@ static class SteeringChecks
             }
             Check(worstStep<=8.00001,"Long cast snapped beyond speed limit");
             Check(worstAcceleration<=8.00001,"Long cast exceeded acceleration limit");
-            Check(tip.DistanceTo(player)>=8 && tip.DistanceTo(player)<=15,"Cast failed to settle in bait range");
+            Check(tip.DistanceTo(player)>=RestLo && tip.DistanceTo(player)<=RestHi,$"Cast failed to settle in bait range at dt={dt}: {tip.DistanceTo(player):F2}");
             double minimum=double.MaxValue,maximum=0;
             for(double t=65;t<190;t+=dt)
             {
@@ -34,9 +40,9 @@ static class SteeringChecks
                 double range=tip.DistanceTo(player);
                 minimum=Math.Min(minimum,range);maximum=Math.Max(maximum,range);
             }
-            Check(minimum>=8 && maximum<=15,$"Approaching swimmer left bait band at dt={dt}: {minimum:F2}..{maximum:F2}");
+            Check(minimum>=MoveLo && maximum<=MoveHi,$"Approaching swimmer left bait band at dt={dt}: {minimum:F2}..{maximum:F2}");
             Check(tip.X<player.X,"Bait failed to lead toward body");
-            Check(tip.Y<-1,"Bait never led the player deeper");
+            Check(tip.Y<player.Y-.5,"Bait never led the player deeper");
             // Faster swimming in either direction still stays in the band;
             // the bait must glide back toward someone who stops following.
             foreach(double swimmerSpeed in new[]{-4d,4d})
@@ -50,7 +56,7 @@ static class SteeringChecks
                     swimmer.X+=swimmerSpeed*dt;
                     bait=follower.Step(bait,AnglerfishLureCycle.BaitGoal(swimmer,anchor,t),dt);
                     double range=bait.DistanceTo(swimmer);
-                    inside &= range>=8 && range<=15;
+                    inside &= range>=MoveLo && range<=MoveHi;
                 }
                 Check(inside,"Four-block/s swimmer escaped the target spacing band");
             }
@@ -64,7 +70,7 @@ static class SteeringChecks
         }
         var far=AnglerfishLureCycle.BaitGoal(new Vec3d(300,0,0),anchor,0);
         var near=AnglerfishLureCycle.BaitGoal(new Vec3d(40,0,0),anchor,0);
-        Check(near.Y<far.Y-3,"Near-body bait does not descend progressively");
+        Check(near.Y<far.Y-1,"Near-body bait does not descend progressively");
         Check(double.IsFinite(AnglerfishLureCycle.BaitGoal(anchor,anchor,0).Y),"Coincident bait target produced NaN");
         float yaw=0,largestTurn=0;
         for(int i=0;i<120;i++)

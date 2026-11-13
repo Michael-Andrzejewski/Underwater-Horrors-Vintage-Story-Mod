@@ -30,6 +30,12 @@
       {
         "code": "interpolateposition"
       }
+    ],
+    "animations": [
+      {
+        "code": "spin",
+        "animation": "spin"
+      }
     ]
   },
   "server": {

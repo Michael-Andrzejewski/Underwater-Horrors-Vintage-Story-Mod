@@ -461,29 +461,71 @@ def build(display=True, lure_stub=2):
     return m
 
 
-# Glow of the bioluminescent patches. The game lights a glowing face as if
-# at that light level, so the spots are pale cyan; they stay faint by being
-# small and sparse next to the gear.
-PATCH_GLOW = 200
+# Glow of the bioluminescent spots. The game lights a glowing face as if
+# at that light level, so at full strength the spots keep their own colour
+# in the dark: the fish's outline shows at night as dotted lines and
+# scattered clusters of pale cyan, well short of the gear's brightness
+# because each spot is small.
+PATCH_GLOW = 255
 
 
-def glow_patches(m, count=26, seed=11):
-    """Faint bioluminescent patches: clusters of small glowing spots set into
-    the hide's plates, mostly on the flanks and back, clear of the eyes, the
-    lips and the gill slit. Each spot is a child of its plate's bone, so it
-    bends with the body."""
+def _spot(m, plate, lx, lz, half):
+    """One glowing spot set into a hide plate at its local (lx, lz)."""
+    at = plate["origin"] + plate["R"] @ np.array([lx, 0, lz])
+    m.box(m.name("glowspot"), plate["parent"], at, plate["R"], (-half, -0.6, -half), (half, 0.5, half), "biolum",
+          faces=["up", "north", "south", "east", "west"], glow=PATCH_GLOW, center=at, half=half)
+    return at
+
+
+def _clear_of_face(c, eyes):
+    """False on the eyes, the lips and the gill slit."""
+    if any(np.linalg.norm(c - e) < 16 for e in eyes):
+        return False
+    if -62 < c[0] < 40 and abs(c[1] - LIP(c[0])) < 7:
+        return False
+    return not 50 < c[0] < 68
+
+
+def glow_patches(m, count=34, seed=11):
+    """Bioluminescent spots in the hide. Two kinds:
+
+    - Rows: a line of evenly spaced spots along each side-facing plate, so
+      two dotted lines run down each flank from the gill to the tail, the
+      spots shrinking toward the tail, like a deep-sea fish's photophores.
+    - Clusters: a larger spot ringed by small ones, scattered on the flanks,
+      back and head, clear of the eyes, the lips and the gill slit.
+
+    Each spot is a child of its plate's bone, so it bends with the body."""
     rng = np.random.default_rng(seed)
     plates = [p for p in m.parts.values()
               if p["kind"] == "box" and p["name"].startswith(("skull", "mandible", "hide"))]
+    eyes = [m.parts["eyeR"]["paint"]["center"], m.parts["eyeL"]["paint"]["center"]]
+
+    # Rows down the flanks.
+    for p in plates:
+        if not p["name"].startswith("hide") or abs(p["R"][:, 1][2]) < 0.8:
+            continue
+        lo, hi = p["lo"], p["hi"]
+        length = hi[0] - lo[0]
+        n = max(1, int(round(length / 9.0)))
+        for k in range(n):
+            lx = lo[0] + (k + 0.5) * length / n
+            lz = (lo[2] + hi[2]) / 2 + rng.uniform(-0.6, 0.6)
+            x = (p["origin"] + p["R"] @ np.array([lx, 0, lz]))[0]
+            if not _clear_of_face(p["origin"] + p["R"] @ np.array([lx, 0, lz]), eyes):
+                continue
+            taper = float(np.clip(1.0 - (x - 60) / 260, 0.45, 1.0))
+            _spot(m, p, lx, lz, 1.7 * taper)
+
+    # Clusters.
     weights = []
     for p in plates:
         n = p["R"][:, 1]
         size = p["hi"] - p["lo"]
         weights.append(size[0] * size[2] * (abs(n[2]) + 0.6 * max(n[1], 0.0)))
     weights = np.array(weights) / sum(weights)
-    eyes = [m.parts["eyeR"]["paint"]["center"], m.parts["eyeL"]["paint"]["center"]]
     made = tries = 0
-    while made < count and tries < 1000:
+    while made < count and tries < 2000:
         tries += 1
         p = plates[rng.choice(len(plates), p=weights)]
         lo, hi = p["lo"], p["hi"]
@@ -491,20 +533,13 @@ def glow_patches(m, count=26, seed=11):
             continue
         lx, lz = rng.uniform(lo[0] + 3, hi[0] - 3), rng.uniform(lo[2] + 2.5, hi[2] - 2.5)
         c = p["origin"] + p["R"] @ np.array([lx, 0, lz])
-        if any(np.linalg.norm(c - e) < 16 for e in eyes):
+        if not _clear_of_face(c, eyes):
             continue
-        if -62 < c[0] < 40 and abs(c[1] - LIP(c[0])) < 7:
-            continue
-        if 50 < c[0] < 68:
-            continue
-        for k in range(int(rng.integers(4, 9))):
-            r, a = (rng.uniform(1.8, 6.0) if k else 0), rng.uniform(0, 2 * math.pi)
+        for k in range(int(rng.integers(5, 10))):
+            r, a = (rng.uniform(2.4, 7.0) if k else 0), rng.uniform(0, 2 * math.pi)
             sx = float(np.clip(lx + r * math.cos(a), lo[0] + 1.5, hi[0] - 1.5))
             sz = float(np.clip(lz + r * math.sin(a), lo[2] + 1.5, hi[2] - 1.5))
-            half = rng.uniform(0.8, 1.8) * (1.3 if k == 0 else 1)
-            at = p["origin"] + p["R"] @ np.array([sx, 0, sz])
-            m.box(m.name("glowspot"), p["parent"], at, p["R"], (-half, -0.6, -half), (half, 0.4, half), "biolum",
-                  faces=["up", "north", "south", "east", "west"], glow=PATCH_GLOW, center=at, half=half)
+            _spot(m, p, sx, sz, rng.uniform(1.0, 2.0) * (1.6 if k == 0 else 1))
         made += 1
 
 
@@ -526,8 +561,11 @@ def pole_path():
 
 # The vanilla temporal gear (assets/survival/shapes/item/gear-temporal.json),
 # face on: its bars as (x range, y range, z range) in its own units. Where
-# bars overlap, the game's model offsets their thickness a little.
+# bars overlap, the game's model offsets their thickness a little. Together
+# they make two uprights crossed by two rails, with a square hole in the
+# middle and eight stub teeth, two to a side.
 TEMPORAL_GEAR_BARS = [
+    ((0.0, 1.0), (0.0, 6.0), (0.0, 1.2)),       # "base": the model's root bar, which the others hang from
     ((2.0, 3.0), (0.0, 6.0), (0.0, 1.2)),
     ((-1.5, 4.5), (3.5, 4.5), (-0.1, 1.3)),
     ((-1.5, 4.5), (1.5, 2.5), (-0.1, 1.3)),
@@ -583,7 +621,9 @@ def temporal_gear_cells():
 
 def build_temporal_gear(m, parent, c, across, axis=(-1, 0, 0), prefix="", tilt=-22.5):
     """An upscaled vanilla temporal gear, `across` units wide, centred on c,
-    facing along axis and turned by the vanilla model's tilt."""
+    facing along axis and turned by the vanilla model's tilt. It hangs from
+    a bone at its centre, "gearspin", which the clips turn about the axis."""
+    parent = m.bone(prefix + "gearspin", parent, c)["name"]
     ax = norm(axis)
     e1 = np.array([0.0, 1.0, 0.0])
     e2 = np.cross(e1, ax)
@@ -783,7 +823,7 @@ PAL = {
     "gearhub": ramp(["#0a1e33", "#0f2c4a", "#163d63", "#1f4f7d", "#2c6596"]),
     "gearcore": ramp(["#5fd9f5", "#9cf0ff", "#d6fbff", "#ffffff"]),
     "bristle": ramp(["#150c0a", "#22130f", "#311c15", "#40251b"]),
-    "biolum": ramp(["#1f6f78", "#2b8f98", "#38aeb3", "#4fc8c8", "#6edcd6", "#93ece4", "#bdf6f0"]),
+    "biolum": ramp(["#2a8f9c", "#38aeb8", "#4cc8cf", "#66dde0", "#8aeeea", "#b4f8f2", "#e2fffb"]),
     "filament": ramp(["#2a1712", "#3b2219", "#4e2e21", "#62392a"]),
     "gillcover": ramp(["#2a1814", "#3c231b", "#4f2f24", "#643d2e", "#7d5040", "#9a6a56", "#b88a74"]),
 }
@@ -1060,18 +1100,31 @@ LURE_JOINTS = len(pole_path()) - 1
 LURE_STUB = LURE_JOINTS
 
 
-def wave(pose, phase, amp, lure_amp, display, breathe=0.0, jaw=4.0):
-    """Swimming wave down the spine, with fins, gills and lure following."""
-    pose["head"]["rotationY"] = -1.2 * amp * math.sin(phase + 0.6)
+def wave(pose, phase, amp, lure_amp, display, breathe=0.0, jaw=4.0, lift=0.0, flare=0.0, shake=0.0, coil=0.0):
+    """Swimming wave down the spine, with fins, gills and lure following.
+
+    amp: size of the body wave. breathe: how far the gill covers stand open.
+    jaw: the lower jaw's drop. lift: the skull tips up by this much while the
+    jaw keeps its own angle to it, so a wide gape opens both ways. flare:
+    the pectoral fins spread, as a brake. shake: the head thrown to one side
+    and the spine the other. coil: the whole spine bent one way, a spring
+    drawn back before a strike."""
+    pose["head"]["rotationY"] = -1.2 * amp * math.sin(phase + 0.6) + shake
+    pose["head"]["rotationZ"] = -lift
     for i, s in enumerate(SPINE):
-        pose[s]["rotationY"] = amp * (0.8 + i * 0.6) * math.sin(phase - 0.7 * (i + 1))
+        k = 0.8 + i * 0.6
+        # A second, faster ripple on top of the main wave keeps the tail from
+        # swinging like a pendulum.
+        pose[s]["rotationY"] = (amp * k * math.sin(phase - 0.7 * (i + 1))
+                                + amp * 0.22 * k * math.sin(2 * phase - 1.1 * (i + 1) + 0.9)
+                                - shake * 0.35 * (1 - i / len(SPINE)) + coil * (0.5 + i * 0.25))
     for j, f in enumerate(FILS):
-        pose[f]["rotationY"] = amp * 10 * math.sin(phase - 5.5 - j * 0.6)
+        pose[f]["rotationY"] = amp * 10 * math.sin(phase - 5.5 - j * 0.6) + amp * 3 * math.sin(2 * phase - j)
         pose[f]["rotationZ"] = 6 * math.sin(phase - j) * (0.4 + amp)
     pose["finR"]["rotationX"] = 10 * math.sin(phase + 1.0) * (0.5 + amp)
     pose["finL"]["rotationX"] = -10 * math.sin(phase + 1.0) * (0.5 + amp)
-    pose["finR"]["rotationY"] = 6 * math.sin(phase) * (0.5 + amp)
-    pose["finL"]["rotationY"] = -6 * math.sin(phase) * (0.5 + amp)
+    pose["finR"]["rotationY"] = 6 * math.sin(phase) * (0.5 + amp) + flare
+    pose["finL"]["rotationY"] = -6 * math.sin(phase) * (0.5 + amp) - flare
     pose["dorsal"]["rotationX"] = 5 * math.sin(phase - 3) * (0.4 + amp)
     pose["anal"]["rotationX"] = -5 * math.sin(phase - 3) * (0.4 + amp)
     g = breathe
@@ -1080,7 +1133,7 @@ def wave(pose, phase, amp, lure_amp, display, breathe=0.0, jaw=4.0):
     pose["jaw"]["rotationZ"] = jaw
     n = LURE_JOINTS if display else LURE_STUB
     for i in range(n):
-        pose[f"lure{i}"]["rotationZ"] = lure_amp * (0.6 + i * 0.25) * math.sin(phase - i * 0.45)
+        pose[f"lure{i}"]["rotationZ"] = lure_amp * (0.6 + i * 0.25) * math.sin(phase - i * 0.45) + lift * 0.4
         pose[f"lure{i}"]["rotationX"] = lure_amp * 0.5 * math.sin(phase - i * 0.3 + 1.3)
     if display:
         pose["gear"]["rotationX"] = lure_amp * 4 * math.sin(phase - 2)
@@ -1094,7 +1147,8 @@ def clip(code, frames, keys, end="Repeat"):
             for k in ("rotationX", "rotationY", "rotationZ"):
                 e.setdefault(k, 0.0)
             for k in list(e):
-                e[k] = round(float(e[k]), 3)
+                if not isinstance(e[k], bool):
+                    e[k] = round(float(e[k]), 3)
     return {"name": code, "code": code, "version": 0, "quantityframes": frames, "onActivityStopped": "EaseOut",
             "onAnimationEnd": end, "keyframes": [{"frame": f, "elements": els} for f, els in keys]}
 
@@ -1109,53 +1163,118 @@ def loop_clip(code, frames, steps, fn, display):
 
 def animations(display):
     A = []
-    # Idle: lurking, breathing through the gills, jaw working slowly.
-    A.append(loop_clip("idle", 150, 20, lambda p, ph: wave(p, ph, 0.25, 1.0, display,
-                       breathe=10 + 10 * math.sin(ph), jaw=5 + 4 * math.sin(ph - 0.8)), display))
-    A.append(loop_clip("swim", 90, 18, lambda p, ph: wave(p, ph, 1.0, 1.6, display,
-                       breathe=6 + 4 * math.sin(2 * ph), jaw=4 + 2 * math.sin(ph)), display))
-    A.append(loop_clip("swimfast", 45, 12, lambda p, ph: wave(p, ph, 1.6, 2.4, display,
-                       breathe=14, jaw=8 + 3 * math.sin(ph)), display))
+
+    def swim(amp, lure_amp, breathe, jaw, roll):
+        def fn(p, ph):
+            wave(p, ph, amp, lure_amp, display, breathe=breathe(ph), jaw=jaw(ph))
+            # The body rolls a little into each tail beat and noses up and
+            # down twice a beat, as a heavy fish does.
+            p["angler"]["rotationX"] = roll * math.sin(ph - 0.4)
+            p["angler"]["rotationZ"] = roll * 0.35 * math.sin(2 * ph)
+            return p
+        return fn
+
+    # Idle: lurking. Two breaths a loop through the gills, the jaw working
+    # slowly, the head nodding with each breath, the tail barely moving.
+    def idle(p, ph):
+        wave(p, ph, 0.3, 1.2, display, breathe=11 + 9 * math.sin(2 * ph), jaw=5 + 3.5 * math.sin(2 * ph - 0.8),
+             lift=0.8 + 0.8 * math.sin(2 * ph - 0.4))
+        return p
+
+    A.append(loop_clip("idle", 150, 24, idle, display))
+    A.append(loop_clip("swim", 90, 18, swim(1.0, 1.6, lambda ph: 6 + 4 * math.sin(2 * ph),
+                                             lambda ph: 4 + 2 * math.sin(ph), 1.2), display))
+    A.append(loop_clip("swimfast", 45, 12, swim(1.6, 2.4, lambda ph: 14 + 3 * math.sin(2 * ph),
+                                                 lambda ph: 8 + 3 * math.sin(ph), 2.2), display))
     A.append(loop_clip("lure", 180, 24, lambda p, ph: wave(p, ph, 0.15, 3.0, display,
                        breathe=8 + 8 * math.sin(ph), jaw=10 + 5 * math.sin(ph - 1)), display))
 
-    def strike(f, jaw, pitch, amp, ph):
-        p = wave(rest_pose(display), ph, amp, 0.6, display, breathe=12 if jaw > 20 else 4, jaw=jaw)
+    def strike(f, jaw, pitch, amp, ph, lift=0.0, flare=0.0, shake=0.0, coil=0.0, breathe=None):
+        if breathe is None:
+            breathe = 12 if jaw > 20 else 4
+        p = wave(rest_pose(display), ph, amp, 0.6, display, breathe=breathe, jaw=jaw, lift=lift, flare=flare,
+                 shake=shake, coil=coil)
         p["angler"]["rotationZ"] = pitch
         return (f, p)
 
-    A.append(clip("bite", 76, [strike(0, 4, 0, 0.2, 0), strike(14, 22, -3, 0.5, 0.8), strike(26, 48, -7, 0.8, 1.6),
-                               strike(36, 56, -9, 1.0, 2.4), strike(44, 58, -8, 1.0, 3.0), strike(49, -2, 4, 1.2, 3.6),
-                               strike(56, 0, 3, 0.8, 4.2), strike(66, 3, 1, 0.4, 5.0), strike(75, 4, 0, 0.2, 6.28)],
-                  "Hold"))
-    A.append(clip("swallow", 106, [strike(0, 4, 0, 0.2, 0), strike(14, 30, -4, 0.6, 0.8), strike(25, 62, -8, 1.0, 1.6),
-                                   strike(40, 64, -10, 1.2, 2.6), strike(48, 64, -9, 1.2, 3.2), strike(57, -2, 5, 1.4, 4.0),
-                                   strike(66, 2, 2, 1.0, 4.8), strike(74, -1, 0, 1.2, 5.6), strike(84, 3, 0, 0.8, 6.4),
-                                   strike(96, 1, 0, 0.5, 7.2), strike(105, 4, 0, 0.2, 8.0)], "Hold"))
+    # Bite: the body coils back for a beat, the mouth opens both ways (skull
+    # up, jaw down) with the gill covers flung wide to suck water in and the
+    # fins spread, the jaws snap shut at frame 49 (PlayLunge times the swoop
+    # to that frame), bounce once off the teeth, and the head shakes its
+    # catch from side to side before settling.
+    A.append(clip("bite", 76, [
+        strike(0, 4, 0, 0.2, 0),
+        strike(7, 2, 2, 0.3, 0.4, coil=-2.2, flare=-6),
+        strike(14, 22, -3, 0.5, 0.8, lift=2, coil=-1.5, breathe=10),
+        strike(26, 48, -7, 0.8, 1.6, lift=5, flare=10, breathe=24),
+        strike(36, 56, -9, 1.0, 2.4, lift=6, flare=16, coil=1.0, breathe=30),
+        strike(44, 58, -8, 1.0, 3.0, lift=6, flare=18, coil=1.6, breathe=30),
+        strike(49, -2, 4, 1.2, 3.6, lift=-1, flare=4, coil=2.2, breathe=2),
+        strike(53, 5, 2.5, 1.0, 3.9, shake=4, coil=1.0, breathe=8),
+        strike(58, 0, 2, 0.8, 4.3, shake=-4.5, breathe=16),
+        strike(63, 2, 1.2, 0.6, 4.8, shake=3, breathe=6),
+        strike(69, 3, 0.5, 0.4, 5.4, shake=-1.5, breathe=10),
+        strike(75, 4, 0, 0.2, 6.28)], "Hold"))
+    # Swallow: the same strike with a wider gape, then three gulps, each one
+    # a pump of the throat: jaw dips, gill covers flare, a ripple runs back.
+    A.append(clip("swallow", 106, [
+        strike(0, 4, 0, 0.2, 0),
+        strike(7, 2, 2, 0.3, 0.4, coil=-2.4, flare=-6),
+        strike(14, 30, -4, 0.6, 0.8, lift=2, coil=-1.5, breathe=10),
+        strike(25, 62, -8, 1.0, 1.6, lift=6, flare=12, breathe=26),
+        strike(40, 64, -10, 1.2, 2.6, lift=7, flare=18, coil=1.2, breathe=32),
+        strike(48, 64, -9, 1.2, 3.2, lift=7, flare=18, coil=1.8, breathe=32),
+        strike(57, -2, 5, 1.4, 4.0, lift=-1, flare=4, coil=2.4, breathe=2),
+        strike(62, 6, 3, 1.1, 4.4, coil=1.0, breathe=26),
+        strike(68, -1, 1.5, 1.0, 4.9, breathe=4),
+        strike(75, 5, 1, 1.2, 5.6, lift=1.5, breathe=24),
+        strike(82, -1, 0, 1.0, 6.2, breathe=4),
+        strike(90, 4, 0, 0.8, 6.9, lift=1, breathe=20),
+        strike(98, 1, 0, 0.5, 7.5, breathe=6),
+        strike(105, 4, 0, 0.2, 8.0)], "Hold"))
 
-    def hurt(f, bend, jaw):
-        p = wave(rest_pose(display), 0, 0, 0.3, display, breathe=16, jaw=jaw)
+    # Hurt: a hard flinch away from the blow, mouth thrown open and fins
+    # spread, then two smaller swings back as it settles.
+    def hurt(f, bend, jaw, roll=0.0, flare=0.0):
+        p = wave(rest_pose(display), 0, 0, 0.3, display, breathe=16 + abs(bend) * 2, jaw=jaw, flare=flare)
         for i, s in enumerate(SPINE):
             p[s]["rotationY"] = bend * (0.6 + i * 0.3)
         p["head"]["rotationY"] = -bend * 1.5
+        p["angler"]["rotationX"] = roll
         return (f, p)
 
-    A.append(clip("hurt", 28, [hurt(0, 0, 4), hurt(5, 5, 22), hurt(14, -2.5, 14), hurt(27, 0, 4)], "Hold"))
+    A.append(clip("hurt", 28, [hurt(0, 0, 4), hurt(4, 6.5, 26, 3.5, 14), hurt(10, -3.5, 16, -2, 8),
+                               hurt(16, 1.8, 9, 1, 3), hurt(22, -0.7, 5), hurt(27, 0, 4)], "Hold"))
 
-    def die(f, roll, jaw, droop):
+    # Die: a last shudder down the spine, then it rolls belly up with the
+    # jaw slack, the fins limp and the pole fallen.
+    def die(f, roll, jaw, droop, shudder=0.0):
         p = wave(rest_pose(display), 0, 0, 0, display, breathe=20, jaw=jaw)
         p["angler"]["rotationX"] = roll
         for i, s in enumerate(SPINE):
             p[s]["rotationZ"] = droop * (0.5 + i * 0.3)
-        p["finR"]["rotationX"] = -25
-        p["finL"]["rotationX"] = 25
+            p[s]["rotationY"] = shudder * (0.5 + i * 0.4) * (1 if i % 2 else -1)
+        p["finR"]["rotationX"] = -25 * min(1.0, droop)
+        p["finL"]["rotationX"] = 25 * min(1.0, droop)
         for i in range(LURE_JOINTS if display else LURE_STUB):
             p[f"lure{i}"]["rotationZ"] = droop * 1.5
         return (f, p)
 
-    A.append(clip("die", 121, [die(0, 0, 4, 0), die(30, 20, 30, 1), die(70, 110, 38, 2.5), die(100, 168, 36, 3),
-                               die(120, 180, 34, 3)], "Hold"))
+    A.append(clip("die", 121, [die(0, 0, 4, 0), die(8, 2, 34, 0.3, 3), die(16, 6, 20, 0.6, -2.2),
+                               die(24, 12, 32, 0.9, 1.2), die(34, 24, 30, 1.1), die(70, 110, 38, 2.5),
+                               die(100, 168, 36, 3), die(112, 183, 33, 3), die(120, 180, 34, 3)], "Hold"))
     return A
+
+
+def lure_animations():
+    """The live gear's one clip: a slow turn about its own axis, once in 16
+    seconds at speed 1. The behavior speeds it up while the lure is cast."""
+    frames, steps = 480, 8
+    keys = []
+    for i in range(steps + 1):
+        f = min(frames - 1, i * frames // steps)
+        keys.append((f, {"gearspin": {"rotationX": (360.0 * i / steps) % 360, "rotShortestDistanceX": True}}))
+    return [clip("spin", frames, keys)]
 
 
 # ══ Main ═══════════════════════════════════════════════════════════════
@@ -1177,7 +1296,7 @@ def main():
     shapes = [
         shape_json(display, uvsets[0], height, animations(True)),
         shape_json(live, uvsets[1], height, animations(False)),
-        shape_json(lure, uvsets[2], height, []),
+        shape_json(lure, uvsets[2], height, lure_animations()),
         shape_json(seg, uvsets[3], height, []),
     ]
     atlas = paint_atlas([display, lure, seg], [shapes[0], shapes[2], shapes[3]], height)
