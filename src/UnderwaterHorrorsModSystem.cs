@@ -239,6 +239,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private bool OnReloadShader()
     {
         bool ok = true;
+        GiantSerpentSilhouette.ResetShader();
+        GiantSerpentGlow.ResetShader();
         if (biolumGlowRenderer != null) ok = biolumGlowRenderer.Initialize() && ok;
         if (biolumTexRenderer != null) ok = biolumTexRenderer.Initialize() && ok;
         return ok;
@@ -290,7 +292,15 @@ public class UnderwaterHorrorsModSystem : ModSystem
             soundChannelBusyUntil.Clear();
             activeCreatures.Clear();
             landTimers.Clear();
-            if (ServerInstance == this) ServerInstance = null;
+            shoreCheckAt.Clear();
+            if (ServerInstance == this)
+            {
+                ServerInstance = null;
+                // The config is the server's. Left set after a single-player
+                // session, a client that then joined a remote server read
+                // this stale copy as if it were that server's settings.
+                Config = null;
+            }
         }
 
         base.Dispose();
@@ -650,7 +660,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         // settings stay invisible until some /uh command happens to save,
         // and server owners cannot discover them by reading the file. Also
         // persists the one-shot migrations immediately.
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
 
         int spawnInterval = (int)(Config.SpawnCheckIntervalSeconds * 1000);
         int despawnInterval = (int)(Config.DespawnCheckIntervalSeconds * 1000);
@@ -771,7 +781,18 @@ public class UnderwaterHorrorsModSystem : ModSystem
         if (!KrakenPartStorage.IsTransientCode(entity.Code.Path)) return;
         if (KrakenPartStorage.ShouldStore(entity)) return;
 
-        entity.Die(EnumDespawnReason.Expire);
+        RemoveNow(entity);
+    }
+
+    /// <summary>
+    /// Removes an entity whether it is alive or a corpse. Die does nothing to
+    /// one that is already dead, so /uh killall counted corpses as removed
+    /// and left them lying there.
+    /// </summary>
+    private void RemoveNow(Entity entity)
+    {
+        if (entity.Alive) entity.Die(EnumDespawnReason.Expire);
+        else sapi.World.DespawnEntity(entity, new EntityDespawnData { Reason = EnumDespawnReason.Expire });
     }
 
     private void OnPlayerJoinSyncDebug(IServerPlayer player)
@@ -949,14 +970,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
     private TextCommandResult OnCmdSoundOn(TextCommandCallingArgs args)
     {
         Config.MonsterSoundsEnabled = true;
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success("Sea monster sounds ENABLED");
     }
 
     private TextCommandResult OnCmdSoundOff(TextCommandCallingArgs args)
     {
         Config.MonsterSoundsEnabled = false;
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success("Sea monster sounds DISABLED");
     }
 
@@ -966,7 +987,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         if (v == null)
             return TextCommandResult.Success($"Monster sound volume: {Config.MonsterSoundVolume:F2}");
         Config.MonsterSoundVolume = GameMath.Clamp(v.Value, 0f, 2f);
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success($"Monster sound volume set to {Config.MonsterSoundVolume:F2}");
     }
 
@@ -1097,7 +1118,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             {
                 corpses++;
             }
-            entity.Die(EnumDespawnReason.Expire);
+            RemoveNow(entity);
         }
 
         activeCreatures.Clear();
@@ -1114,7 +1135,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             return TextCommandResult.Success($"Current spawn chance: {Config.SpawnChancePerCheck:F3}");
         }
         Config.SpawnChancePerCheck = GameMath.Clamp(chance.Value, 0f, 1f);
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success($"Spawn chance set to {Config.SpawnChancePerCheck:F3}");
     }
 
@@ -1141,7 +1162,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         bool? parsed = ParseOnOff(val);
         if (parsed == null) return TextCommandResult.Error("Expected on or off.");
         Config.DebugLogging = parsed.Value;
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success($"Debug logging: {(Config.DebugLogging ? "on" : "off")}");
     }
 
@@ -1430,7 +1451,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             return TextCommandResult.Success($"Current drag speed: {Config.TentacleDragSpeed:F3}");
         }
         Config.TentacleDragSpeed = GameMath.Clamp(speed.Value, 0f, 10f);
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success($"Drag speed set to {Config.TentacleDragSpeed:F3}");
     }
 
@@ -1451,7 +1472,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         // Config is read live everywhere (the AI, the kraken contact damage,
         // and the spawner block all check it each use), so this takes effect
         // immediately with no reload.
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success(
             $"Creative observer mode: {(Config.IgnoreCreativePlayers ? "on" : "off")}. " +
             "When on, creatures ignore creative and spectator players and spawners will not arm for them.");
@@ -1473,7 +1494,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         // The worldgen runner reads this live per chunk column, so the change
         // applies to the next chunk generated with no restart.
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success(Config.UnderwaterRuinsEnabled
             ? "Underwater ruins worldgen: on. Newly generated ocean chunks can contain ruins."
             : "Underwater ruins worldgen: off. Newly generated ocean chunks stay empty. Ruins that already generated remain in the world.");
@@ -1493,7 +1514,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Config.RuinGhostlightsEnabled = parsed.Value;
         }
 
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success(Config.RuinGhostlightsEnabled
             ? "Ruin ghostlights: on. Newly generated ruins include the glowing orbs."
             : "Ruin ghostlights: off. Newly generated ruins are dark. Lights in existing ruins remain; break the blocks to remove those.");
@@ -1513,7 +1534,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Config.KrakenNaturalSpawnEnabled = parsed.Value;
         }
 
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success(Config.KrakenNaturalSpawnEnabled
             ? "Kraken spawns: on. The kraken can appear from natural spawns and from kraken spawner blocks."
             : "Kraken spawns: off. No natural krakens, and kraken spawner blocks stay dormant. /uh spawn kraken still works. Living krakens are not removed; use /uh killall for those.");
@@ -1533,7 +1554,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             Config.GlowDebugActive = parsed.Value;
         }
 
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         sapi.Network.GetChannel("underwaterhorrors")
             .BroadcastPacket(new DebugToggleMessage { Toggle = "glow", Active = Config.GlowDebugActive });
         return TextCommandResult.Success(
@@ -1554,7 +1575,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (parsed == null) return TextCommandResult.Error("Expected on or off.");
             Config.SpectralDebugActive = parsed.Value;
         }
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         sapi.Network.GetChannel("underwaterhorrors")
             .BroadcastPacket(new DebugToggleMessage { Toggle = "spectral", Active = Config.SpectralDebugActive });
         return TextCommandResult.Success($"Spectral debug: {(Config.SpectralDebugActive ? "on" : "off")}");
@@ -1573,7 +1594,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (parsed == null) return TextCommandResult.Error("Expected on or off.");
             Config.BiolumActive = parsed.Value;
         }
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
 
         // Toggle biolum lights on all existing tentacles immediately
         foreach (Entity entity in sapi.World.LoadedEntities.Values)
@@ -1604,7 +1625,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             if (parsed == null) return TextCommandResult.Error("Expected on or off.");
             Config.BiolumPulsing = parsed.Value;
         }
-        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+        SaveConfig();
         return TextCommandResult.Success($"Kraken biolum pulsing: {(Config.BiolumPulsing ? "on" : "off")}");
     }
 
@@ -1814,6 +1835,22 @@ public class UnderwaterHorrorsModSystem : ModSystem
             $"Serpent frozen, looping '{animName}' every {EntityBehaviorSerpentAI.DebugAnimIntervalPublic:F0}s (dist: {nearestDist:F0})");
     }
 
+    // True when the config file exists but could not be parsed. Nothing is
+    // written back while this is set: see LoadConfig and SaveConfig.
+    private bool configUnreadable;
+
+    /// <summary>Writes the live config to disk, unless the file on disk is
+    /// one the owner still has to repair (see LoadConfig).</summary>
+    private void SaveConfig()
+    {
+        if (configUnreadable)
+        {
+            Mod.Logger.Warning("Setting changed for this session only: UnderwaterHorrorsConfig.json could not be read at startup and is left untouched until it is fixed.");
+            return;
+        }
+        sapi.StoreModConfig(Config, "UnderwaterHorrorsConfig.json");
+    }
+
     private UnderwaterHorrorsConfig LoadConfig()
     {
         UnderwaterHorrorsConfig config;
@@ -1822,9 +1859,18 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             config = sapi.LoadModConfig<UnderwaterHorrorsConfig>("UnderwaterHorrorsConfig.json");
         }
-        catch
+        catch (Exception e)
         {
-            config = null;
+            // The file is there but does not parse (a stray comma after a
+            // hand edit). Writing defaults over it would erase every setting
+            // the owner made, so leave the file alone and run on defaults
+            // this session; nothing is stored until the file is fixed.
+            Mod.Logger.Error("UnderwaterHorrorsConfig.json could not be read, so the mod runs on default settings this session and leaves the file untouched. Fix the file and restart. The error: {0}", e.Message);
+            configUnreadable = true;
+            config = new UnderwaterHorrorsConfig();
+            config.DebugLoggingResetApplied = true;
+            config.Validate();
+            return config;
         }
 
         if (config == null)
@@ -1890,7 +1936,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
         {
             if (e == null || !e.Alive) continue;
             string path = e.Code?.Path;
-            if (path != null && PrimaryCreatureCodes.Contains(path)) count++;
+            if (path == null || !PrimaryCreatureCodes.Contains(path)) continue;
+            // Not encounters: a frozen show model, and an anglerfish placed
+            // by command (the sweep never removes those). Either one used to
+            // fill the default cap of 1 and so stop natural spawning for the
+            // whole server while it stayed loaded.
+            if (e.WatchedAttributes.GetBool("underwaterhorrors:static")) continue;
+            if (path == "giantanglerfish" && !e.WatchedAttributes.GetBool(EntityBehaviorAnglerfishAI.NaturalAttr)) continue;
+            count++;
         }
         return count;
     }
@@ -1930,7 +1983,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
                 Entity existing = sapi.World.GetEntityById(existingId);
                 if (existing != null && existing.Alive)
                 {
-                    float extraChance = storm ? Config.StormOdds(Config.SecondCreatureSpawnChance) : Config.SecondCreatureSpawnChance;
+                    float extraChance = storm ? Config.StormExtraOdds(Config.SecondCreatureSpawnChance) : Config.SecondCreatureSpawnChance;
                     if (sapi.World.Rand.NextDouble() < extraChance)
                     {
                         spawnAsExtra = true;
@@ -2102,8 +2155,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         EntityPlayer ep = player.Entity;
         if (IsDaytime() || ep.MountedOn != null || !ep.OnGround) return null;
-        Block feet = sapi.World.BlockAccessor.GetBlock(ep.Pos.AsBlockPos);
-        if (feet == null || WaterHelper.IsWaterBlock(feet)) return null;
+        Block feet = sapi.World.BlockAccessor.GetBlock(ep.Pos.AsBlockPos, BlockLayersAccess.Fluid);
+        if (WaterHelper.IsWaterBlock(feet)) return null;
         if (rand.NextDouble() >= Config.AnglerfishShoreSpawnChance) return null;
 
         Entity fish = EntityBehaviorAnglerfishAI.SpawnOffShore(sapi, player);
@@ -2150,7 +2203,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             while (scanY > scanLimit)
             {
                 reusableBlockPos.Y = scanY;
-                Block block = accessor.GetBlock(reusableBlockPos);
+                Block block = accessor.GetBlock(reusableBlockPos, BlockLayersAccess.Fluid);
                 if (block != null && IsSpawnWater(block)) break;
                 scanY--;
             }
@@ -2160,11 +2213,14 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
         int count = 0;
 
-        // Count saltwater below (including the water-surface block)
+        // Count saltwater below (including the water-surface block). The
+        // fluid layer: the plain read returns the seaweed growing in a cell,
+        // so the count stopped at the top of a kelp bed and a deep sea with
+        // tall kelp read as too shallow to spawn anything.
         for (int y = scanY; y >= 0; y--)
         {
             reusableBlockPos.Y = y;
-            Block block = accessor.GetBlock(reusableBlockPos);
+            Block block = accessor.GetBlock(reusableBlockPos, BlockLayersAccess.Fluid);
             if (block == null || !IsSpawnWater(block)) break;
             count++;
             if (count >= earlyExitThreshold) return count;
@@ -2176,7 +2232,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
         for (int y = scanY + 1; y < mapHeight; y++)
         {
             reusableBlockPos.Y = y;
-            Block block = accessor.GetBlock(reusableBlockPos);
+            Block block = accessor.GetBlock(reusableBlockPos, BlockLayersAccess.Fluid);
             if (block == null || !IsSpawnWater(block)) break;
             count++;
             if (count >= earlyExitThreshold) return count;
@@ -2237,7 +2293,8 @@ public class UnderwaterHorrorsModSystem : ModSystem
         }
 
         var rand = sapi.World.Rand;
-        int depthOffset = Config.SerpentSpawnDepthMin + rand.Next(Config.SerpentSpawnDepthMax - Config.SerpentSpawnDepthMin);
+        // Validate() keeps Max at or above Min; +1 so Max itself can come up.
+        int depthOffset = Config.SerpentSpawnDepthMin + rand.Next(Config.SerpentSpawnDepthMax - Config.SerpentSpawnDepthMin + 1);
 
         // Retry horizontal position until we find one where the chosen
         // spawn Y is inside a water block (no spawning into terrain when
@@ -2365,6 +2422,9 @@ public class UnderwaterHorrorsModSystem : ModSystem
         return serpent;
     }
 
+    // Water a natural kraken needs at its own column, surface to floor.
+    private const int MinKrakenWaterDepth = 10;
+
     private Entity SpawnKraken(IServerPlayer player)
     {
         EntityProperties props = sapi.World.GetEntityType(KrakenAsset);
@@ -2392,6 +2452,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
 
             // Scan down from player Y through air+water until we hit solid ground.
             bool foundWater = false;
+            int waterCells = 0;
             int tryFloorY = startY;
             reusableBlockPos.Set((int)tryX, startY, (int)tryZ);
             reusableBlockPos.dimension = player.Entity.Pos.Dimension;
@@ -2399,13 +2460,13 @@ public class UnderwaterHorrorsModSystem : ModSystem
             for (int y = startY; y >= 0; y--)
             {
                 reusableBlockPos.Y = y;
-                Block block = sapi.World.BlockAccessor.GetBlock(reusableBlockPos);
-                if (block == null) break;
-                bool isWater = WaterHelper.IsWaterBlock(block);
+                // The fluid layer, so seaweed is water and not the floor.
+                bool isWater = WaterHelper.IsWaterBlock(sapi.World.BlockAccessor.GetBlock(reusableBlockPos, BlockLayersAccess.Fluid));
 
                 if (isWater)
                 {
                     foundWater = true;
+                    waterCells++;
                 }
                 else if (foundWater)
                 {
@@ -2413,10 +2474,20 @@ public class UnderwaterHorrorsModSystem : ModSystem
                     tryFloorY = y + 1;
                     break;
                 }
-                // Skip air/non-water blocks above the water surface
+                else
+                {
+                    // Above the water only air may be passed. Solid ground
+                    // here is a shore or the roof of a flooded cave, and the
+                    // old scan went on through it and put the kraken
+                    // underground.
+                    Block solid = sapi.World.BlockAccessor.GetBlock(reusableBlockPos, BlockLayersAccess.Solid);
+                    if (solid != null && solid.Id != 0) break;
+                }
             }
 
-            if (foundWater)
+            // Enough water for the body: one block of it at a steep shore
+            // used to do.
+            if (foundWater && waterCells >= MinKrakenWaterDepth)
             {
                 spawnX = tryX;
                 spawnZ = tryZ;

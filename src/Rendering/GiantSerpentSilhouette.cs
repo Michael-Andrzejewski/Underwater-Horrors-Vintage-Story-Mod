@@ -101,6 +101,17 @@ public sealed class GiantSerpentSilhouette : IRenderer
         capi.Event.UnregisterRenderer(this, EnumRenderStage.AfterFinalComposition);
     }
 
+    /// <summary>Forgets the compiled shader so the next frame builds it
+    /// again. A shader reload (a graphics setting, /reload shaders) disposes
+    /// every program; drawing with the old one made the effect vanish until
+    /// the player rejoined.</summary>
+    public static void ResetShader()
+    {
+        shader = null;
+        shaderApi = null;
+        shaderFailed = false;
+    }
+
     private bool EnsureShader()
     {
         if (shaderApi == capi && shader != null) return true;

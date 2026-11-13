@@ -282,7 +282,7 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature, ICageRa
     private void UpdatePrey(float dt)
     {
         EntityAgent player = targetPlayer?.Entity;
-        if (player == null || !player.Alive)
+        if (player == null || !player.Alive || !TargetingHelper.IsOnline(targetPlayer))
         {
             prey = preyBoat = null;
             hasLastPrey = false;
@@ -443,6 +443,10 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature, ICageRa
                 break;
             case GiantSerpentState.Retreat:
                 StopAnim(AnimGape);
+                // A bite that kills goes from Breach straight here, past the
+                // only other place that stops the gulp. It is a hold clip, so
+                // the animal swam its whole retreat frozen in the gulp pose.
+                StopAnim(AnimGulp);
                 PlayDive();
                 break;
             case GiantSerpentState.Withdraw:

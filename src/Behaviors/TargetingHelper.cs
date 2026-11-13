@@ -48,7 +48,7 @@ public static class TargetingHelper
         }
 
         // Perform the actual scan
-        bool result = ScanWaterColumn(entity, player, threshold);
+        bool result = ScanWaterColumn(entity.World, player, threshold);
 
         // Cache for 1 second (1000ms)
         shallowWaterCache[entityId] = new ShallowWaterCache
@@ -61,9 +61,17 @@ public static class TargetingHelper
         return result;
     }
 
-    private static bool ScanWaterColumn(Entity entity, IPlayer player, int threshold)
+    /// <summary>
+    /// The same test without a creature and without the cache: true if the
+    /// water column at the player is fewer than threshold blocks. Spawner
+    /// blocks use it so they arm on the same water a serpent will stay in.
+    /// </summary>
+    public static bool IsShallowWaterAt(IWorldAccessor world, IPlayer player, int threshold)
+        => player?.Entity == null || ScanWaterColumn(world, player, threshold);
+
+    private static bool ScanWaterColumn(IWorldAccessor world, IPlayer player, int threshold)
     {
-        var accessor = entity.World.BlockAccessor;
+        var accessor = world.BlockAccessor;
         int mapHeight = accessor.MapSizeY;
         int startX = (int)player.Entity.Pos.X;
         int startY = (int)player.Entity.Pos.Y;
@@ -123,6 +131,17 @@ public static class TargetingHelper
     }
 
     /// <summary>
+    /// True for a player who is in the world right now. The server keeps a
+    /// player who logged off this session, with their entity frozen where
+    /// they left and still reading as alive; only its state says it is gone.
+    /// The entity's state is tested, not the player's connection: a creature
+    /// may hold a player object from before a rejoin, and that old object
+    /// reads as offline for good while its entity is live again.
+    /// </summary>
+    public static bool IsOnline(IPlayer player)
+        => player?.Entity != null && player.Entity.State != EnumEntityState.Despawned;
+
+    /// <summary>
     /// Resolves the target player for an entity. Tries the stored UID attribute first,
     /// then falls back to the nearest online player.
     /// </summary>
@@ -134,7 +153,13 @@ public static class TargetingHelper
         if (!string.IsNullOrEmpty(uid))
         {
             IPlayer player = entity.World.PlayerByUid(uid);
-            if (player != null)
+            // On the server PlayerByUid also returns players who logged off
+            // this session, with their entity frozen where they left and
+            // still reading as alive. Such a target kept its creature
+            // "engaged" forever: a kraken never left, and it went on filling
+            // the living-creature cap for everyone else. Only a connected
+            // player counts; otherwise the nearest online player is adopted.
+            if (player != null && IsOnline(player))
             {
                 if (UnderwaterHorrorsModSystem.Config?.DebugLogging == true)
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api, $"{entity.Code} resolved target by UID: {player.PlayerName}");

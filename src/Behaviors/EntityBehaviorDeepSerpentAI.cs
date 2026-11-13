@@ -548,7 +548,10 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature, ICageRag
             entity.Pos.Motion.Z = (dz / horizDist) * config.SerpentApproachSpeed * SpeedScale;
         }
 
-        if (entity.Pos.Y >= targetY - 2)
+        // The serpent cannot rise past the surface. With its prey on a pier
+        // or a cliff the old test (2 below the prey) was never met and it
+        // bobbed here until the despawn sweep took it.
+        if (entity.Pos.Y >= Math.Min(targetY - 2, CreatureCeilingY - 0.5))
         {
             TransitionTo(SerpentState.Surfacing);
         }
@@ -823,6 +826,11 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature, ICageRag
             {
                 strikeDamageDealt = true;
 
+                // The bite lands a second and a half after the windup. It is
+                // meant to connect whatever the prey does in the water, but
+                // not on someone who by then is dead, in another dimension
+                // or far away (a teleport, a translocator).
+                if (StrikeCanLand())
                 targetPlayer.Entity.ReceiveDamage(new DamageSource
                 {
                     Source = EnumDamageSource.Entity,

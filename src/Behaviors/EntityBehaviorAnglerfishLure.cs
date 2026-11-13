@@ -71,7 +71,10 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         bool engaging = bait != null;
         if (engaging)
         {
-            owner.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", bait.PlayerUID);
+            // Only on a change: every write marks the attribute dirty and
+            // sends a packet, and this ran every tick.
+            if (owner.WatchedAttributes.GetString("underwaterhorrors:targetPlayerUid") != bait.PlayerUID)
+                owner.WatchedAttributes.SetString("underwaterhorrors:targetPlayerUid", bait.PlayerUID);
             var feet = bait.Entity.Pos.XYZ;
             if (ai.ValidTarget(bait) && !SurfaceUnder(feet, out _))
                 // A diver: lead them on down underwater.
@@ -220,7 +223,7 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
         for (int i = 0; i < 9; i++, p.Y--)
         {
             if (p.Y <= 0 || p.Y >= entity.World.BlockAccessor.MapSizeY - 1) continue;
-            if (!WaterHelper.IsWaterBlock(entity.World.BlockAccessor.GetBlock(p))) continue;
+            if (!WaterHelper.IsWaterBlock(WaterHelper.Cell(entity.World.BlockAccessor, p))) continue;
             surface = p.Y + 1;
             return feet.Y >= surface - 3;
         }
@@ -245,7 +248,8 @@ public sealed class EntityBehaviorAnglerfishLure : EntityBehavior
     {
         var p = new BlockPos((int)Math.Floor(point.X), (int)Math.Floor(point.Y), (int)Math.Floor(point.Z), entity.Pos.Dimension);
         if (p.Y <= 0 || p.Y >= entity.World.BlockAccessor.MapSizeY - 1) return null;
-        return entity.World.BlockAccessor.GetBlock(p);
+        // Seaweed in the water is water: the gear could not pass a kelp bed.
+        return WaterHelper.Cell(entity.World.BlockAccessor, p);
     }
 
     private bool IsWater(Vec3d point) { var b = BlockAt(point); return b != null && WaterHelper.IsWaterBlock(b); }

@@ -926,6 +926,17 @@ public class EntityBehaviorTentacle : EntityBehaviorOceanCreature
     /// </summary>
     private void DriftAroundSurfacePoint()
     {
+        // A tentacle that went straight to the hunt never picked a surface
+        // point, so the point was still (0, 0, 0) and this sent the head off
+        // toward the world's corner at thousands of blocks a tick. It sways
+        // where it is instead.
+        if (surfaceX == 0 && surfaceY == 0 && surfaceZ == 0)
+        {
+            surfaceX = entity.Pos.X;
+            surfaceY = Math.Min(entity.Pos.Y, CreatureCeilingY);
+            surfaceZ = entity.Pos.Z;
+        }
+
         double bobX = surfaceX + Math.Sin(stateTimer * 0.5) * 2.0;
         double bobZ = surfaceZ + Math.Cos(stateTimer * 0.5) * 2.0;
         double bobY = surfaceY + Math.Sin(stateTimer * 0.7) * 1.0;

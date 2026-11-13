@@ -5,57 +5,38 @@ namespace UnderwaterHorrors;
 
 public static class WaterHelper
 {
-    private static readonly HashSet<int> saltwaterBlockIds = new();
-    private static readonly HashSet<int> nonSaltwaterBlockIds = new();
-    private static readonly HashSet<int> waterBlockIds = new();
-    private static readonly HashSet<int> nonWaterBlockIds = new();
+    // No cache of block ids here. There used to be four static sets, filled
+    // on first sight of each id. They were written from the worldgen thread,
+    // the server thread and (in single player) the render thread with no
+    // lock, and block ids differ between savegames, so a second world opened
+    // in the same game session could read water as land. Two prefix tests on
+    // the block's code are cheap enough to do every time.
 
-    /// <summary>
-    /// Checks if a block is saltwater using cached block ID lookups,
-    /// falling back to string comparison only on first encounter.
-    /// </summary>
+    /// <summary>True for saltwater of any height or flow.</summary>
     public static bool IsSaltwater(Block block)
     {
-        int id = block.Id;
-        if (id == 0) return false;
-
-        if (saltwaterBlockIds.Contains(id)) return true;
-        if (nonSaltwaterBlockIds.Contains(id)) return false;
-
+        if (block == null || block.Id == 0) return false;
         string path = block.Code?.Path;
-        if (path != null && path.StartsWith("saltwater"))
-        {
-            saltwaterBlockIds.Add(id);
-            return true;
-        }
-        else
-        {
-            nonSaltwaterBlockIds.Add(id);
-            return false;
-        }
+        return path != null && path.StartsWith("saltwater");
     }
 
     /// <summary>
-    /// Checks if a block is any kind of water (salt or fresh) using cached ID lookups.
+    /// What fills a cell, for "is this water, air or solid" tests: the water
+    /// when the cell holds any, otherwise the block. The plain read returns
+    /// the seaweed or coral growing in a water cell, which then looks solid.
     /// </summary>
+    public static Block Cell(IBlockAccessor accessor, Vintagestory.API.MathTools.BlockPos pos)
+    {
+        Block fluid = accessor.GetBlock(pos, BlockLayersAccess.Fluid);
+        return IsWaterBlock(fluid) ? fluid : accessor.GetBlock(pos);
+    }
+
+    /// <summary>True for any kind of water, salt or fresh.</summary>
     public static bool IsWaterBlock(Block block)
     {
-        int id = block.Id;
-        if (id == 0) return false;
-
-        if (waterBlockIds.Contains(id)) return true;
-        if (nonWaterBlockIds.Contains(id)) return false;
-
+        if (block == null || block.Id == 0) return false;
         string path = block.Code?.Path;
-        if (path != null && (path.StartsWith("saltwater") || path.StartsWith("water")))
-        {
-            waterBlockIds.Add(id);
-            return true;
-        }
-        else
-        {
-            nonWaterBlockIds.Add(id);
-            return false;
-        }
+        // "water-", not "water": a water lily is not water.
+        return path != null && (path.StartsWith("saltwater") || path.StartsWith("water-"));
     }
 }

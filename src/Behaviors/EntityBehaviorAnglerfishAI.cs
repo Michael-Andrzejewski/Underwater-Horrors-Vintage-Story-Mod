@@ -440,7 +440,21 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
         var ahead = new Vec3d(entity.Pos.X + Math.Sin(fleeYaw) * 40, entity.Pos.Y, entity.Pos.Z + Math.Cos(fleeYaw) * 40);
         // Off the floor to mid-water, where there is room to turn and swim.
         double y = entity.Pos.Y;
-        if (WaterDepth(entity.World, entity.Pos.X, entity.Pos.Z, entity.Pos.Dimension, out double surface, out double floor) > 0)
+        double depth = WaterDepth(entity.World, entity.Pos.X, entity.Pos.Z, entity.Pos.Dimension, out double surface, out double floor);
+        // Startled while its back is out of the water (hit during a strike
+        // at the surface): go straight down first. Everything below wants
+        // the whole body in water, so out here it could neither turn nor
+        // swim, and it hung in the air until the flee timer removed it.
+        if (depth > 0 && entity.Pos.Y + BodyTop * s > surface)
+        {
+            double down = Math.Max(floor - .6, entity.Pos.Y - DiveSpeed * dt);
+            if (down < entity.Pos.Y && Fits(entity.World, entity.Pos.X, down, entity.Pos.Z, entity.Pos.Yaw, entity.Pos.Dimension, s, true, true, FleeTolerance))
+            {
+                entity.Pos.SetPos(entity.Pos.X, down, entity.Pos.Z);
+                return;
+            }
+        }
+        if (depth > 0)
             y += Math.Clamp((floor + surface) / 2 - BodyCenterUp * s - y, -3 * dt, 3 * dt);
         if (y != entity.Pos.Y && Fits(entity.World, entity.Pos.X, y, entity.Pos.Z, entity.Pos.Yaw, entity.Pos.Dimension, s, false, true))
             entity.Pos.SetPos(entity.Pos.X, y, entity.Pos.Z);
@@ -543,7 +557,8 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
     public bool Eligible(IPlayer p)
     {
         if (p?.Entity == null || !p.Entity.Alive || p.Entity.Pos.Dimension != entity.Pos.Dimension) return false;
-        if (entity.World.PlayerByUid(p.PlayerUID)?.Entity != p.Entity) return false;
+        // A player who logged off keeps a frozen entity that reads as alive.
+        if (!TargetingHelper.IsOnline(p) || entity.World.PlayerByUid(p.PlayerUID)?.Entity != p.Entity) return false;
         return Config?.IgnoreCreativePlayers == false
             || (p.WorldData.CurrentGameMode != EnumGameMode.Creative && p.WorldData.CurrentGameMode != EnumGameMode.Spectator);
     }
@@ -557,7 +572,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
         scan.dimension = p.Entity.Pos.Dimension;
         for (int i = 0; i <= 3; i++)
         {
-            var block = entity.World.BlockAccessor.GetBlock(scan);
+            var block = WaterHelper.Cell(entity.World.BlockAccessor, scan);
             if (WaterHelper.IsWaterBlock(block)) return true;
             if (block.Id != 0) return false;
             scan.Y--;
@@ -699,7 +714,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
         {
             double t = (double)i / count;
             scan.Set((int)Math.Floor(x + dx * t), (int)Math.Floor(y + dy * t), (int)Math.Floor(z + dz * t));
-            var block = entity.World.BlockAccessor.GetBlock(scan);
+            var block = WaterHelper.Cell(entity.World.BlockAccessor, scan);
             if (block.Id != 0 && !WaterHelper.IsWaterBlock(block)) return false;
         }
         return true;
@@ -761,7 +776,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
             double a = along * scale, sd = side * scale;
             p.Set((int)Math.Floor(x - Math.Sin(yaw) * a + Math.Cos(yaw) * sd), (int)Math.Floor(y + BodyHeights[h] * scale), (int)Math.Floor(z - Math.Cos(yaw) * a - Math.Sin(yaw) * sd));
             if (p.Y < 1 || p.Y >= world.BlockAccessor.MapSizeY - 1) return false;
-            var block = world.BlockAccessor.GetBlock(p);
+            var block = WaterHelper.Cell(world.BlockAccessor, p);
             if (WaterHelper.IsWaterBlock(block)) continue;
             if (allowAir && block.Id == 0) continue;
             if (restingOnFloor && h == 0) continue;
@@ -791,14 +806,16 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
         var acc = world.BlockAccessor;
         var p = new BlockPos((int)Math.Floor(x), Math.Min(acc.MapSizeY - 2, world.SeaLevel + 6), (int)Math.Floor(z), dimension);
         if (acc.GetChunkAtBlockPos(p) == null) return 0;
-        while (p.Y > 1 && !WaterHelper.IsWaterBlock(acc.GetBlock(p)))
+        // Cell, not the plain read: seaweed in the water is water, so a kelp
+        // bed is neither a roof over the sea nor its floor.
+        while (p.Y > 1 && !WaterHelper.IsWaterBlock(WaterHelper.Cell(acc, p)))
         {
             if (acc.GetBlock(p).Id != 0) return 0;
             p.Y--;
         }
         if (p.Y <= 1) return 0;
         surface = p.Y + 1;
-        while (p.Y > 1 && WaterHelper.IsWaterBlock(acc.GetBlock(p))) p.Y--;
+        while (p.Y > 1 && WaterHelper.IsWaterBlock(WaterHelper.Cell(acc, p))) p.Y--;
         floor = p.Y + 1;
         return surface - floor;
     }
@@ -914,7 +931,7 @@ public sealed class EntityBehaviorAnglerfishAI : EntityBehavior, ICageRage
         var acc = world.BlockAccessor;
         var p = new BlockPos((int)Math.Floor(x), world.SeaLevel, (int)Math.Floor(z), dim);
         if (acc.GetChunkAtBlockPos(p) == null) return false;
-        var b = acc.GetBlock(p);
+        var b = WaterHelper.Cell(acc, p);
         return b.Id != 0 && !WaterHelper.IsWaterBlock(b);
     }
 

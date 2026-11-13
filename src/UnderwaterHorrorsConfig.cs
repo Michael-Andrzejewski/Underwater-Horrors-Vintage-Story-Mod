@@ -1,4 +1,5 @@
 using System;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 
 namespace UnderwaterHorrors;
@@ -96,11 +97,12 @@ public class UnderwaterHorrorsConfig
     // storms like any other time. /uh stormfrenzy on|off|auto forces it for
     // the session, for testing.
     public bool StormFrenzyEnabled { get; set; } = true;
-    // The chance of NOT spawning is divided by this, for the spawn roll
-    // (SpawnChancePerCheck) and the extra-creature roll
-    // (SecondCreatureSpawnChance): with 5, 0.1 becomes 0.82 and 0.75
-    // becomes 0.95. A chance set to 0 stays 0. Which creature comes
-    // (kraken, anglerfish, serpent) keeps its usual odds, except the
+    // For the spawn roll (SpawnChancePerCheck) the chance of NOT spawning
+    // is divided by this: with 5, 0.1 becomes 0.82 and 0.75 becomes 0.95.
+    // The extra-creature roll (SecondCreatureSpawnChance) is multiplied by
+    // it instead: 0.005 becomes 0.025, so a second creature on the same
+    // player stays uncommon. A chance set to 0 stays 0. Which creature
+    // comes (kraken, anglerfish, serpent) keeps its usual odds, except the
     // leviathan below.
     public float StormSpawnOddsFactor { get; set; } = 5f;
     // Water under the player must be this deep for a serpent, instead of
@@ -127,6 +129,13 @@ public class UnderwaterHorrorsConfig
     /// turned off stays off.</summary>
     public float StormOdds(float chance) =>
         chance <= 0f ? 0f : 1f - (1f - Math.Min(chance, 1f)) / StormSpawnOddsFactor;
+
+    /// <summary>The extra-creature chance during a storm: the chance times
+    /// StormSpawnOddsFactor. StormOdds would not do here: dividing the miss
+    /// chance puts a floor of 1 - 1/factor (0.8) under every chance above 0,
+    /// which turned a rare 0.005 bonus into a near certainty every check.</summary>
+    public float StormExtraOdds(float chance) =>
+        chance <= 0f ? 0f : Math.Min(1f, chance * StormSpawnOddsFactor);
 
     // ─── Server tuning: one-stop serpent knobs ───────────────────────────
     // Max health applied to serpents when they spawn (already-living
@@ -377,15 +386,18 @@ public class UnderwaterHorrorsConfig
     // scripted spots are used; the rest stay empty. Counts are capped at how
     // many spots the structure actually defines. Structures missing from the
     // map use every spot. Fixed when the chunk generates.
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public Dictionary<string, MinMaxCount> RuinLootChestsPerStructure { get; set; } = DefaultChestCounts();
     // Ingot piles per structure, in the same form as the chest counts above.
     // See the table below.
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public Dictionary<string, MinMaxCount> RuinIngotPilesPerStructure { get; set; } = DefaultIngotPileCounts();
 
     // What an ingot pile contains, per metal: relative pick weight plus the
     // pile size range. Keys are vanilla ingot codes (game:ingot-<key>). Add
     // or remove metals freely; setting a structure's pile count to 0
     // disables its ingots.
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public Dictionary<string, IngotPileType> RuinIngotTypes { get; set; } = DefaultIngotTypes();
 
     // 0.20.0 cut the big structures to about a third of the 0.15 counts.
@@ -992,6 +1004,19 @@ public class UnderwaterHorrorsConfig
     /// </summary>
     public void Validate()
     {
+        // The spawn director's own numbers. A depth range written backwards
+        // threw inside the spawn check (Random.Next of a negative), which
+        // takes the server down; a zero interval ran the check every tick
+        // and a zero despawn interval meant the land timers never ran out.
+        SpawnCheckIntervalSeconds = Math.Max(0.5f, SpawnCheckIntervalSeconds);
+        DespawnCheckIntervalSeconds = Math.Max(0.25f, DespawnCheckIntervalSeconds);
+        DespawnAfterLandSeconds = Math.Max(0f, DespawnAfterLandSeconds);
+        DespawnMaxDistance = Math.Max(64f, DespawnMaxDistance);
+        MinSaltwaterDepth = Math.Max(1, MinSaltwaterDepth);
+        SerpentSpawnDepthMin = Math.Max(0, SerpentSpawnDepthMin);
+        SerpentSpawnDepthMax = Math.Max(SerpentSpawnDepthMin, SerpentSpawnDepthMax);
+        ShallowWaterThreshold = Math.Max(1, ShallowWaterThreshold);
+
         // Orbit radii are divisors in the serpents' orbit-speed math.
         SerpentOrbitRadius = Math.Max(0.5f, SerpentOrbitRadius);
         DeepSerpentOrbitRadius = Math.Max(0.5f, DeepSerpentOrbitRadius);

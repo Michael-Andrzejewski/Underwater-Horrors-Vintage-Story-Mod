@@ -40,12 +40,39 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         base.OnEntityDespawn(despawn);
     }
 
+    private long nextTargetCheckMs;
+
+    /// <summary>
+    /// Finds the creature's target once, then looks again (once a second)
+    /// whenever it has none or the one it has logged off. Without the second
+    /// look a serpent went on circling and biting the spot where a player
+    /// logged out, a kraken's tentacle grabbed and crushed their frozen
+    /// entity (which is the one the game saves, so they could die while
+    /// offline), and a creature that found nobody on its first tick never
+    /// looked again.
+    /// </summary>
     protected void ResolveTarget()
     {
-        if (targetResolved) return;
+        if (targetResolved)
+        {
+            if (targetPlayer != null && TargetingHelper.IsOnline(targetPlayer)) return;
+            long now = entity.World.ElapsedMilliseconds;
+            if (now < nextTargetCheckMs) { targetPlayer = null; return; }
+            nextTargetCheckMs = now + 1000;
+        }
         targetResolved = true;
 
         targetPlayer = TargetingHelper.ResolveTarget(entity);
+    }
+
+    /// <summary>True while a strike already under way can still reach its
+    /// target: alive, online, in this dimension and within 48 blocks.</summary>
+    protected bool StrikeCanLand()
+    {
+        var prey = targetPlayer?.Entity;
+        return prey != null && prey.Alive && TargetingHelper.IsOnline(targetPlayer)
+            && prey.Pos.Dimension == entity.Pos.Dimension
+            && entity.Pos.DistanceTo(prey.Pos) < 48;
     }
 
     /// <summary>Makes this creature hunt the given player from now on.</summary>

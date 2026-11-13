@@ -24,7 +24,7 @@
     "server": {
         "behaviors": [
             { "code": "health", "currenthealth": 30, "maxhealth": 30 },
-            { "code": "deaddecay", "decayHours": 0.01 }
+            { "code": "deaddecay", "hoursToDecay": 0.01 }
         ]
     },
     "sounds": {}

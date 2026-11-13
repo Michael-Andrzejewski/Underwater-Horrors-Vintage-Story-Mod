@@ -106,6 +106,9 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         z = entity.Pos.Z + Math.Cos(yaw) * cosP * off;
     }
 
+    private static bool Lost(Entity proxy)
+        => proxy == null || !proxy.Alive || proxy.State == EnumEntityState.Despawned;
+
     private void UpdateProxies(bool maySpawn, float dt)
     {
         var health = entity.WatchedAttributes.GetTreeAttribute("health");
@@ -113,14 +116,19 @@ public class EntityBehaviorSerpentHitProxies : EntityBehavior
         for (int i = 0; i < offsets.Length; i++)
         {
             Entity proxy = proxies[i];
-            if (proxy == null || !proxy.Alive)
+            // An unload leaves Alive true and only marks the entity
+            // despawned. Tested on Alive alone, a proxy unloaded with a far
+            // chunk (the Leviathan's tail is 200 blocks from its head) was
+            // moved about as a ghost for good and that stretch of the body
+            // could not be hit.
+            if (Lost(proxy))
             {
                 proxy = proxyIds[i] != 0 ? entity.World.GetEntityById(proxyIds[i]) : null;
                 proxies[i] = proxy;
             }
 
             bool fresh = false;
-            if (proxy == null || !proxy.Alive)
+            if (Lost(proxy))
             {
                 if (!maySpawn) continue;
                 proxy = SpawnProxyAt(i);

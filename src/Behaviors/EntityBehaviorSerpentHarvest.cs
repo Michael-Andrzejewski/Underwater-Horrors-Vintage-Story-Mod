@@ -192,7 +192,13 @@ public class EntityBehaviorSerpentHarvest : EntityBehavior, IHarvestableDrops
             scanPos.Y = y;
             Block block = accessor.GetBlock(scanPos);
             if (block == null) continue;
-            if (block.Id != 0 && !block.IsLiquid() && block.Replaceable < 6000)
+            // Something to rest on has a collision box. Seaweed, seagrass and
+            // coral pass the replaceable test but have none: a kelp bed read
+            // as the floor, so serpents were lifted over it toward the
+            // surface, the Leviathan took it for a shoal, and corpses came to
+            // rest on top of the plants.
+            if (block.Id != 0 && !block.IsLiquid() && block.Replaceable < 6000
+                && block.CollisionBoxes != null && block.CollisionBoxes.Length > 0)
             {
                 return y + 1;
             }

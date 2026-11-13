@@ -30,6 +30,21 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 - The loudest ambient clip now plays at 0.55 to match the other (`MonsterSoundBelow2Volume`).
 - Natural anglerfish no longer pile up off a coast where a player lives. Each one leaves after `AnglerfishMaxStayHours` (3 in-game hours) even with a player close by; before, one stayed as long as its target was within 160 blocks at night or 48 by day, and a restart let more come. Stale ones from older versions leave on load.
 - Natural anglerfish are ten times rarer: `AnglerfishNightSpawnChance` 0.05 to 0.005 and `AnglerfishShoreSpawnChance` 0.25 to 0.025. Configs still at the old defaults move over; tuned values stay.
+- The anglerfish's lure is the whole temporal gear now, with the square hole and eight teeth (one bar of the vanilla model was missing), and it turns slowly, faster while cast. Its hide has two dotted rows of glowing spots down each flank and brighter clusters, which trace its outline at night. Its bite opens skull up as well as jaw down, with gills flared, and it shakes its head after the snap; idle, swim, hurt and die clips are livelier too.
+- A serpent no longer appears every time a player wades at the water's edge near a ruin. The spawner block armed on any water at the player's feet; the serpent then left because the water was too shallow, which put the block back, which armed again a second later. The block now needs water at least `ShallowWaterThreshold` deep under the player.
+- Creatures stop hunting a player who logged off. The server keeps such a player with a frozen entity that still reads as alive, so serpents kept biting the spot, a kraken could grab and crush them while offline, and the creature never left and kept filling the living-creature cap. The creature now takes the nearest online player or leaves.
+- A temporal storm no longer brings a second creature almost at once: the extra-creature chance is multiplied by `StormSpawnOddsFactor` (0.005 becomes 0.025) instead of jumping to 0.8.
+- A config file with a typo is no longer overwritten with defaults: the mod logs the error, runs on defaults for the session and leaves the file alone. Entries removed from the ruin loot maps (`RuinIngotTypes` and the two per-structure maps) now stay removed.
+- A backwards `SerpentSpawnDepthMin`/`Max` no longer crashes the server on the first spawn; the check intervals, `DespawnMaxDistance` and `MinSaltwaterDepth` are clamped to sane minimums.
+- Seaweed and coral count as water in the remaining places that missed them: the spawn depth count (tall kelp made deep sea read as shallow), spawner blocks, the natural kraken's placement, the sea-floor test under serpents and corpses, and all of the anglerfish's water tests (a diver in seaweed could not be struck, and the gear could not pass a kelp bed).
+- A show model (`/uh kraken show`) or a command-placed anglerfish no longer fills the living-creature cap and stops natural spawning.
+- A natural kraken no longer spawns in one block of water at a steep shore or under the roof of a flooded cave: it needs 10 blocks of water with open sky over them.
+- Kraken corpses decay in half an in-game hour as intended, not 96 (the entity files used a key the game does not read).
+- A tentacle promoted next to a creative-mode player no longer shoots off toward the world's corner.
+- An anglerfish startled while its back is out of the water dives first; it used to hang in the air until its flee timer removed it.
+- Rust Leviathan: body parts unloaded with a far chunk become hittable again, it no longer holds the gulp pose through its retreat after a killing bite, and its deep silhouette and glow survive a graphics-settings change.
+- A serpent rising under a player who climbed onto a pier or cliff surfaces and reacts instead of bobbing below; a bite no longer lands on a player who teleported away mid-strike.
+- `/uh killall` removes corpses too. Water lilies no longer count as water. The water test no longer caches block ids (they were shared between threads and wrong after switching worlds).
 
 ### 0.25.3
 

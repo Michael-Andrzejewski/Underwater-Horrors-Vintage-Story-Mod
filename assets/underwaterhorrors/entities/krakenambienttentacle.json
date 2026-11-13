@@ -22,7 +22,7 @@
     "server": {
         "behaviors": [
             { "code": "health", "currenthealth": 30, "maxhealth": 30 },
-            { "code": "deaddecay", "decayHours": 0.25 },
+            { "code": "deaddecay", "hoursToDecay": 0.25 },
             { "code": "controlledphysics", "stepHeight": 0.0 },
             { "code": "underwaterhorrors:ambienttentacle" }
         ]

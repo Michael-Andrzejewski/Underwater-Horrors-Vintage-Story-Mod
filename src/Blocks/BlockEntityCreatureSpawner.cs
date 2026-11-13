@@ -138,9 +138,17 @@ public class BlockEntityCreatureSpawner : BlockEntity
             // water arms the spawner too.
             if (RequireWater)
             {
-                Block feet = sapi.World.BlockAccessor.GetBlock(p.Entity.Pos.AsBlockPos);
+                // The fluid layer: a swimmer inside seaweed is in water too.
+                Block feet = sapi.World.BlockAccessor.GetBlock(p.Entity.Pos.AsBlockPos, BlockLayersAccess.Fluid);
                 bool inWater = feet != null && WaterHelper.IsWaterBlock(feet);
                 if (!inWater && !IsMountedOverWater(sapi, p)) continue;
+                // Deep enough that the creature will stay. A serpent turns
+                // back and leaves when its prey stands in water shallower
+                // than ShallowWaterThreshold, and leaving puts this block
+                // back, which armed again a second later: a player wading at
+                // the water's edge near a ruin got a serpent every time, for
+                // as long as they stood there.
+                if (TargetingHelper.IsShallowWaterAt(sapi.World, p, Math.Max(1, config.ShallowWaterThreshold))) continue;
             }
 
             best = p;
@@ -165,10 +173,10 @@ public class BlockEntityCreatureSpawner : BlockEntity
         for (int y = feet.Y; y >= limit; y--)
         {
             probe.Y = y;
-            Block b = sapi.World.BlockAccessor.GetBlock(probe);
-            if (b == null) continue;
-            if (WaterHelper.IsWaterBlock(b)) return true;
-            if (b.Id != 0) return false;   // solid ground before any water
+            Block fluid = sapi.World.BlockAccessor.GetBlock(probe, BlockLayersAccess.Fluid);
+            if (WaterHelper.IsWaterBlock(fluid)) return true;
+            Block solid = sapi.World.BlockAccessor.GetBlock(probe, BlockLayersAccess.Solid);
+            if (solid != null && solid.Id != 0) return false;   // solid ground before any water
         }
         return false;
     }
@@ -399,7 +407,8 @@ public class BlockEntityCreatureSpawner : BlockEntity
         for (int y = Pos.Y + 1; y <= Pos.Y + 10; y++)
         {
             pos.Y = y;
-            Block b = accessor.GetBlock(pos);
+            // The fluid layer, so seaweed over the spawner does not read as a roof.
+            Block b = accessor.GetBlock(pos, BlockLayersAccess.Fluid);
             if (b == null || !WaterHelper.IsWaterBlock(b)) break;
             best = y;
         }
@@ -415,8 +424,11 @@ public class BlockEntityCreatureSpawner : BlockEntity
         for (int y = Pos.Y - 1; y >= limit; y--)
         {
             pos.Y = y;
+            // A cell that still holds water is not the floor, whatever grows
+            // in it: a kraken was set down on top of a kelp bed.
+            if (WaterHelper.IsWaterBlock(accessor.GetBlock(pos, BlockLayersAccess.Fluid))) continue;
             Block b = accessor.GetBlock(pos);
-            if (b != null && b.Id != 0 && !WaterHelper.IsWaterBlock(b)) return y + 1;
+            if (b != null && b.Id != 0) return y + 1;
         }
         return -1;
     }

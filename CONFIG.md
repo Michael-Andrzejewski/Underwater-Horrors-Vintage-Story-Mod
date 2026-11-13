@@ -26,7 +26,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `KrakenSpawnChanceNight` | float | `0.10f` | The same chance at night. |
 | **Temporal storms** | | | |
 | `StormFrenzyEnabled` | bool | `true` | While a temporal storm rages, the sea turns on anyone out on it. The settings below apply only during a storm; turn this off to keep storms like any other time. /uh stormfrenzy on\|off\|auto forces it for the session, for testing. |
-| `StormSpawnOddsFactor` | float | `5f` | The chance of NOT spawning is divided by this, for the spawn roll (SpawnChancePerCheck) and the extra-creature roll (SecondCreatureSpawnChance): with 5, 0.1 becomes 0.82 and 0.75 becomes 0.95. A chance set to 0 stays 0. Which creature comes (kraken, anglerfish, serpent) keeps its usual odds, except the leviathan below. |
+| `StormSpawnOddsFactor` | float | `5f` | For the spawn roll (SpawnChancePerCheck) the chance of NOT spawning is divided by this: with 5, 0.1 becomes 0.82 and 0.75 becomes 0.95. The extra-creature roll (SecondCreatureSpawnChance) is multiplied by it instead: 0.005 becomes 0.025, so a second creature on the same player stays uncommon. A chance set to 0 stays 0. Which creature comes (kraken, anglerfish, serpent) keeps its usual odds, except the leviathan below. |
 | `StormMinSaltwaterDepth` | int | `15` | Water under the player must be this deep for a serpent, instead of MinSaltwaterDepth. The kraken and the anglerfish still need MinSaltwaterDepth, and the leviathan open ocean. |
 | `StormMaxLivingCreatures` | int | `5` | Hard cap on living creatures in the whole world during a storm, in place of MaxLivingCreatures. Nothing spawns past it. |
 | `StormRustSerpentsOnly` | bool | `true` | Every serpent that spawns is a rust serpent. |
@@ -188,6 +188,7 @@ Properties ending in `Migrated` or `Applied` are one-shot upgrade markers. Leave
 | `AnglerfishBiteDamage` | float | `50f` | Damage of the gulp. |
 | `AnglerfishDamageTier` | int | `3` | Armor piercing tier of the gulp. |
 | `AnglerfishGiantMigrated` | bool | `false` | One-shot upgrade marker. |
+| `AnglerfishRarityMigrated` | bool | `false` | One-shot migration flag for the ten times rarer anglerfish; see Validate(). |
 | **Kraken body** | | | |
 | `KrakenContactDamage` | float | `25f` | Damage each second to a player touching the kraken's body. |
 | `KrakenContactRange` | float | `3f` | How close to the body counts as touching it, in blocks. |

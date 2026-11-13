@@ -96,7 +96,8 @@ public class SerpentTrail
         {
             double dx = HeadX - xs[newest], dy = HeadY - ys[newest], dz = HeadZ - zs[newest];
             double d = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-            if (d < Spacing) break;
+            // Written so a NaN distance also ends the loop instead of spinning forever.
+            if (!(d >= Spacing)) break;
             double t = Spacing / d;
             Add(xs[newest] + dx * t, ys[newest] + dy * t, zs[newest] + dz * t, odos[newest] + Spacing);
         }
