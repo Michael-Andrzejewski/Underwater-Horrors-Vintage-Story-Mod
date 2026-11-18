@@ -622,22 +622,12 @@ public class UnderwaterHorrorsConfig
     // Armor piercing tier of its bite.
     public int GiantSerpentDamageTier { get; set; } = 5;
     public bool GiantSerpentTierMigrated { get; set; } = false;
-    // Whether the giant swallows rafts and breaks other boats. Off, boats
-    // are never harmed: every bite on a boat hurts its riders by
-    // GiantSerpentRiderDamage instead, and they stay aboard.
+    // Whether the giant swallows rafts. Other boats are never harmed. Off,
+    // rafts are spared too.
     public bool GiantSerpentDestroysBoats { get; set; } = true;
-    // Damage to each rider when the giant swallows or breaks their boat.
-    // They land in the water, where it can come back for them. With
-    // GiantSerpentDestroysBoats off, the damage of each bite on their boat.
+    // Damage to each rider when the giant bites their boat or raft. They are
+    // thrown into the water, where it can come back for them.
     public float GiantSerpentRiderDamage { get; set; } = 8f;
-    // Bites it takes to break a boat that is not a raft (the sailboat).
-    // A raft always goes down in one gulp.
-    public int GiantSerpentBitesToSinkBoat { get; set; } = 3;
-    // Damage on a boat fades, since nothing can repair it. One bite is
-    // forgiven for every this many in-game hours since the boat's last bite,
-    // so 24 is one bite a day. 0 means bites stay on the boat for good. The
-    // count and the time are kept on the boat, in the save.
-    public float GiantSerpentBoatBiteForgiveHours { get; set; } = 24f;
     // Swimming speeds in blocks per second: cruising and circling, and the
     // final rush at its prey.
     public float GiantSerpentCruiseSpeed { get; set; } = 7f;
@@ -705,6 +695,9 @@ public class UnderwaterHorrorsConfig
     // head. When its prey comes close to its mouth, it swoops and gulps.
     // The first blow on the gear knocks a temporal gear loose and sends the
     // fish away; breaking the gear (10 health) drops another.
+    // Whether it comes on its own at all, at sea or off the shore. Off by
+    // default; /uh spawn anglerfish always works.
+    public bool AnglerfishNaturalSpawnEnabled { get; set; } = false;
     // Chance that a natural spawn at night is the anglerfish instead. Night
     // is outside DayKrakenStartHour..DayKrakenEndHour. It needs a coast
     // within AnglerfishCoastRange blocks of the player with water at least
@@ -1107,8 +1100,6 @@ public class UnderwaterHorrorsConfig
         GiantSerpentFleeDistance = Math.Max(20f, GiantSerpentFleeDistance);
         GiantSerpentBiteDamage = Math.Max(0f, GiantSerpentBiteDamage);
         GiantSerpentRiderDamage = Math.Max(0f, GiantSerpentRiderDamage);
-        GiantSerpentBitesToSinkBoat = Math.Max(1, GiantSerpentBitesToSinkBoat);
-        GiantSerpentBoatBiteForgiveHours = Math.Max(0f, GiantSerpentBoatBiteForgiveHours);
         GiantSerpentCruiseSpeed = Math.Clamp(GiantSerpentCruiseSpeed, 0.5f, 60f);
         GiantSerpentStrikeSpeed = Math.Clamp(GiantSerpentStrikeSpeed, GiantSerpentCruiseSpeed, 80f);
         GiantSerpentStalkSecondsMin = Math.Max(0f, GiantSerpentStalkSecondsMin);

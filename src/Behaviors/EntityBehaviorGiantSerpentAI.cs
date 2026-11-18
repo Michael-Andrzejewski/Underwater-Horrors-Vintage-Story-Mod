@@ -34,10 +34,10 @@ public enum GiantSerpentState
 /// Unlike the rust serpent it never rises to hiss or shows its fins between
 /// strikes. It circles deep under its prey (Circle), dives and lines up
 /// (Setup), then rushes up at it mouth first (Strike). A boat is the prey
-/// when its player sits in one: a raft goes in one gulp, a sailboat breaks
-/// after a few bites, and the riders land in the water (unless
-/// GiantSerpentDestroysBoats is off: then each bite hurts the riders and
-/// the boat stays afloat). Swimmers are bitten.
+/// when its player sits in one: a raft goes in one gulp (unless
+/// GiantSerpentDestroysBoats is off), any other boat is left whole, and
+/// either way the riders are hurt and thrown into the water. Swimmers are
+/// bitten.
 /// After every strike its head breaks the surface, and it rolls straight
 /// over and dives (Breach), then circles again. It never leaves the water:
 /// the mouth stops at the surface, and it turns away from shallows and
@@ -57,11 +57,6 @@ public enum GiantSerpentState
 /// </summary>
 public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature, ICageRage
 {
-    public const string BitesAttr = "underwaterhorrors:giantSerpentBites";
-    // In-game hour of the boat's last bite. Kept beside the count, so both
-    // are saved with the boat.
-    public const string LastBiteHourAttr = "underwaterhorrors:giantSerpentLastBiteHour";
-
     private const string AnimIdle = "idle";
     private const string AnimGape = "gape";
     private const string AnimGulp = "gulp";
@@ -766,56 +761,28 @@ public class EntityBehaviorGiantSerpentAI : EntityBehaviorOceanCreature, ICageRa
         }
         if (riders.Exists(IsPassiveObserver)) return;
 
-        if (!config.GiantSerpentDestroysBoats)
-        {
-            Log($"bit {boat.Code}, which it may not destroy ({riders.Count} rider(s))");
-            foreach (EntityPlayer rider in riders) BitePlayer(rider, config.GiantSerpentRiderDamage);
-            return;
-        }
-
-        var boatAttrs = boat.WatchedAttributes;
-        double nowHours = entity.World.Calendar.TotalHours;
-        int bites = BitesStillCounted(boatAttrs.GetInt(BitesAttr), boatAttrs.GetDouble(LastBiteHourAttr, -1),
-            nowHours, config.GiantSerpentBoatBiteForgiveHours) + 1;
-        bool raft = IsRaft(boat);
-        if (raft || bites >= config.GiantSerpentBitesToSinkBoat)
+        // A raft goes down in one gulp. Any other boat is left whole: the
+        // bite lands on its riders and throws them into the water.
+        if (IsRaft(boat) && config.GiantSerpentDestroysBoats)
         {
             Log($"swallowed {boat.Code} ({riders.Count} rider(s))");
             SpillCargo(boat);
-            // Death unmounts the riders.
             boat.Die(EnumDespawnReason.Death, new DamageSource
             {
                 Source = EnumDamageSource.Entity,
                 SourceEntity = entity,
                 Type = EnumDamageType.PiercingAttack
             });
-            foreach (EntityPlayer rider in riders)
-            {
-                if (rider.MountedOn != null) rider.TryUnmount();
-                BitePlayer(rider, config.GiantSerpentRiderDamage);
-            }
         }
         else
         {
-            boatAttrs.SetInt(BitesAttr, bites);
-            boatAttrs.SetDouble(LastBiteHourAttr, nowHours);
-            Log($"bit {boat.Code}, {bites}/{config.GiantSerpentBitesToSinkBoat} bites to sink it");
+            Log($"bit {boat.Code}, leaving it whole ({riders.Count} rider(s))");
         }
-    }
-
-    /// <summary>
-    /// How many earlier bites still count against a boat. One is forgiven for
-    /// every forgiveHours since its last bite, and a new bite restarts that
-    /// clock. forgiveHours of 0 keeps every bite. A boat bitten before this
-    /// rule has a count but no time on record (lastBiteHour below 0): when it
-    /// was bitten is unknown, so those bites are forgiven.
-    /// </summary>
-    public static int BitesStillCounted(int bites, double lastBiteHour, double nowHours, float forgiveHours)
-    {
-        if (bites <= 0 || forgiveHours <= 0) return Math.Max(0, bites);
-        if (lastBiteHour < 0) return 0;
-        double forgiven = Math.Floor(Math.Max(0, nowHours - lastBiteHour) / forgiveHours);
-        return forgiven >= bites ? 0 : bites - (int)forgiven;
+        foreach (EntityPlayer rider in riders)
+        {
+            if (rider.MountedOn != null) rider.TryUnmount();
+            BitePlayer(rider, config.GiantSerpentRiderDamage);
+        }
     }
 
     /// <summary>

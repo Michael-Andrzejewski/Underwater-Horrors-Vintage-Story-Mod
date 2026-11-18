@@ -19,7 +19,8 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 - Creatures no longer give up on a swimmer over seaweed or coral.
 - Ingot piles queued before 0.20.0 now follow the current loot config.
-- Rust Leviathan bite damage on a boat fades by one bite per in-game day (`GiantSerpentBoatBiteForgiveHours`, default 24, 0 keeps bites for good). Three quick bites still sink a boat.
+- The Rust Leviathan no longer breaks boats. A bite on a boat hurts each rider (`GiantSerpentRiderDamage`, 8) and throws them into the water. It still swallows rafts. `GiantSerpentBitesToSinkBoat` and `GiantSerpentBoatBiteForgiveHours` are gone.
+- The giant anglerfish no longer spawns on its own. New setting `AnglerfishNaturalSpawnEnabled` (default false) brings it back. `/uh spawn anglerfish` still works.
 - New setting `AnglerfishLureDropsGears` (default true) can stop the anglerfish lure giving temporal gears.
 - `MonsterSoundVolume` now also covers the Rust Leviathan's death sounds.
 - Creature sounds now fade with distance and come from a direction. Six clips were stereo, and the game's sound engine neither moves nor fades stereo sounds.
@@ -142,7 +143,7 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 - New creature: the Rust Leviathan (`giantserpent`), a rust serpent ten times the size, about 440 blocks from jaw to tail. Very rare: one natural serpent spawn in fifty (`GiantSerpentSpawnChance`). `/uh spawn giantserpent` brings one 100 to 140 blocks out.
 - It swims like a snake: its body follows the path its head took, with a side-to-side swimming wave, instead of swinging behind it as one keyframed piece. The model is the rust serpent's own, re-rooted at the mouth by `tools/giantserpent/build_shape.py`.
-- It never surfaces to hiss or show its fins. It circles far below its prey, dives, then rises mouth first and breaches. It swallows a raft in one gulp, breaks a sailboat in three bites (`GiantSerpentBitesToSinkBoat`) and drops the crew in the water with some damage (`GiantSerpentRiderDamage`). Swimmers take a 20 damage bite. It strikes only over water at least 20 blocks deep, so the shallows still save you.
+- It never surfaces to hiss or show its fins. It circles far below its prey, dives, then rises mouth first and breaches. It swallows a raft in one gulp. A bite on any other boat leaves the boat whole and throws the crew into the water with some damage (`GiantSerpentRiderDamage`). Swimmers take a 20 damage bite. It strikes only over water at least 20 blocks deep, so the shallows still save you.
 - 1500 health. Its carcass sinks, keeps its last curve, and harvests for six times a rust serpent's loot, with a trail of bone piles along its body.
 - New config section "Giant serpent" (see `CONFIG.md`).
 

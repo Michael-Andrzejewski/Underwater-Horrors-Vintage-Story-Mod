@@ -2095,7 +2095,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
             // in the deep water off the nearest coast, ahead of a player
             // heading for land.
             Entity creature = null;
-            if (!serpentsOnly && !IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance)
+            if (Config.AnglerfishNaturalSpawnEnabled && !serpentsOnly && !IsDaytime() && sapi.World.Rand.NextDouble() < Config.AnglerfishNightSpawnChance)
             {
                 creature = EntityBehaviorAnglerfishAI.SpawnNearCoast(sapi, player, natural: true);
                 if (creature != null && Config.DebugLogging)
@@ -2147,7 +2147,7 @@ public class UnderwaterHorrorsModSystem : ModSystem
     /// </summary>
     private Entity TryShoreAnglerfish(IServerPlayer player)
     {
-        if (Config.AnglerfishShoreSpawnChance <= 0) return null;
+        if (!Config.AnglerfishNaturalSpawnEnabled || Config.AnglerfishShoreSpawnChance <= 0) return null;
         double now = sapi.World.ElapsedMilliseconds / 1000.0;
         if (shoreCheckAt.TryGetValue(player.PlayerUID, out double at) && now < at) return null;
         var rand = sapi.World.Rand;
