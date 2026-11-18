@@ -20,6 +20,7 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 - Creatures no longer give up on a swimmer over seaweed or coral.
 - Ingot piles queued before 0.20.0 now follow the current loot config.
 - The Rust Leviathan no longer breaks boats. A bite on a boat hurts each rider (`GiantSerpentRiderDamage`, 8) and throws them into the water. It still swallows rafts. `GiantSerpentBitesToSinkBoat` and `GiantSerpentBoatBiteForgiveHours` are gone.
+- The surfacing sound and the deep ambient sounds are about 5 dB quieter, near the Erel's call, the loudest base game creature. Five clips no longer clip on their loudest hits.
 - The giant anglerfish no longer spawns on its own. New setting `AnglerfishNaturalSpawnEnabled` (default false) brings it back. `/uh spawn anglerfish` still works.
 - New setting `AnglerfishLureDropsGears` (default true) can stop the anglerfish lure giving temporal gears.
 - `MonsterSoundVolume` now also covers the Rust Leviathan's death sounds.
