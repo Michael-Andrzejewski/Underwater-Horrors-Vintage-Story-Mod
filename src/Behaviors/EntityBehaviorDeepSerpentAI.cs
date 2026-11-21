@@ -219,9 +219,9 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature, ICageRag
             PickSurfacePoint();
         }
 
-        if (state != SerpentState.Rising &&
-            state != SerpentState.Surfacing &&
-            state != SerpentState.Retreating)
+        // Runs while rising and surfacing too, so it never comes up to hiss
+        // at a player who is already ashore.
+        if (state != SerpentState.Retreating)
         {
             UpdateShallowWaterCheck(deltaTime);
             if (!IsInShallowWater) ResetLinger();
@@ -231,6 +231,11 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature, ICageRag
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                         "DeepSerpent: player in shallow water, retreating");
                 TransitionTo(SerpentState.Retreating);
+            }
+            else if (IsInShallowWater && state != SerpentState.Stalking)
+            {
+                // A spawner's linger keeps it here: it lurks below instead.
+                TransitionTo(SerpentState.Stalking);
             }
         }
 
@@ -594,6 +599,22 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature, ICageRag
     {
         if (targetPlayer?.Entity == null) return;
 
+        // Prey ashore while a spawner's linger holds it: wait submerged.
+        if (IsInShallowWater)
+        {
+            proximityBodyDwellTimer = 0;
+            if (!LurkSubmerged(deltaTime, config.SerpentApproachSpeed * 2,
+                    config.DeepSerpentMaxVerticalSpeed * 3, config.DeepSerpentVerticalSlewPerSec * 3))
+            {
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        "DeepSerpent: no deep water near the player ashore, giving up");
+                TransitionTo(SerpentState.Retreating);
+            }
+            return;
+        }
+        ResetLurk();
+
         bool playerMounted = TargetSafeOnMount;
 
         float radius;
@@ -745,7 +766,7 @@ public class EntityBehaviorDeepSerpentAI : EntityBehaviorOceanCreature, ICageRag
             return;
         }
 
-        if (TargetSafeOnMount)
+        if (TargetSafeOnMount || IsInShallowWater)
         {
             TransitionTo(SerpentState.Stalking);
             return;

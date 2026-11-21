@@ -265,10 +265,10 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature, ICageRage
             PickSurfacePoint();
         }
 
-        // Throttled shallow water check
-        if (state != SerpentState.Rising &&
-            state != SerpentState.Surfacing &&
-            state != SerpentState.Retreating)
+        // Throttled shallow water check. It runs while rising and surfacing
+        // too: a serpent that skipped it there came up and reared its hiss
+        // beside a player who had already climbed out onto the shore.
+        if (state != SerpentState.Retreating)
         {
             UpdateShallowWaterCheck(deltaTime);
 
@@ -279,6 +279,16 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature, ICageRage
                     UnderwaterHorrorsModSystem.DebugLog(entity.Api,
                         "Serpent: player in shallow water, retreating to spawn");
                 TransitionTo(SerpentState.Retreating);
+            }
+            else if (IsInShallowWater && state != SerpentState.Stalking)
+            {
+                // A spawner told it to stay while its prey is ashore. It
+                // stays below, in the stalk state's lurk, never rising,
+                // hissing or striking at someone out of the water.
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        "Serpent: player ashore, lurking submerged");
+                TransitionTo(SerpentState.Stalking);
             }
         }
 
@@ -659,6 +669,23 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature, ICageRage
     {
         if (targetPlayer?.Entity == null) return;
 
+        // Prey ashore or in the shallows (only reached while a spawner's
+        // linger holds it here): wait in deep water, fully submerged.
+        if (IsInShallowWater)
+        {
+            proximityBodyDwellTimer = 0;
+            if (!LurkSubmerged(deltaTime, config.SerpentApproachSpeed * 2,
+                    config.SerpentMaxVerticalSpeed, config.SerpentVerticalSlewPerSec))
+            {
+                if (config.DebugLogging)
+                    UnderwaterHorrorsModSystem.DebugLog(entity.Api,
+                        "Serpent: no deep water near the player ashore, giving up");
+                TransitionTo(SerpentState.Retreating);
+            }
+            return;
+        }
+        ResetLurk();
+
         bool playerMounted = TargetSafeOnMount;
 
         float radius;
@@ -831,6 +858,14 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature, ICageRage
             return;
         }
 
+        // Out of the water (a provoke or cage attempt can land here): no
+        // charge, windup or bite at someone on the shore.
+        if (IsInShallowWater)
+        {
+            TransitionTo(SerpentState.Stalking);
+            return;
+        }
+
         double px = targetPlayer.Entity.Pos.X;
         double py = targetPlayer.Entity.Pos.Y;
         double pz = targetPlayer.Entity.Pos.Z;
@@ -923,8 +958,9 @@ public class EntityBehaviorSerpentAI : EntityBehaviorOceanCreature, ICageRage
                 // The bite lands a second and a half after the windup. It is
                 // meant to connect whatever the prey does in the water, but
                 // not on someone who by then is dead, in another dimension
-                // or far away (a teleport, a translocator).
-                if (StrikeCanLand())
+                // or far away (a teleport, a translocator), nor on someone
+                // who made it out of the water.
+                if (StrikeCanLand() && !IsInShallowWater)
                 targetPlayer.Entity.ReceiveDamage(new DamageSource
                 {
                     Source = EnumDamageSource.Entity,

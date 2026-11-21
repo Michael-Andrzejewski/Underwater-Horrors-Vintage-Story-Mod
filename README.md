@@ -15,6 +15,12 @@ Mod DB: https://mods.vintagestory.at/show/mod/42270
 
 ## Changelog
 
+### 0.27.1
+
+- Serpents no longer chase a player who is out of the water. A spawner set to "stay while the player is ashore" now keeps its serpent waiting fully submerged in deep water nearby. It never surfaces, hisses or bites there, and it resumes the hunt if the player wades back out. With no deep water nearby it leaves.
+- A serpent no longer rises to hiss beside a player who has already climbed out. The shallow water check now runs while it rises and surfaces too.
+- With the player on land, serpents measure their depth from the sea surface, not the player's feet. They had cruised pinned at sea level, half out of the water, beside the shore.
+
 ### 0.27.0
 
 - The Rust Leviathan no longer breaks boats. A bite on a boat hurts each rider (`GiantSerpentRiderDamage`, 8) and throws them into the water. It still swallows rafts. `GiantSerpentBitesToSinkBoat` and `GiantSerpentBoatBiteForgiveHours` are gone.

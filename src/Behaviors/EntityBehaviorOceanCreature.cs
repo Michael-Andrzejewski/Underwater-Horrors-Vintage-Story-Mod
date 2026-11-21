@@ -303,7 +303,9 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         z = entity.Pos.Z;
     }
 
-    protected bool DeepEnoughAt(double x, double z)
+    protected bool DeepEnoughAt(double x, double z) => DeepEnoughAt(x, z, ShoreStopDepth);
+
+    protected bool DeepEnoughAt(double x, double z, int depth)
     {
         var accessor = entity.World.BlockAccessor;
         int top = entity.World.SeaLevel - 1;
@@ -311,7 +313,7 @@ public class EntityBehaviorOceanCreature : EntityBehavior
         shorePos.dimension = entity.Pos.Dimension;
         // Not loaded: no way to tell, so do not hold it back.
         if (accessor.GetChunkAtBlockPos(shorePos) == null) return true;
-        for (int i = 0; i < ShoreStopDepth; i++)
+        for (int i = 0; i < depth; i++)
         {
             shorePos.Y = top - i;
             // The fluid layer: seaweed and coral sit in the water, and the
@@ -374,7 +376,111 @@ public class EntityBehaviorOceanCreature : EntityBehavior
             Block block = accessor.GetBlock(scanPos);
             if (block != null && block.IsLiquid()) return y;
         }
-        return (int)fromY;
+        // No water under the player: they stand on land or a pier. Their
+        // feet are no guide to the water's surface there, and a serpent that
+        // took them as one cruised pinned at the ceiling, half out of the sea,
+        // beside a player on the shore. The sea's top block is.
+        return Math.Min((int)fromY, entity.World.SeaLevel - 1);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Lurking: the target is ashore or in the shallows
+    // ═══════════════════════════════════════════════════════════════════
+
+    private double lurkX, lurkZ;
+    private bool lurkPicked;
+    private float lurkRepickTimer;
+    private float lurkAngle;
+    private const float LurkDistMin = 14f;
+    private const float LurkDistMax = 40f;
+    private const float LurkCircleRadius = 4f;
+
+    /// <summary>Water this deep at a lurk spot keeps the whole body under the
+    /// waves: the cruise depth, the floor margin and the body's height.</summary>
+    private int LurkWaterDepth =>
+        (int)Math.Ceiling(config.SerpentNormalSubmergeDepth) + Math.Max(0, config.SerpentGroundClearance) + 2;
+
+    /// <summary>
+    /// What a serpent does while its target stands ashore or in the shallows
+    /// and a spawner's "stay while ashore" time keeps it from leaving: it
+    /// waits submerged in deep water nearby, never surfacing and never
+    /// striking, ready to resume the hunt if they wade back out. Call each
+    /// tick in place of the normal stalk. Returns false when there is no deep
+    /// water near the target to wait in; the caller should then give up.
+    /// </summary>
+    protected bool LurkSubmerged(float deltaTime, double horizSpeed, double maxVerticalSpeed, double verticalSlewPerSec)
+    {
+        var prey = targetPlayer?.Entity;
+        if (prey == null) return false;
+
+        lurkRepickTimer -= deltaTime;
+        double pdx = lurkX - prey.Pos.X, pdz = lurkZ - prey.Pos.Z;
+        double preyDist = Math.Sqrt(pdx * pdx + pdz * pdz);
+        if (!lurkPicked || lurkRepickTimer <= 0 || preyDist > LurkDistMax + 10)
+        {
+            if (!TryPickLurkSpot(prey.Pos.X, prey.Pos.Z)) return false;
+        }
+
+        lurkAngle += 0.25f * deltaTime;
+        double tx = lurkX + Math.Cos(lurkAngle) * LurkCircleRadius;
+        double tz = lurkZ + Math.Sin(lurkAngle) * LurkCircleRadius;
+        double ty = WaterTopAt(lurkX, lurkZ) - config.SerpentNormalSubmergeDepth;
+        MoveTowardDamped(tx, ty, tz, horizSpeed, maxVerticalSpeed, verticalSlewPerSec, deltaTime);
+        return true;
+    }
+
+    /// <summary>Forget the lurk spot, so the next lurk picks a fresh one.</summary>
+    protected void ResetLurk() => lurkPicked = false;
+
+    private bool TryPickLurkSpot(double cx, double cz)
+    {
+        int depth = LurkWaterDepth;
+        var rand = entity.World.Rand;
+        // The creature's own spot first, if it is deep and a fair way off.
+        double sdx = entity.Pos.X - cx, sdz = entity.Pos.Z - cz;
+        double selfDist = Math.Sqrt(sdx * sdx + sdz * sdz);
+        if (selfDist >= LurkDistMin && selfDist <= LurkDistMax && LurkSpotOk(entity.Pos.X, entity.Pos.Z, depth))
+        {
+            SetLurk(entity.Pos.X, entity.Pos.Z);
+            return true;
+        }
+        for (int i = 0; i < 24; i++)
+        {
+            double angle = rand.NextDouble() * Math.PI * 2;
+            double dist = LurkDistMin + rand.NextDouble() * (LurkDistMax - LurkDistMin);
+            double x = cx + Math.Cos(angle) * dist;
+            double z = cz + Math.Sin(angle) * dist;
+            if (!LurkSpotOk(x, z, depth)) continue;
+            SetLurk(x, z);
+            return true;
+        }
+        return false;
+    }
+
+    private void SetLurk(double x, double z)
+    {
+        lurkX = x;
+        lurkZ = z;
+        lurkPicked = true;
+        lurkRepickTimer = 20f;
+    }
+
+    // The spot and four points around it, out past the circle it swims and
+    // most of a body length, all hold the depth.
+    private bool LurkSpotOk(double x, double z, int depth)
+    {
+        double r = LurkCircleRadius + 8;
+        return DeepEnoughAt(x, z, depth)
+            && DeepEnoughAt(x + r, z, depth) && DeepEnoughAt(x - r, z, depth)
+            && DeepEnoughAt(x, z + r, depth) && DeepEnoughAt(x, z - r, depth);
+    }
+
+    /// <summary>Y of the top water block at (x, z), scanning down from the
+    /// creature ceiling; the sea's top block when none is found.</summary>
+    protected int WaterTopAt(double x, double z)
+    {
+        int from = (int)Math.Floor(CreatureCeilingY);
+        return FindWaterSurfaceYBelow(x, from, z, entity.Pos.Dimension, 8);
     }
 
     /// <summary>
